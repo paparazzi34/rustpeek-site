@@ -1,0 +1,825 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RustPeek — веб-версия</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#100d0b;
+  --surface:#1a1512;
+  --surface-2:#221b16;
+  --rust:#c9501e;
+  --rust-hot:#e86a2f;
+  --patina:#7a8450;
+  --green:#6fae5c;
+  --yellow:#d9a53f;
+  --red:#c94a3a;
+  --bone:#e8e0d2;
+  --steel:#8a8078;
+  --line:#2c241d;
+  --font-display:'Unbounded', system-ui, sans-serif;
+  --font-body:'IBM Plex Sans', system-ui, sans-serif;
+  --font-mono:'JetBrains Mono', ui-monospace, monospace;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{
+  background:var(--bg);
+  color:var(--bone);
+  font-family:var(--font-body);
+  font-size:15.5px;
+  line-height:1.55;
+  min-height:100vh;
+}
+body::before{
+  content:'';position:fixed;inset:0;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='0.045'/%3E%3C/svg%3E");
+  pointer-events:none;z-index:1000;mix-blend-mode:overlay;
+}
+::selection{background:var(--rust);color:var(--bg)}
+button{font-family:inherit;color:inherit;background:none;border:none;cursor:pointer}
+input{font-family:inherit;color:inherit}
+
+/* ---------- APP SHELL ---------- */
+.shell{max-width:1100px;margin:0 auto;padding:0 20px 80px}
+.topbar{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:20px 0 16px;
+}
+.logo{
+  font-family:var(--font-display);font-weight:700;font-size:19px;
+  display:flex;align-items:center;gap:10px;
+  color:var(--bone);text-decoration:none;
+}
+.logo:hover b{color:var(--rust)}
+/* подписи под вкладками */
+.panel__cap{
+  font-family:var(--font-mono);font-size:12.5px;color:var(--steel);
+  margin-bottom:16px;
+  display:flex;align-items:center;gap:10px;
+}
+.panel__cap::before{content:'';width:22px;height:1px;background:var(--rust);flex:none}
+.panel__cap b{color:var(--bone);font-weight:600}
+/* счётчик выдачи */
+.srvcount{
+  font-family:var(--font-mono);font-size:12.5px;color:var(--steel);
+  margin:-6px 0 12px;
+}
+.srvcount b{color:var(--rust-hot);font-weight:600}
+/* футер приложения */
+.appfoot{
+  margin-top:56px;padding-top:20px;
+  border-top:1px solid var(--line);
+  display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px;
+  font-family:var(--font-mono);font-size:12.5px;color:var(--steel);
+}
+.appfoot a{color:var(--steel);text-decoration:none;transition:color .2s}
+.appfoot a:hover{color:var(--rust-hot)}
+.logo b{color:var(--rust-hot);font-weight:800}
+.logo__dot{width:8px;height:8px;border-radius:50%;background:var(--rust-hot);
+  box-shadow:0 0 12px var(--rust-hot);animation:pulse 2.4s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+.topbar__user{
+  font-family:var(--font-mono);font-size:12.5px;color:var(--steel);
+  display:flex;align-items:center;gap:8px;
+}
+.topbar__ava{width:26px;height:26px;border-radius:50%;background:linear-gradient(135deg,var(--rust),var(--surface-2));
+  border:1px solid var(--line)}
+
+/* ---------- TABS ---------- */
+.tabs{
+  display:flex;gap:6px;
+  border-bottom:1px solid var(--line);
+  overflow-x:auto;
+  scrollbar-width:none;
+}
+.tabs::-webkit-scrollbar{display:none}
+.tab{
+  font-family:var(--font-body);font-weight:600;font-size:14.5px;
+  color:var(--steel);
+  padding:12px 18px 14px;
+  position:relative;
+  white-space:nowrap;
+  display:flex;align-items:center;gap:8px;
+  transition:color .2s;
+}
+.tab svg{stroke:currentColor;flex:none}
+.tab:hover{color:var(--bone)}
+.tab.is-active{color:var(--bone)}
+.tab.is-active::after{
+  content:'';position:absolute;left:12px;right:12px;bottom:-1px;height:2px;
+  background:var(--rust-hot);
+  box-shadow:0 0 10px rgba(232,106,47,.5);
+}
+.tab__badge{
+  font-family:var(--font-mono);font-size:11px;
+  background:rgba(201,80,30,.18);color:var(--rust-hot);
+  padding:1px 7px;border-radius:10px;
+}
+
+/* ---------- PANELS ---------- */
+.panel{display:none;padding-top:24px;animation:fadein .25s ease}
+.panel.is-active{display:block}
+@keyframes fadein{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+/* ---------- SEARCH ---------- */
+.search{
+  display:flex;gap:10px;margin-bottom:16px;
+}
+.search__input{
+  flex:1;
+  background:var(--surface);
+  border:1px solid var(--line);
+  border-radius:5px;
+  padding:12px 16px;
+  font-size:15px;
+  outline:none;
+  transition:border-color .2s;
+}
+.search__input::placeholder{color:var(--steel)}
+.search__input:focus{border-color:var(--rust)}
+.search__btn{
+  background:var(--rust);color:#fff;font-weight:600;font-size:14.5px;
+  padding:0 22px;border-radius:5px;
+  transition:background .2s;
+}
+.search__btn:hover{background:var(--rust-hot)}
+
+/* ---------- CHIPS ---------- */
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px}
+.chip{
+  font-family:var(--font-mono);font-size:12.5px;
+  color:var(--steel);
+  border:1px solid var(--line);
+  border-radius:20px;
+  padding:6px 14px;
+  transition:all .18s;
+}
+.chip:hover{border-color:var(--steel);color:var(--bone)}
+.chip.is-on{
+  border-color:var(--rust);color:var(--rust-hot);
+  background:rgba(201,80,30,.1);
+}
+
+/* ---------- SERVER LIST ---------- */
+.srvlist{display:flex;flex-direction:column;gap:10px}
+.srv{
+  background:var(--surface);
+  border:1px solid var(--line);
+  border-radius:6px;
+  padding:16px 18px;
+  display:grid;
+  grid-template-columns:14px 1fr auto;
+  gap:14px;align-items:center;
+  cursor:pointer;
+  transition:border-color .2s, transform .15s;
+  text-align:left;width:100%;
+}
+.srv:hover{border-color:rgba(201,80,30,.5);transform:translateX(3px)}
+.srv__dot{width:10px;height:10px;border-radius:50%;justify-self:center}
+.srv__dot--fresh{background:var(--green);box-shadow:0 0 8px rgba(111,174,92,.6)}
+.srv__dot--old{background:var(--red);box-shadow:0 0 8px rgba(201,74,58,.5)}
+.srv__dot--soon{background:var(--yellow);box-shadow:0 0 8px rgba(217,165,63,.55)}
+.srv__name{font-weight:600;font-size:15px}
+.srv__meta{
+  font-family:var(--font-mono);font-size:12.5px;color:var(--steel);
+  margin-top:3px;display:flex;gap:14px;flex-wrap:wrap;
+}
+.srv__meta b{color:var(--bone);font-weight:600}
+.srv__wipe{
+  font-family:var(--font-mono);font-size:12.5px;text-align:right;
+}
+.srv__wipe .w{color:var(--bone)}
+.srv__wipe .cyc{color:var(--steel);display:block;margin-top:2px}
+.srvlist__empty{
+  text-align:center;color:var(--steel);padding:50px 20px;
+  font-size:15px;
+}
+.srvlist__empty b{color:var(--bone)}
+
+/* ---------- SERVER DETAIL ---------- */
+.detail{
+  background:var(--surface);
+  border:1px solid rgba(201,80,30,.35);
+  border-radius:6px;
+  padding:24px;
+  margin:0 auto 14px;
+  max-width:720px;
+  position:relative;
+}
+.detail__back{
+  font-family:var(--font-mono);font-size:12.5px;color:var(--steel);
+  margin-bottom:16px;display:inline-flex;align-items:center;gap:6px;
+  transition:color .2s;
+}
+.detail__back:hover{color:var(--rust-hot)}
+.detail__title{font-family:var(--font-display);font-weight:700;font-size:19px;margin-bottom:4px}
+.detail__sub{font-family:var(--font-mono);font-size:12.5px;color:var(--steel);margin-bottom:20px}
+.detail__grid{
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+  gap:10px;margin-bottom:22px;
+}
+.stat{
+  background:var(--surface-2);
+  border:1px solid var(--line);
+  border-radius:5px;
+  padding:12px 14px;
+}
+.stat__k{font-family:var(--font-mono);font-size:11px;color:var(--steel);
+  text-transform:uppercase;letter-spacing:.08em;margin-bottom:5px}
+.stat__v{font-family:var(--font-mono);font-size:16px;font-weight:600}
+.stat__v small{font-size:12px;color:var(--steel);font-weight:400}
+.stat__v.hot{color:var(--rust-hot)}
+.stat__v.ok{color:var(--green)}
+.days__head{
+  display:flex;justify-content:space-between;align-items:baseline;
+  font-family:var(--font-mono);font-size:12.5px;color:var(--steel);
+  margin-bottom:14px;flex-wrap:wrap;gap:6px;
+}
+.days__head b{color:var(--bone)}
+.dayrow{
+  display:grid;grid-template-columns:128px 1fr 104px;
+  align-items:center;gap:12px;
+  padding:5px 0;
+  font-family:var(--font-mono);font-size:12.5px;
+}
+.dayrow__label{color:var(--steel)}
+.dayrow__label.is-wipe{color:var(--rust-hot);font-weight:600}
+.dayrow__label.is-gap{color:var(--line)}
+.dayrow__bar{
+  height:13px;border-radius:2px;
+  background:linear-gradient(90deg,var(--rust),var(--rust-hot));
+  width:0%;
+  transition:width .8s cubic-bezier(.2,.7,.2,1);
+  min-width:2px;
+}
+.dayrow--dead .dayrow__bar{background:var(--line)}
+.dayrow--gap .dayrow__bar{background:repeating-linear-gradient(45deg,var(--line),var(--line) 4px,transparent 4px,transparent 8px);height:8px}
+.dayrow__val{color:var(--bone);text-align:right}
+.dayrow__val small{color:var(--steel)}
+.detail__memory{
+  margin-top:18px;padding-top:16px;border-top:1px dashed var(--line);
+  font-family:var(--font-mono);font-size:12.5px;color:var(--steel);
+}
+.detail__memory b{color:var(--rust-hot)}
+.cycle-div{
+  font-family:var(--font-mono);font-size:11px;color:var(--patina);
+  text-transform:uppercase;letter-spacing:.08em;
+  margin:14px 0 6px;padding-top:10px;border-top:1px dashed var(--line);
+}
+.cycle-div:first-child{margin-top:0;padding-top:0;border-top:none}
+.days-warn{
+  font-family:var(--font-mono);font-size:12.5px;color:var(--yellow);
+  padding:10px 0;
+}
+.srv-loading, .srv-error{
+  font-family:var(--font-mono);font-size:13.5px;color:var(--steel);
+  padding:30px 0;text-align:center;
+}
+.srv-error{color:var(--yellow)}
+.srvcount.is-loading{opacity:.5}
+
+/* ---------- PLAYERS ---------- */
+.pcard{
+  background:var(--surface);
+  border:1px solid var(--line);
+  border-radius:6px;
+  padding:24px;
+}
+.pcard__head{display:flex;gap:18px;align-items:center;flex-wrap:wrap;margin-bottom:22px}
+.pcard__ava{
+  width:64px;height:64px;border-radius:6px;
+  background:linear-gradient(135deg,var(--surface-2),#2e2118);
+  border:1px solid var(--line);
+  display:flex;align-items:center;justify-content:center;
+  font-family:var(--font-display);font-weight:800;font-size:24px;color:var(--rust-hot);
+}
+.pcard__nick{font-family:var(--font-display);font-weight:700;font-size:20px}
+.pcard__id{font-family:var(--font-mono);font-size:12.5px;color:var(--steel);margin-top:3px}
+.pcard__status{
+  margin-left:auto;
+  font-family:var(--font-mono);font-size:12.5px;
+  display:flex;align-items:center;gap:8px;
+}
+.pcard__status .dot{width:9px;height:9px;border-radius:50%}
+.pcard__status.on{color:var(--green)}
+.pcard__status.on .dot{background:var(--green);box-shadow:0 0 8px rgba(111,174,92,.6)}
+.pcard__status.off{color:var(--steel)}
+.pcard__status.off .dot{background:var(--steel)}
+/* trust gauge */
+.trust{display:flex;gap:20px;align-items:center;margin-bottom:24px;flex-wrap:wrap}
+.trust__ring{position:relative;width:96px;height:96px;flex:none}
+.trust__ring svg{transform:rotate(-90deg)}
+.trust__ring circle{fill:none;stroke-width:8}
+.trust__ring .bgc{stroke:var(--line)}
+.trust__ring .fgc{
+  stroke:var(--green);
+  stroke-linecap:round;
+  stroke-dasharray:264;
+  stroke-dashoffset:264;
+  transition:stroke-dashoffset 1.1s cubic-bezier(.2,.7,.2,1);
+}
+.trust__num{
+  position:absolute;inset:0;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  font-family:var(--font-mono);
+}
+.trust__num b{font-size:24px;font-weight:600;color:var(--green)}
+.trust__num span{font-size:10px;color:var(--steel);text-transform:uppercase;letter-spacing:.08em}
+.trust__desc{font-size:14.5px;color:var(--steel);max-width:46ch}
+.trust__desc b{color:var(--bone)}
+.phist__title{
+  font-family:var(--font-mono);font-size:12px;color:var(--steel);
+  text-transform:uppercase;letter-spacing:.1em;margin-bottom:12px;
+}
+.phist{display:flex;flex-direction:column;gap:8px}
+.phist__row{
+  display:grid;grid-template-columns:1fr auto auto;gap:14px;
+  background:var(--surface-2);
+  border:1px solid var(--line);
+  border-radius:5px;
+  padding:11px 14px;
+  font-size:14px;
+  align-items:center;
+}
+.phist__srv{font-weight:600}
+.phist__hours{font-family:var(--font-mono);font-size:12.5px;color:var(--steel)}
+.phist__when{font-family:var(--font-mono);font-size:12.5px;color:var(--steel)}
+.phist__row.is-now{border-color:rgba(111,174,92,.4)}
+.phist__row.is-now .phist__when{color:var(--green)}
+
+/* ---------- WATCHLIST ---------- */
+.wl{display:flex;flex-direction:column;gap:8px}
+.wl__row{
+  display:grid;grid-template-columns:12px 1fr auto auto;
+  gap:14px;align-items:center;
+  background:var(--surface);
+  border:1px solid var(--line);
+  border-radius:6px;
+  padding:14px 16px;
+  transition:border-color .2s;
+}
+.wl__row:hover{border-color:rgba(201,80,30,.4)}
+.wl__dot{width:9px;height:9px;border-radius:50%;justify-self:center}
+.wl__dot.on{background:var(--green);box-shadow:0 0 8px rgba(111,174,92,.6)}
+.wl__dot.off{background:var(--steel);opacity:.5}
+.wl__dot.hidden{background:var(--yellow);box-shadow:0 0 8px rgba(217,165,63,.5)}
+.wl__nick{font-weight:600;font-size:14.5px}
+.wl__where{font-family:var(--font-mono);font-size:12px;color:var(--steel);margin-top:2px}
+.wl__where b{color:var(--green);font-weight:600}
+.wl__time{font-family:var(--font-mono);font-size:12px;color:var(--steel)}
+.wl__del{
+  font-family:var(--font-mono);font-size:12px;color:var(--steel);
+  padding:6px 10px;border-radius:4px;
+  transition:color .2s, background .2s;
+}
+.wl__del:hover{color:var(--red);background:rgba(201,74,58,.1)}
+.wl__hint{
+  margin-top:16px;font-size:13.5px;color:var(--steel);
+  font-family:var(--font-mono);
+}
+
+/* ---------- RUST+ ---------- */
+.rp__connect{
+  background:var(--surface);
+  border:1px solid var(--line);
+  border-radius:6px;
+  padding:18px 20px;
+  display:flex;align-items:center;gap:14px;
+  margin-bottom:18px;flex-wrap:wrap;
+}
+.rp__connect .dot{width:9px;height:9px;border-radius:50%;background:var(--green);box-shadow:0 0 8px rgba(111,174,92,.6)}
+.rp__connect b{font-weight:600}
+.rp__connect span{font-family:var(--font-mono);font-size:12.5px;color:var(--steel)}
+.toggle{
+  margin-left:auto;
+  display:flex;align-items:center;gap:10px;
+  font-family:var(--font-mono);font-size:12.5px;color:var(--steel);
+}
+.toggle__sw{
+  width:40px;height:22px;border-radius:20px;
+  background:var(--line);
+  position:relative;
+  transition:background .2s;
+}
+.toggle__sw::after{
+  content:'';position:absolute;top:3px;left:3px;
+  width:16px;height:16px;border-radius:50%;
+  background:var(--steel);
+  transition:transform .2s, background .2s;
+}
+.toggle.is-on .toggle__sw{background:rgba(201,80,30,.5)}
+.toggle.is-on .toggle__sw::after{transform:translateX(18px);background:var(--rust-hot)}
+.toggle.is-on{color:var(--rust-hot)}
+.feed{display:flex;flex-direction:column;gap:8px}
+.alert{
+  display:grid;grid-template-columns:38px 1fr auto;gap:14px;align-items:center;
+  background:var(--surface);
+  border:1px solid var(--line);
+  border-left:3px solid var(--line);
+  border-radius:6px;
+  padding:13px 16px;
+}
+.alert--raid{border-left-color:var(--red)}
+.alert--alarm{border-left-color:var(--yellow)}
+.alert--death{border-left-color:var(--steel)}
+.alert--event{border-left-color:var(--patina)}
+.alert__icon{
+  width:34px;height:34px;border-radius:5px;
+  background:var(--surface-2);
+  display:flex;align-items:center;justify-content:center;
+  font-size:16px;
+}
+.alert__text{font-size:14px}
+.alert__text b{font-weight:600}
+.alert__srv{font-family:var(--font-mono);font-size:11.5px;color:var(--steel);margin-top:2px}
+.alert__time{font-family:var(--font-mono);font-size:12px;color:var(--steel)}
+
+@media(max-width:680px){
+  .srv{grid-template-columns:12px 1fr}
+  .srv__wipe{grid-column:2;text-align:left;margin-top:4px}
+  .phist__row{grid-template-columns:1fr auto}
+  .phist__hours{display:none}
+  .dayrow{grid-template-columns:104px 1fr 88px;gap:8px;font-size:11.5px}
+}
+@media(prefers-reduced-motion:reduce){
+  *{animation:none!important;transition:none!important}
+}
+:focus-visible{outline:2px solid var(--rust-hot);outline-offset:2px}
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <div class="topbar">
+    <a class="logo" href="index.html" style="text-decoration:none"><span class="logo__dot"></span><span>Rust<b>Peek</b></span></a>
+    <div class="topbar__user"><span>@vlodik</span><div class="topbar__ava"></div></div>
+  </div>
+
+  <nav class="tabs" role="tablist">
+    <button class="tab is-active" data-tab="servers" role="tab">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke-width="2"><rect x="3" y="4" width="18" height="7" rx="1.5"/><rect x="3" y="13" width="18" height="7" rx="1.5"/><path d="M7 7.5h.01M7 16.5h.01"/></svg>
+      Серверы
+    </button>
+    <button class="tab" data-tab="players" role="tab">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.5-6.5 8-6.5s8 2.5 8 6.5"/></svg>
+      Игроки
+    </button>
+    <button class="tab" data-tab="watchlist" role="tab">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M2 12s3.5-6.5 10-6.5S22 12 22 12s-3.5 6.5-10 6.5S2 12 2 12z"/></svg>
+      Вочлист <span class="tab__badge" id="wlBadge">4</span>
+    </button>
+    <button class="tab" data-tab="rustplus" role="tab">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M18 8a6 6 0 00-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 01-3.4 0"/></svg>
+      Rust+
+    </button>
+  </nav>
+
+  <!-- ================= СЕРВЕРЫ ================= -->
+  <section class="panel is-active" id="panel-servers">
+    <div class="panel__cap">Найду сервер и скажу <b>правду про вайп</b> — по циклам онлайна, не по словам админа</div>
+    <div class="search">
+      <input class="search__input" id="srvSearch" type="text" placeholder="Название сервера — найду и скажу правду про вайп…">
+      <button class="search__btn">Найти</button>
+    </div>
+    <div class="chips" id="srvChips">
+      <button class="chip is-on" data-filter="all">Все</button>
+      <button class="chip" data-filter="fresh">🟢 Свежак ≤48ч</button>
+      <button class="chip" data-filter="soon">🟡 Скоро вайп</button>
+      <button class="chip" data-filter="vanilla">Ванилла</button>
+      <button class="chip" data-filter="mod">Моды</button>
+    </div>
+    <div class="srvcount" id="srvCount"></div>
+    <div id="srvDetail"></div>
+    <div class="srvlist" id="srvList"></div>
+  </section>
+
+  <!-- ================= ИГРОКИ ================= -->
+  <section class="panel" id="panel-players">
+    <div class="panel__cap">Досье на любого: <b>Trust Score</b>, часы, история серверов. Закрытый профиль — не преграда</div>
+    <div class="search">
+      <input class="search__input" type="text" placeholder="Ник или SteamID64 — пробью даже закрытый профиль…" value="ShadowKiller_228">
+      <button class="search__btn">Пробить</button>
+    </div>
+    <div class="pcard">
+      <div class="pcard__head">
+        <div class="pcard__ava">S</div>
+        <div>
+          <div class="pcard__nick">ShadowKiller_228</div>
+          <div class="pcard__id">7656119801234567 · профиль закрыт · вижу через A2S</div>
+        </div>
+        <div class="pcard__status on"><span class="dot"></span>онлайн сейчас</div>
+      </div>
+      <div class="trust">
+        <div class="trust__ring">
+          <svg width="96" height="96"><circle class="bgc" cx="48" cy="48" r="42"/><circle class="fgc" id="trustRing" cx="48" cy="48" r="42"/></svg>
+          <div class="trust__num"><b>74</b><span>trust</span></div>
+        </div>
+        <p class="trust__desc"><b>Скорее чист.</b> 1 240 часов в Rust, аккаунту 4 года, банов не вижу. Играет волнами — по 6–8 часов на вайпе, потом пропадает. Классический вайп-энджоер, не читер-однодневка.</p>
+      </div>
+      <div class="phist__title">История серверов</div>
+      <div class="phist">
+        <div class="phist__row is-now"><span class="phist__srv">Hustle Rust - [2X, VANILLA]</span><span class="phist__hours">14ч за цикл</span><span class="phist__when">сейчас</span></div>
+        <div class="phist__row"><span class="phist__srv">Magic Rust #4 [MAX 3]</span><span class="phist__hours">31ч</span><span class="phist__when">12–18.07</span></div>
+        <div class="phist__row"><span class="phist__srv">WARBANDITS X2</span><span class="phist__hours">22ч</span><span class="phist__when">04–09.07</span></div>
+        <div class="phist__row"><span class="phist__srv">Vital Rust - EU Monthly</span><span class="phist__hours">58ч</span><span class="phist__when">июнь</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= ВОЧЛИСТ ================= -->
+  <section class="panel" id="panel-watchlist">
+    <div class="panel__cap">Твои цели под наблюдением <b>24/7</b>. Зашёл на сервер — ты узнал первым</div>
+    <div class="search">
+      <input class="search__input" type="text" placeholder="Добавить цель: ник или SteamID64…">
+      <button class="search__btn">Следить</button>
+    </div>
+    <div class="wl" id="wlList"></div>
+    <p class="wl__hint">Пришлю пуш в Telegram, как только цель зайдёт на сервер. Слежу 24/7 — даже когда ты спишь.</p>
+  </section>
+
+  <!-- ================= RUST+ ================= -->
+  <section class="panel" id="panel-rustplus">
+    <div class="panel__cap">Рейды, алармы, события карты — прилетают сюда и <b>в Telegram</b>, даже когда Rust+ лежит</div>
+    <div class="rp__connect">
+      <span class="dot"></span>
+      <div><b>Rust+ подключён</b><br><span>Hustle Rust - [2X, VANILLA] · пара активна</span></div>
+      <button class="toggle" id="loudToggle">
+        Громкий режим <span class="toggle__sw"></span>
+      </button>
+    </div>
+    <div class="feed">
+      <div class="alert alert--raid">
+        <div class="alert__icon">🚨</div>
+        <div><div class="alert__text"><b>РЕЙД!</b> Взрыв у твоей базы — сработал Smart Alarm «Главная дверь»</div><div class="alert__srv">Hustle Rust · сегодня</div></div>
+        <span class="alert__time">14:32</span>
+      </div>
+      <div class="alert alert--alarm">
+        <div class="alert__icon">📟</div>
+        <div><div class="alert__text">Smart Alarm <b>«Ловушка в гараже»</b> — движение</div><div class="alert__srv">Hustle Rust · сегодня</div></div>
+        <span class="alert__time">11:07</span>
+      </div>
+      <div class="alert alert--death">
+        <div class="alert__icon">💀</div>
+        <div><div class="alert__text">Ты умер. <b>ShadowKiller_228</b> — AK-47, 87м</div><div class="alert__srv">Hustle Rust · вчера</div></div>
+        <span class="alert__time">23:48</span>
+      </div>
+      <div class="alert alert--event">
+        <div class="alert__icon">🚁</div>
+        <div><div class="alert__text">Патрульный вертолёт вошёл на карту</div><div class="alert__srv">Hustle Rust · вчера</div></div>
+        <span class="alert__time">21:15</span>
+      </div>
+    </div>
+  </section>
+
+  <footer class="appfoot">
+    <span>© 2026 RustPeek · веб-версия</span>
+    <span><a href="index.html">о проекте</a> · <a href="https://t.me/RustPeek_Bot" target="_blank" rel="noopener">@RustPeek_Bot</a></span>
+  </footer>
+
+</div>
+
+<script>
+(function(){
+  var reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  /* ---------- ДАННЫЕ (моки — заменяются на API) ---------- */
+  var API_BASE = 'https://api.rustpeek.ru';
+
+  var WATCHLIST = [
+    {nick:'ShadowKiller_228', st:'on',  where:'Hustle Rust', time:'зашёл 40 мин назад'},
+    {nick:'xX_Raider_Xx',    st:'on',  where:'Magic Rust #4', time:'зашёл 2ч назад'},
+    {nick:'НагибаторВаня',   st:'hidden', where:'вижу через A2S · Vital Rust', time:'зашёл 15 мин назад'},
+    {nick:'sleepy_bob',      st:'off', where:'офлайн', time:'был вчера 23:10'}
+  ];
+
+  /* ---------- ТАБЫ ---------- */
+  document.querySelectorAll('.tab').forEach(function(t){
+    t.addEventListener('click', function(){
+      document.querySelectorAll('.tab').forEach(function(x){x.classList.remove('is-active')});
+      document.querySelectorAll('.panel').forEach(function(x){x.classList.remove('is-active')});
+      t.classList.add('is-active');
+      document.getElementById('panel-'+t.dataset.tab).classList.add('is-active');
+      if(t.dataset.tab==='players' && !reduced){
+        setTimeout(function(){ document.getElementById('trustRing').style.strokeDashoffset = 264 - 264*0.74; }, 80);
+      }
+    });
+  });
+
+  /* ---------- СЕРВЕРЫ: список + фильтры + поиск (живой API) ---------- */
+  var curFilter = 'all';
+  var srvList = document.getElementById('srvList');
+  var srvDetail = document.getElementById('srvDetail');
+  var srvSearch = document.getElementById('srvSearch');
+  var srvCount = document.getElementById('srvCount');
+
+  function dotCls(s){ return s==='fresh'?'srv__dot--fresh':(s==='soon'?'srv__dot--soon':'srv__dot--old'); }
+  function wipeLabel(s){
+    if(s.wipe_state==='soon') return '🟡 вайп '+(s.wipe_label||'скоро');
+    return (s.wipe_state==='fresh'?'🟢 ':'🔴 ')+(s.wipe_label||'неизвестно');
+  }
+  function plural(n){
+    var m10=n%10, m100=n%100;
+    if(m10===1 && m100!==11) return 'сервер';
+    if(m10>=2 && m10<=4 && (m100<10||m100>=20)) return 'сервера';
+    return 'серверов';
+  }
+
+  // дебаунс: не долбим API на каждый символ, ждём паузу в наборе
+  var searchTimer = null;
+  var searchSeq = 0; // защита от гонки: показываем только ответ последнего запроса
+  var searchAbort = null; // отменяем реально улетевший запрос, если юзер продолжил печатать
+
+  function scheduleSearch(){
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(runSearch, 300);
+  }
+
+  function runSearch(){
+    var q = srvSearch.value.trim();
+    var mySeq = ++searchSeq;
+    srvCount.classList.add('is-loading');
+    srvList.innerHTML = '<div class="srv-loading">Ищу…</div>';
+
+    // обрываем предыдущий незавершённый запрос — не даём ему молотить на
+    // сервере полную классификацию впустую, пока юзер уже печатает дальше
+    if(searchAbort) searchAbort.abort();
+    searchAbort = ('AbortController' in window) ? new AbortController() : null;
+
+    var url = API_BASE + '/api/servers/search?filter=' + encodeURIComponent(curFilter) + '&limit=50';
+    if(q) url += '&q=' + encodeURIComponent(q);
+
+    fetch(url, searchAbort ? {signal: searchAbort.signal} : {})
+      .then(function(res){
+        if(!res.ok) throw new Error('bad status ' + res.status);
+        return res.json();
+      })
+      .then(function(data){
+        if(mySeq !== searchSeq) return; // устаревший ответ, юзер уже ввёл новый запрос
+        renderList(data.servers || [], data.count || 0);
+      })
+      .catch(function(err){
+        if(err && err.name === 'AbortError') return; // штатная отмена, не ошибка
+        if(mySeq !== searchSeq) return;
+        srvCount.classList.remove('is-loading');
+        srvCount.textContent = '';
+        srvList.innerHTML = '<div class="srv-error">Не дотянулся до базы — попробуй ещё раз через пару секунд.</div>';
+      });
+  }
+
+  function renderList(items, count){
+    srvCount.classList.remove('is-loading');
+    if(!items.length){
+      srvCount.textContent = '';
+      srvList.innerHTML = '<div class="srvlist__empty">Под такие фильтры <b>пусто</b> — ослабь один-два, и я найду.</div>';
+      return;
+    }
+    var countLabel = count > items.length ? items.length + '+' : String(count);
+    srvCount.innerHTML = 'Подходит <b>'+countLabel+'</b> '+plural(count)+' 🎯';
+    srvList.innerHTML = items.map(function(s){
+      return '<button class="srv" data-id="'+s.id+'">'+
+        '<span class="srv__dot '+dotCls(s.wipe_state)+'"></span>'+
+        '<span><span class="srv__name">'+s.name+'</span>'+
+        '<span class="srv__meta"><span>👥 <b>'+s.online+'</b>/'+s.max+'</span><span>🗺 '+s.map_size+'</span><span>'+s.rate+' · '+(s.type==='vanilla'?'ванилла':'моды')+'</span></span></span>'+
+        '<span class="srv__wipe"><span class="w">'+wipeLabel(s)+'</span></span>'+
+      '</button>';
+    }).join('');
+    srvList.querySelectorAll('.srv').forEach(function(el){
+      el.addEventListener('click', function(){ openDetail(+el.dataset.id); });
+    });
+  }
+
+  function showList(){
+    srvDetail.innerHTML=''; srvList.style.display='';
+  }
+
+  function bindBackButton(){
+    var btn = document.getElementById('detailBack');
+    if(btn) btn.addEventListener('click', function(){ history.back(); });
+  }
+
+  function openDetail(id, fromPopstate){
+    if(!fromPopstate) history.pushState({view:'detail', id:id}, '', '#server-'+id);
+    srvDetail.innerHTML = '<div class="srv-loading">Загружаю карточку…</div>';
+    srvList.style.display='none';
+    window.scrollTo({top:0, behavior: reduced?'auto':'smooth'});
+
+    fetch(API_BASE + '/api/servers/' + id)
+      .then(function(res){
+        if(res.status === 404) throw new Error('not_found');
+        if(!res.ok) throw new Error('bad status ' + res.status);
+        return res.json();
+      })
+      .then(renderDetail)
+      .catch(function(err){
+        srvDetail.innerHTML = '<button class="detail__back" id="detailBack">← к списку</button>'+
+          '<div class="srv-error">'+(err.message==='not_found' ? 'Сервер пропал из базы.' : 'Не дотянулся до базы — попробуй ещё раз.')+'</div>';
+        bindBackButton();
+      });
+  }
+
+  window.addEventListener('popstate', function(e){
+    var st = e.state;
+    if(st && st.view === 'detail'){ openDetail(st.id, true); }
+    else { showList(); }
+  });
+
+  function renderDetail(s){
+    var rowsHtml = '';
+    if(s.days_unavailable){
+      rowsHtml = '<div class="days-warn">⚠ История временно недоступна — чиним, загляни чуть позже.</div>';
+    } else if(!s.days || !s.days.length){
+      rowsHtml = '<div class="days-warn">Пока мало данных по этому серверу — начал считать недавно.</div>';
+    } else {
+      rowsHtml = s.days.map(function(d, i){
+        var rowCls = d.is_gap ? 'dayrow dayrow--gap' : (d.pct <= 5 && !d.is_wipe ? 'dayrow dayrow--dead' : 'dayrow');
+        var labCls = d.is_gap ? 'dayrow__label is-gap' : 'dayrow__label '+(d.is_wipe?'is-wipe':'');
+        var val = d.is_gap ? '<small>— нет данных</small>' : String(d.value).replace(/(−\d+%)/, '<small>$1</small>');
+        var labelText = d.label + (d.date ? ' · '+d.date : '');
+        // разделитель нового цикла: вайп, который не первая строка в списке
+        var divider = (d.is_wipe && i > 0) ? '<div class="cycle-div">Новый цикл</div>' : '';
+        return divider + '<div class="'+rowCls+'"><span class="'+labCls+'">'+labelText+'</span>'+
+               '<div class="dayrow__bar" data-w="'+d.pct+'"></div>'+
+               '<span class="dayrow__val">'+val+'</span></div>';
+      }).join('');
+    }
+
+    srvDetail.innerHTML =
+      '<div class="detail">'+
+        '<button class="detail__back" id="detailBack">← к списку</button>'+
+        '<div class="detail__title">'+s.name+'</div>'+
+        '<div class="detail__sub">👥 '+s.online+'/'+s.max+' · 🗺 '+s.map_size+' · '+s.rate+'</div>'+
+        '<div class="detail__grid">'+
+          '<div class="stat"><div class="stat__k">Последний вайп</div><div class="stat__v '+(s.wipe_state==='fresh'?'ok':'')+'">'+(s.wipe||'неизвестно')+'</div></div>'+
+          '<div class="stat"><div class="stat__k">Цикл</div><div class="stat__v">'+(s.cycle||'нерегулярный')+'</div></div>'+
+          '<div class="stat"><div class="stat__k">Пик / средний</div><div class="stat__v">'+(s.peak!=null?s.peak:'—')+' <small>/ '+(s.avg!=null?s.avg:'—')+'</small></div></div>'+
+          '<div class="stat"><div class="stat__k">Прайм-тайм</div><div class="stat__v hot">'+(s.prime_time||'—')+'</div></div>'+
+        '</div>'+
+        '<div class="days__head"><span><b>По дням</b> · вся история с последнего глобального вайпа</span><span>подтверждено по циклам онлайна, не по last_wipe</span></div>'+
+        rowsHtml+
+        (s.history_days ? '<div class="detail__memory">Веду историю этого сервера уже <b>'+s.history_days+'</b> 📈</div>' : '')+
+      '</div>';
+
+    document.getElementById('detailBack').addEventListener('click', function(){
+      history.back();
+    });
+    setTimeout(function(){
+      srvDetail.querySelectorAll('.dayrow__bar').forEach(function(b,i){
+        setTimeout(function(){ b.style.width=b.dataset.w+'%'; }, reduced?0:i*45);
+      });
+    }, 60);
+  }
+
+  document.getElementById('srvChips').addEventListener('click', function(e){
+    var chip = e.target.closest('.chip'); if(!chip) return;
+    document.querySelectorAll('#srvChips .chip').forEach(function(c){c.classList.remove('is-on')});
+    chip.classList.add('is-on');
+    curFilter = chip.dataset.filter;
+    showList();
+    runSearch();
+  });
+  srvSearch.addEventListener('input', scheduleSearch);
+  runSearch();
+
+  // deep link: если открыли сайт по ссылке вида #server-1007 — сразу карточка
+  if(location.hash.indexOf('#server-') === 0){
+    var deepId = parseInt(location.hash.replace('#server-',''), 10);
+    if(deepId) openDetail(deepId, true);
+  }
+
+  /* ---------- ВОЧЛИСТ ---------- */
+  var wlList = document.getElementById('wlList');
+  function renderWl(){
+    // сортировка как в боте: онлайн > скрытые > офлайн
+    var order = {on:0, hidden:1, off:2};
+    var sorted = WATCHLIST.slice().sort(function(a,b){return order[a.st]-order[b.st]});
+    wlList.innerHTML = sorted.map(function(p,i){
+      var whereHtml = p.st==='on' ? 'на <b>'+p.where+'</b>' : (p.st==='hidden' ? p.where : p.where);
+      return '<div class="wl__row">'+
+        '<span class="wl__dot '+p.st+'"></span>'+
+        '<span><span class="wl__nick">'+p.nick+'</span><span class="wl__where" style="display:block">'+whereHtml+'</span></span>'+
+        '<span class="wl__time">'+p.time+'</span>'+
+        '<button class="wl__del" data-i="'+i+'">убрать</button>'+
+      '</div>';
+    }).join('');
+    document.getElementById('wlBadge').textContent = WATCHLIST.length;
+    wlList.querySelectorAll('.wl__del').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        WATCHLIST.splice(+btn.dataset.i, 1);
+        renderWl();
+      });
+    });
+  }
+  renderWl();
+
+  /* ---------- ГРОМКИЙ РЕЖИМ ---------- */
+  document.getElementById('loudToggle').addEventListener('click', function(){
+    this.classList.toggle('is-on');
+  });
+})();
+</script>
+</body>
+</html>

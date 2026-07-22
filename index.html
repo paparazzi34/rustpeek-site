@@ -1,0 +1,839 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RustPeek — я помню каждый вайп</title>
+<meta name="description" content="Telegram-бот для игроков Rust: настоящие даты вайпов по анализу циклов онлайна, досье на игроков, вочлист 24/7 и рейд-алерты Rust+.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#100d0b;
+  --surface:#1a1512;
+  --surface-2:#221b16;
+  --rust:#c9501e;
+  --rust-hot:#e86a2f;
+  --patina:#7a8450;
+  --green:#6fae5c;
+  --paper:#e5dccb;      /* бумага досье */
+  --paper-2:#dbd1bd;
+  --ink:#221c15;        /* чернила на бумаге */
+  --bone:#e8e0d2;
+  --steel:#8a8078;
+  --line:#2c241d;
+  --line-paper:#c4b89f;
+  --font-display:'Unbounded', system-ui, sans-serif;
+  --font-body:'IBM Plex Sans', system-ui, sans-serif;
+  --font-mono:'JetBrains Mono', ui-monospace, monospace;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  background:var(--bg);
+  color:var(--bone);
+  font-family:var(--font-body);
+  font-size:17px;
+  line-height:1.62;
+  overflow-x:hidden;
+}
+body::before{
+  content:'';position:fixed;inset:0;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='0.05'/%3E%3C/svg%3E");
+  pointer-events:none;z-index:1000;mix-blend-mode:overlay;
+}
+::selection{background:var(--rust);color:var(--bg)}
+a{color:inherit}
+button{font-family:inherit;color:inherit;background:none;border:none;cursor:pointer}
+
+.wrap{max-width:1160px;margin:0 auto;padding-left:28px;padding-right:28px}
+
+/* ---------- NAV ---------- */
+.nav{
+  position:fixed;top:0;left:0;right:0;z-index:100;
+  background:rgba(16,13,11,.88);
+  backdrop-filter:blur(6px);
+  border-bottom:1px solid var(--line);
+}
+.nav__in{
+  max-width:1160px;margin:0 auto;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:14px 28px;
+}
+.nav__logo{
+  font-family:var(--font-display);font-weight:700;font-size:18px;
+  text-decoration:none;display:flex;align-items:center;gap:10px;
+}
+.nav__logo b{color:var(--rust-hot);font-weight:800}
+.nav__dot{width:8px;height:8px;border-radius:50%;background:var(--rust-hot);
+  box-shadow:0 0 12px var(--rust-hot);animation:pulse 2.4s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+.nav__links{display:flex;gap:24px;align-items:center;font-size:14.5px}
+.nav__a{text-decoration:none;color:var(--steel);transition:color .2s;font-weight:500}
+.nav__a:hover{color:var(--bone)}
+.btn{
+  display:inline-flex;align-items:center;gap:10px;
+  font-weight:600;font-size:15px;text-decoration:none;
+  padding:11px 20px;border-radius:3px;
+  transition:background .2s, border-color .2s, color .2s;
+}
+.btn--solid{background:var(--rust);color:#fff;border:1px solid var(--rust)}
+.btn--solid:hover{background:var(--rust-hot);border-color:var(--rust-hot)}
+.btn--ghost{border:1px solid var(--line);color:var(--bone)}
+.btn--ghost:hover{border-color:var(--steel)}
+.btn--ink{background:var(--ink);color:var(--paper);border:1px solid var(--ink)}
+.btn--ink:hover{background:#3a2f22}
+
+/* ---------- ТИКЕР ---------- */
+.ticker{
+  margin-top:78px;
+  border-bottom:1px solid var(--line);
+  overflow:hidden;
+  font-family:var(--font-mono);font-size:12.5px;
+  color:var(--steel);
+  background:var(--surface);
+}
+.ticker__track{
+  display:inline-flex;gap:0;white-space:nowrap;
+  padding:9px 0;
+  animation:ticker 46s linear infinite;
+}
+.ticker__track span{padding:0 28px;border-right:1px solid var(--line)}
+.ticker__track b{color:var(--rust-hot);font-weight:600}
+.ticker__track i{color:var(--green);font-style:normal}
+@keyframes ticker{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+
+/* ---------- HERO ---------- */
+.hero{padding:84px 0 0}
+.hero h1{
+  font-family:var(--font-display);font-weight:800;
+  font-size:clamp(36px, 6.4vw, 78px);
+  line-height:1.04;letter-spacing:-.01em;
+  max-width:14ch;
+}
+.hero h1 .dim{color:var(--steel);font-weight:700}
+.hero h1 .hot{color:var(--rust-hot)}
+.hero__row{
+  display:grid;grid-template-columns:1.25fr .9fr;gap:56px;
+  margin-top:34px;align-items:end;
+}
+.hero__sub{font-size:clamp(16px,1.55vw,19px);color:var(--steel);max-width:54ch}
+.hero__sub b{color:var(--bone);font-weight:600}
+.hero__facts{
+  font-family:var(--font-mono);font-size:13px;
+  display:flex;flex-direction:column;gap:9px;
+  border-left:2px solid var(--rust);
+  padding-left:18px;
+}
+.hero__facts span{color:var(--steel)}
+.hero__facts b{color:var(--bone);font-weight:600}
+.hero__cta{margin-top:36px;display:flex;gap:14px;flex-wrap:wrap}
+.hero__chart-wrap{position:relative;margin-top:58px;border-top:1px solid var(--line)}
+.hero__chart-label{
+  position:absolute;top:12px;left:0;
+  font-family:var(--font-mono);font-size:12px;color:var(--steel);
+  letter-spacing:.1em;text-transform:uppercase;
+}
+#cycleChart{display:block;width:100%;height:250px}
+
+/* ---------- СЕКЦИИ ОБЩЕЕ ---------- */
+.sec-head{
+  display:flex;align-items:baseline;gap:22px;flex-wrap:wrap;
+  padding-top:104px;
+}
+.sec-head__no{
+  font-family:var(--font-mono);font-size:13px;color:var(--rust);
+  letter-spacing:.12em;
+}
+.sec-head h2{
+  font-family:var(--font-display);font-weight:700;
+  font-size:clamp(26px,3.4vw,40px);line-height:1.15;
+}
+
+/* ---------- ДОСЬЕ (бумага) ---------- */
+.paper{
+  background:var(--paper);
+  color:var(--ink);
+  margin-top:100px;
+  position:relative;
+}
+.paper::before,.paper::after{
+  content:'';position:absolute;left:0;right:0;height:10px;
+  background-image:linear-gradient(45deg, var(--bg) 25%, transparent 25%), linear-gradient(-45deg, var(--bg) 25%, transparent 25%);
+  background-size:14px 14px;
+}
+.paper::before{top:-1px}
+.paper::after{bottom:-1px;transform:scaleY(-1)}
+.paper__in{
+  max-width:1160px;margin:0 auto;
+  padding:84px 28px 90px;
+  display:grid;grid-template-columns:1fr 1fr;gap:64px;
+}
+.paper__eyebrow{
+  font-family:var(--font-mono);font-size:12.5px;
+  letter-spacing:.14em;text-transform:uppercase;
+  color:#8a7a5e;margin-bottom:16px;
+}
+.paper h2{
+  font-family:var(--font-display);font-weight:700;
+  font-size:clamp(26px,3.2vw,38px);line-height:1.14;
+  max-width:16ch;
+}
+.paper p{margin-top:18px;color:#4c4232;font-size:16.5px;max-width:52ch}
+.paper p b{color:var(--ink);font-weight:600}
+.paper__pattern{
+  margin-top:30px;
+  font-family:var(--font-mono);font-size:13.5px;
+  border:1px solid var(--line-paper);
+  background:var(--paper-2);
+  padding:18px 20px;
+  color:#4c4232;
+}
+.paper__pattern b{color:var(--rust);font-weight:600}
+.dossier{
+  background:var(--bg);
+  color:var(--bone);
+  border:1px solid #b3a789;
+  box-shadow:6px 6px 0 rgba(34,28,21,.18);
+  padding:26px 26px 22px;
+  position:relative;
+  align-self:start;
+  transform:rotate(.6deg);
+}
+.dossier__stamp{
+  position:absolute;top:14px;right:-14px;
+  transform:rotate(7deg);
+  font-family:var(--font-mono);font-weight:600;font-size:12px;
+  letter-spacing:.1em;text-transform:uppercase;
+  color:var(--green);
+  border:2px solid var(--green);
+  padding:6px 12px;
+  background:rgba(16,13,11,.92);
+  box-shadow:0 0 0 3px rgba(16,13,11,.92);
+}
+.dossier__title{font-family:var(--font-display);font-weight:700;font-size:16px}
+.dossier__meta{font-family:var(--font-mono);font-size:12px;color:var(--steel);margin:4px 0 18px}
+.dayrow{
+  display:grid;grid-template-columns:88px 1fr 104px;
+  align-items:center;gap:12px;padding:4.5px 0;
+  font-family:var(--font-mono);font-size:12.5px;
+}
+.dayrow__label{color:var(--steel)}
+.dayrow__label.is-wipe{color:var(--rust-hot);font-weight:600}
+.dayrow__bar{
+  height:12px;border-radius:2px;
+  background:linear-gradient(90deg,var(--rust),var(--rust-hot));
+  width:0%;
+  transition:width .9s cubic-bezier(.2,.7,.2,1);
+  min-width:2px;
+}
+.dayrow--dead .dayrow__bar{background:var(--line)}
+.dayrow__val{color:var(--bone);text-align:right}
+.dayrow__val small{color:var(--steel)}
+.dossier__foot{
+  margin-top:16px;padding-top:14px;border-top:1px dashed var(--line);
+  font-family:var(--font-mono);font-size:12px;color:var(--steel);
+}
+.dossier__foot b{color:var(--rust-hot)}
+
+/* ---------- ЧТО УМЕЮ (редакционные ряды) ---------- */
+.rows{margin-top:44px;border-top:1px solid var(--line)}
+.row{
+  display:grid;grid-template-columns:1fr 1fr;gap:56px;
+  padding:56px 0;
+  border-bottom:1px solid var(--line);
+  align-items:center;
+}
+.row:nth-child(even){grid-template-columns:1fr 1fr}
+.row:nth-child(even) .row__demo{order:-1}
+.row h3{
+  font-family:var(--font-display);font-weight:700;
+  font-size:clamp(21px,2.4vw,28px);line-height:1.2;
+}
+.row__body{max-width:52ch}
+.row__body p{margin-top:14px;color:var(--steel);font-size:16px}
+.row__body p b{color:var(--bone);font-weight:600}
+.row__note{
+  margin-top:16px;
+  font-family:var(--font-mono);font-size:12.5px;color:var(--patina);
+}
+.row__demo{min-width:0}
+/* demo: server rows */
+.demo-srv{
+  background:var(--surface);border:1px solid var(--line);border-radius:5px;
+  padding:13px 16px;
+  display:grid;grid-template-columns:12px 1fr auto;gap:12px;align-items:center;
+  font-size:14px;margin-bottom:8px;
+}
+.demo-srv .dot{width:9px;height:9px;border-radius:50%;justify-self:center}
+.dot--g{background:var(--green);box-shadow:0 0 8px rgba(111,174,92,.6)}
+.dot--r{background:#c94a3a;box-shadow:0 0 8px rgba(201,74,58,.5)}
+.dot--y{background:#d9a53f;box-shadow:0 0 8px rgba(217,165,63,.55)}
+.demo-srv b{font-weight:600}
+.demo-srv .m{font-family:var(--font-mono);font-size:11.5px;color:var(--steel);display:block;margin-top:2px}
+.demo-srv .w{font-family:var(--font-mono);font-size:12px;text-align:right;color:var(--bone)}
+.demo-srv .w small{display:block;color:var(--steel)}
+/* demo: trust */
+.demo-trust{
+  background:var(--surface);border:1px solid var(--line);border-radius:5px;
+  padding:20px;display:flex;gap:20px;align-items:center;flex-wrap:wrap;
+}
+.tring{position:relative;width:92px;height:92px;flex:none}
+.tring svg{transform:rotate(-90deg)}
+.tring circle{fill:none;stroke-width:8}
+.tring .bgc{stroke:var(--line)}
+.tring .fgc{stroke:var(--green);stroke-linecap:round;stroke-dasharray:251;stroke-dashoffset:251;
+  transition:stroke-dashoffset 1.1s cubic-bezier(.2,.7,.2,1)}
+.tring__num{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:var(--font-mono)}
+.tring__num b{font-size:22px;color:var(--green)}
+.tring__num span{font-size:9.5px;color:var(--steel);text-transform:uppercase;letter-spacing:.08em}
+.demo-trust__t{font-size:14px;color:var(--steel);max-width:34ch}
+.demo-trust__t b{color:var(--bone)}
+.demo-trust__t .mono{font-family:var(--font-mono);font-size:11.5px;display:block;margin-top:8px;color:var(--patina)}
+/* demo: watchlist */
+.demo-wl{background:var(--surface);border:1px solid var(--line);border-radius:5px;padding:13px 16px;
+  display:grid;grid-template-columns:12px 1fr auto;gap:12px;align-items:center;font-size:14px;margin-bottom:8px}
+.demo-wl .t{font-family:var(--font-mono);font-size:11.5px;color:var(--steel)}
+.demo-wl .t i{color:var(--green);font-style:normal}
+/* demo: alerts */
+.demo-al{
+  background:var(--surface);border:1px solid var(--line);border-left:3px solid #c94a3a;border-radius:5px;
+  padding:12px 15px;font-size:14px;margin-bottom:8px;
+  display:flex;gap:12px;align-items:center;
+}
+.demo-al.a2{border-left-color:#d9a53f}
+.demo-al.a3{border-left-color:var(--steel)}
+.demo-al .tm{margin-left:auto;font-family:var(--font-mono);font-size:11.5px;color:var(--steel)}
+
+/* ---------- ВЕБ-ВЕРСИЯ ---------- */
+.webv{
+  margin-top:100px;
+  border:1px solid var(--line);
+  background:linear-gradient(120deg, var(--surface) 0%, var(--surface-2) 100%);
+  border-radius:6px;
+  padding:44px 40px;
+  display:grid;grid-template-columns:1.3fr .7fr;gap:40px;align-items:center;
+  position:relative;overflow:hidden;
+}
+.webv::after{
+  content:'';position:absolute;right:-60px;top:-60px;width:260px;height:260px;
+  border:1px solid rgba(201,80,30,.25);border-radius:50%;
+}
+.webv h2{font-family:var(--font-display);font-weight:700;font-size:clamp(22px,2.8vw,32px);line-height:1.18}
+.webv p{margin-top:14px;color:var(--steel);max-width:50ch}
+.webv p b{color:var(--bone);font-weight:600}
+.webv__side{display:flex;flex-direction:column;gap:12px;align-items:flex-start;position:relative;z-index:1}
+.webv__tabs{
+  font-family:var(--font-mono);font-size:12px;color:var(--steel);
+  display:flex;gap:8px;flex-wrap:wrap;
+}
+.webv__tabs span{border:1px solid var(--line);padding:5px 12px;border-radius:16px}
+.webv__tabs span.on{border-color:var(--rust);color:var(--rust-hot)}
+
+/* ---------- FAQ ---------- */
+.faq{margin-top:44px;border-top:1px solid var(--line)}
+.faq details{border-bottom:1px solid var(--line)}
+.faq summary{
+  cursor:pointer;list-style:none;
+  padding:22px 0;
+  font-weight:600;font-size:17px;
+  display:flex;justify-content:space-between;align-items:center;gap:20px;
+  transition:color .2s;
+}
+.faq summary:hover{color:var(--rust-hot)}
+.faq summary::-webkit-details-marker{display:none}
+.faq summary::after{
+  content:'+';font-family:var(--font-mono);font-size:20px;color:var(--steel);
+  transition:transform .2s;
+}
+.faq details[open] summary::after{transform:rotate(45deg);color:var(--rust-hot)}
+.faq .a{padding:0 0 24px;color:var(--steel);max-width:64ch;font-size:16px}
+.faq .a b{color:var(--bone);font-weight:600}
+
+/* ---------- FINAL ---------- */
+.final{padding:120px 0 90px;text-align:left}
+.final h2{
+  font-family:var(--font-display);font-weight:800;
+  font-size:clamp(30px,5vw,58px);line-height:1.08;max-width:16ch;
+}
+.final h2 .hot{color:var(--rust-hot)}
+.final p{margin-top:18px;color:var(--steel);font-size:17px;max-width:50ch}
+.final__cta{margin-top:32px;display:flex;gap:14px;flex-wrap:wrap}
+.final__meta{
+  margin-top:30px;
+  font-family:var(--font-mono);font-size:13px;color:var(--steel);
+  display:flex;gap:26px;flex-wrap:wrap;
+}
+.final__meta b{color:var(--bone)}
+
+/* ---------- FOOTER ---------- */
+.footer{border-top:1px solid var(--line)}
+.footer__in{
+  max-width:1160px;margin:0 auto;
+  padding:26px 28px;
+  display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:14px;
+  font-family:var(--font-mono);font-size:13px;color:var(--steel);
+}
+.footer__links{display:flex;gap:22px;flex-wrap:wrap}
+.footer a{color:var(--steel);text-decoration:none;transition:color .2s}
+.footer a:hover{color:var(--rust-hot)}
+
+/* ---------- RESPONSIVE ---------- */
+@media(max-width:880px){
+  .hero__row,.paper__in,.row,.webv{grid-template-columns:1fr;gap:32px}
+  .row:nth-child(even) .row__demo{order:0}
+  .hero__facts{border-left:none;border-top:2px solid var(--rust);padding:16px 0 0}
+  .dossier{transform:none;margin-top:8px}
+  .nav__links .nav__a{display:none}
+  #cycleChart{height:190px}
+}
+@media(prefers-reduced-motion:reduce){
+  *{animation:none!important;transition:none!important}
+  .ticker__track{animation:none!important}
+}
+:focus-visible{outline:2px solid var(--rust-hot);outline-offset:3px}
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="nav__in">
+    <a class="nav__logo" href="#"><span class="nav__dot"></span>Rust<b>Peek</b></a>
+    <div class="nav__links">
+      <a class="nav__a" href="#how">Как работает</a>
+      <a class="nav__a" href="#features">Что умею</a>
+      <a class="nav__a" href="#faq">Вопросы</a>
+      <a class="btn btn--ghost" href="rustpeek_app.html">Веб-версия</a>
+      <a class="btn btn--solid" href="https://t.me/RustPeek_Bot" target="_blank" rel="noopener">Открыть бота</a>
+    </div>
+  </div>
+</nav>
+
+<!-- живой лог мониторинга -->
+<div class="ticker" aria-hidden="true">
+  <div class="ticker__track" id="tickerTrack">
+    <span>10:40:33 · <b>вайп подтверждён</b> · Hustle Rust · паттерн пик→провал→рост <i>✓</i></span>
+    <span>10:41:07 · замер онлайна · 1 098 серверов в очереди</span>
+    <span>10:41:52 · цель из вочлиста <b>зашла</b> · пуш отправлен</span>
+    <span>10:42:19 · «JUST WIPED» в названии · last_wipe протух 6 дней · <b>не верю</b></span>
+    <span>10:43:05 · A2S-скан · закрытый профиль опознан на сервере <i>✓</i></span>
+    <span>10:43:48 · Rust+ · Smart Alarm «Главная дверь» · серия алертов ушла</span>
+    <span>10:44:12 · дедуп проверен · дубль вайпа не пропущен <i>✓</i></span>
+    <span>10:44:58 · тариф Free · Trust Score и алерты — без ограничений</span>
+    <span>10:45:31 · сервер вышел из дырки мониторинга · история восстановлена</span>
+  </div>
+</div>
+
+<header class="hero">
+  <div class="wrap">
+    <h1><span class="dim">BattleMetrics — снапшот.</span><br>Я — <span class="hot">память</span>.</h1>
+    <div class="hero__row">
+      <p class="hero__sub">Я — Telegram-бот, который <b>круглосуточно пишет историю Rust-серверов</b>: каждый замер онлайна, каждый настоящий вайп, каждого замеченного игрока. Снапшот покажет тебе число в моменте. Я покажу, <b>что за этим числом стоит</b> — и что будет дальше.</p>
+      <div class="hero__facts">
+        <span><b data-stat="online_measurements">1 980 611</b> замеров онлайна — и счётчик крутится</span>
+        <span><b data-stat="wipes">9 676</b> подтверждённых вайпов в памяти</span>
+        <span><b data-stat="servers_total">2 479</b> серверов в базе · <b data-stat="servers_tracked">1 098</b> под наблюдением</span>
+        <span><b>топ-500</b> серверов — прямой A2S-скан</span>
+      </div>
+    </div>
+    <div class="hero__cta">
+      <a class="btn btn--solid" href="https://t.me/RustPeek_Bot" target="_blank" rel="noopener">Открыть в Telegram</a>
+      <a class="btn btn--ghost" href="rustpeek_app.html">Веб-версия</a>
+    </div>
+    <div class="hero__chart-wrap">
+      <div class="hero__chart-label">так живёт сервер · два цикла вайпа</div>
+      <canvas id="cycleChart"></canvas>
+    </div>
+  </div>
+</header>
+
+<!-- ================= КАК Я ЛОВЛЮ ВАЙПЫ (досье на бумаге) ================= -->
+<section class="paper" id="how">
+  <div class="paper__in">
+    <div>
+      <div class="paper__eyebrow">Дело № 1 · метод</div>
+      <h2>Почему я знаю больше</h2>
+      <p>Поле «дата вайпа» на мониторингах заполняет <b>админ сервера</b>. Захотел — обновил, забыл — висит прошлогоднее. А «JUST WIPED» в названии — это маркетинг: у половины серверов оно стоит там <b>вечно</b>, как неоновая вывеска.</p>
+      <p>Я словам не верю. Я смотрю на <b>форму онлайна</b>. У настоящего вайпа есть подпись, которую нельзя подделать:</p>
+      <div class="paper__pattern">
+        <b>пик</b> — сервер жил, народ фармил
+        <br><b>провал</b> — рестарт, карта стёрта, все вылетели
+        <br><b>рост</b> — толпа врывается на свежую землю
+      </div>
+      <p>Нет подписи — нет вайпа, что бы ни писал админ. Есть подпись — я фиксирую дату с точностью до минуты, считаю цикл сервера и говорю тебе, <b>когда будет следующий</b>.</p>
+    </div>
+    <div class="dossier" id="dossier">
+      <div class="dossier__stamp">вайп подтверждён ✓</div>
+      <div class="dossier__title">Hustle Rust - [2X, VANILLA]</div>
+      <div class="dossier__meta">июльский цикл · реальная карточка из бота</div>
+      <div class="dayrow"><span class="dayrow__label is-wipe">День 1 · вайп</span><div class="dayrow__bar" data-w="100"></div><span class="dayrow__val">588</span></div>
+      <div class="dayrow"><span class="dayrow__label">День 2</span><div class="dayrow__bar" data-w="61"></div><span class="dayrow__val">358 <small>−39%</small></span></div>
+      <div class="dayrow"><span class="dayrow__label">День 3</span><div class="dayrow__bar" data-w="30"></div><span class="dayrow__val">175 <small>−70%</small></span></div>
+      <div class="dayrow"><span class="dayrow__label">День 4</span><div class="dayrow__bar" data-w="19"></div><span class="dayrow__val">114 <small>−81%</small></span></div>
+      <div class="dayrow dayrow--dead"><span class="dayrow__label">День 5</span><div class="dayrow__bar" data-w="9"></div><span class="dayrow__val">53 <small>−91%</small></span></div>
+      <div class="dayrow dayrow--dead"><span class="dayrow__label">День 6</span><div class="dayrow__bar" data-w="4"></div><span class="dayrow__val">25 <small>−96%</small></span></div>
+      <div class="dayrow dayrow--dead"><span class="dayrow__label">День 7</span><div class="dayrow__bar" data-w="2"></div><span class="dayrow__val">11 <small>−98%</small></span></div>
+      <div class="dayrow"><span class="dayrow__label is-wipe">День 1 · вайп</span><div class="dayrow__bar" data-w="99"></div><span class="dayrow__val">586</span></div>
+      <div class="dossier__foot">Прайм: 12:00–16:00 · цикл <b>7 дней</b> · веду историю уже <b>2 месяца</b></div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= ЧТО УМЕЮ ================= -->
+<div class="wrap" id="features">
+  <div class="sec-head">
+    <span class="sec-head__no">Дело № 2</span>
+    <h2>Что умею</h2>
+  </div>
+
+  <div class="rows">
+
+    <div class="row">
+      <div class="row__body">
+        <h3>Поиск серверов — с правдой о вайпе</h3>
+        <p>Ищи по названию или собирай подбор фильтрами: тип, рейт, цикл, стадия, размер команды, онлайн. Каждый сервер в выдаче получает честную метку: <b>🟢 свежак</b> — вайп меньше 48 часов, <b>🔴 старьё</b>, <b>🟡 вайп скоро</b> — успей собрать команду.</p>
+        <p>Сортировка «Свежак» поднимает сервера, которые вайпнулись <b>по-настоящему</b>, а не переименовались в JUST WIPED третий месяц подряд.</p>
+        <div class="row__note">даты валидируются по циклам онлайна, не по полю last_wipe</div>
+      </div>
+      <div class="row__demo">
+        <div class="demo-srv"><span class="dot dot--g"></span><span><b>Hustle Rust - [2X, VANILLA]</b><span class="m">👥 486/520 · 🗺 4250 · x2</span></span><span class="w">🟢 20.07 10:40<small>цикл: 7 дней</small></span></div>
+        <div class="demo-srv"><span class="dot dot--y"></span><span><b>Rustoria.co - EU Main</b><span class="m">👥 874/900 · 🗺 4800 · x1</span></span><span class="w">🟡 вайп ~23.07<small>цикл: 2 недели</small></span></div>
+        <div class="demo-srv"><span class="dot dot--r"></span><span><b>WARBANDITS X2 [JUST WIPED]</b><span class="m">👥 154/300 · 🗺 3500 · x2</span></span><span class="w">🔴 16.07 11:20<small>название врёт</small></span></div>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="row__body">
+        <h3>Досье на игрока</h3>
+        <p>Ник или SteamID — и я собираю картину: <b>Trust Score</b>, часы в игре, возраст аккаунта, баны, на каких серверах играл и когда. Убил тебя подозрительно меткий парень? Пробей — и решай, читер это или просто у тебя был плохой день.</p>
+        <p>Профиль закрыт? Для меня это не стена: я <b>сканирую топ-500 серверов напрямую через A2S</b> и вижу игроков, которых не видит Steam.</p>
+        <div class="row__note">закрытый профиль = «неизвестно», а не фейковый ноль — я не выдумываю</div>
+      </div>
+      <div class="row__demo">
+        <div class="demo-trust">
+          <div class="tring">
+            <svg width="92" height="92"><circle class="bgc" cx="46" cy="46" r="40"/><circle class="fgc" id="trustRing" cx="46" cy="46" r="40"/></svg>
+            <div class="tring__num"><b>74</b><span>trust</span></div>
+          </div>
+          <div class="demo-trust__t"><b>ShadowKiller_228</b> — скорее чист. 1 240 часов, аккаунту 4 года, банов нет.
+            <span class="mono">профиль закрыт · опознан через A2S · сейчас на Hustle Rust</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="row__body">
+        <h3>Вочлист — слежу, пока ты спишь</h3>
+        <p>Добавь врагов, соседей или старых тиммейтов — я буду смотреть за ними <b>круглосуточно</b> и пришлю пуш в ту же секунду, как цель зайдёт на сервер. Соседи проснулись в 4 утра? Ты узнаешь об этом раньше, чем они докопаются до твоего лута.</p>
+        <p>В списке всё по-взрослому: кто онлайн, где именно, когда зашёл. Онлайн — сверху, офлайн — снизу, ничего не ищется глазами.</p>
+        <div class="row__note">пуш приходит в Telegram — туда, где ты и так сидишь</div>
+      </div>
+      <div class="row__demo">
+        <div class="demo-wl"><span class="dot dot--g"></span><span><b>xX_Raider_Xx</b><span class="m">на Magic Rust #4</span></span><span class="t"><i>зашёл 2ч назад</i></span></div>
+        <div class="demo-wl"><span class="dot dot--y"></span><span><b>НагибаторВаня</b><span class="m">профиль скрыт · вижу через A2S</span></span><span class="t"><i>зашёл 15 мин назад</i></span></div>
+        <div class="demo-wl"><span class="dot" style="background:var(--steel);opacity:.5"></span><span><b>sleepy_bob</b><span class="m">офлайн</span></span><span class="t">был вчера 23:10</span></div>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="row__body">
+        <h3>Rust+ на стероидах</h3>
+        <p>Подключи пару Rust+ — и я стану твоим дежурным: <b>рейды, Smart Alarm, смерти, события карты</b> прилетают в Telegram мгновенно. Официальное приложение опять отвалилось? У меня свой канал — FCM-пуши напрямую.</p>
+        <p>Для рейдов есть <b>громкий режим</b>: серия алертов подряд, чтобы телефон разбудил тебя даже ночью. Проспать рейд — больно. Со мной — не проспишь.</p>
+        <div class="row__note">рейд в 4 утра — это не вопрос «если», это вопрос «когда»</div>
+      </div>
+      <div class="row__demo">
+        <div class="demo-al">🚨 <span><b>РЕЙД!</b> Взрыв у базы — Smart Alarm «Главная дверь»</span><span class="tm">14:32</span></div>
+        <div class="demo-al a2">📟 <span>Smart Alarm <b>«Ловушка в гараже»</b> — движение</span><span class="tm">11:07</span></div>
+        <div class="demo-al a3">💀 <span>Ты умер. <b>ShadowKiller_228</b> — AK-47, 87м</span><span class="tm">23:48</span></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ================= ВЕБ-ВЕРСИЯ ================= -->
+<div class="wrap">
+  <div class="webv">
+    <div>
+      <h2>Всё то же — на большом экране</h2>
+      <p>История по дням, циклы, досье игроков и вочлист — <b>в браузере</b>, когда телефон лень доставать. Тот же аккаунт, те же данные, ноль настройки.</p>
+    </div>
+    <div class="webv__side">
+      <div class="webv__tabs"><span class="on">Серверы</span><span>Игроки</span><span>Вочлист</span><span>Rust+</span></div>
+      <a class="btn btn--solid" href="rustpeek_app.html">Открыть веб-версию</a>
+    </div>
+  </div>
+</div>
+
+<!-- ================= FAQ ================= -->
+<div class="wrap" id="faq">
+  <div class="sec-head">
+    <span class="sec-head__no">Дело № 3</span>
+    <h2>Вопросы, которые задают все</h2>
+  </div>
+  <div class="faq">
+    <details>
+      <summary>Откуда у тебя данные?</summary>
+      <div class="a">Три источника: публичная статистика мониторингов, <b>прямой A2S-опрос серверов</b> (тот же протокол, которым пользуется сама игра) и моя собственная база истории, которую я пишу круглосуточно уже не первый месяц. Снапшот любой может показать — <b>историю</b> надо было начать собирать вовремя. Я начал.</div>
+    </details>
+    <details>
+      <summary>Почему нельзя просто верить дате вайпа на мониторинге?</summary>
+      <div class="a">Потому что её заполняет админ сервера — руками. Кто-то честно обновляет, кто-то забывает месяцами, а кто-то <b>врёт специально</b>, чтобы сервер выглядел свежим и собирал онлайн. Я валидирую каждую дату по форме онлайна: пик → провал → рост. Эту подпись подделать нельзя.</div>
+    </details>
+    <details>
+      <summary>Профиль игрока закрыт — что ты вообще увидишь?</summary>
+      <div class="a">Больше, чем ты думаешь. Закрытый профиль прячет статистику Steam, но <b>не прячет самого игрока на сервере</b>: я сканирую топ-500 серверов напрямую и вижу, кто где играет — по факту присутствия. А чего не вижу — честно пишу «неизвестно», а не рисую нолики.</div>
+    </details>
+    <details>
+      <summary>Это бесплатно?</summary>
+      <div class="a">Да, база — бесплатно: поиск, вайпы, досье. Продвинутым штукам вроде слежки за пачкой целей и громких рейд-алертов со временем появится подписка — но <b>сначала я должен быть полезен</b>, потом уже просить денег. Не наоборот.</div>
+    </details>
+    <details>
+      <summary>А если сервер маленький и его нет в твоей базе?</summary>
+      <div class="a">Найду через поиск и <b>возьму под наблюдение</b> — с этого момента история начнёт писаться. Чем раньше добавишь свой сервер, тем длиннее будет его память к следующему циклу.</div>
+    </details>
+  </div>
+</div>
+
+<!-- ================= FINAL ================= -->
+<div class="wrap final">
+  <h2>Хватит играть <span class="hot">вслепую</span>.</h2>
+  <p>Тридцать секунд в Telegram — и у тебя память лучше, чем у любого мониторинга. Вайпы, игроки, слежка, рейд-алерты. Всё в одном боте.</p>
+  <div class="final__cta">
+    <a class="btn btn--solid" href="https://t.me/RustPeek_Bot" target="_blank" rel="noopener">Открыть @RustPeek_Bot</a>
+    <a class="btn btn--ghost" href="rustpeek_app.html">Веб-версия</a>
+  </div>
+  <div class="final__meta">
+    <span><b data-stat="online_measurements_short">~2 млн</b> замеров онлайна</span>
+    <span><b data-stat="wipes">9 676</b> подтверждённых вайпов</span>
+    <span><b>24/7</b> мониторинг</span>
+  </div>
+</div>
+
+<footer class="footer">
+  <div class="footer__in">
+    <span>© 2026 RustPeek</span>
+    <div class="footer__links">
+      <a href="rustpeek_app.html">Веб-версия</a>
+      <a href="https://t.me/RustPeek_Bot" target="_blank" rel="noopener">@RustPeek_Bot</a>
+      <a href="#how">Как это работает</a>
+    </div>
+  </div>
+</footer>
+
+<script>
+(function(){
+  var reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  /* тикер: дублируем ленту для бесшовного цикла */
+  var track = document.getElementById('tickerTrack');
+  track.innerHTML += track.innerHTML;
+
+  /* тикер не должен уезжать под фиксированную шапку */
+  var navEl = document.querySelector('.nav');
+  var tickerEl = document.querySelector('.ticker');
+  function padTicker(){ tickerEl.style.marginTop = navEl.offsetHeight + 'px'; }
+  padTicker();
+  window.addEventListener('resize', padTicker);
+
+  /* ---------- график цикла ---------- */
+  var canvas = document.getElementById('cycleChart');
+  var ctx = canvas.getContext('2d');
+  var points = [];
+  (function gen(){
+    var hours = 0;
+    [{peak:640,len:168},{peak:590,len:168}].forEach(function(c){
+      for(var h=0; h<c.len; h++){
+        var t = h/c.len;
+        var base = c.peak * Math.exp(-4.2*t);
+        var daily = 1 + 0.35*Math.sin((h%24)/24*Math.PI*2 - 1.2);
+        var noise = 1 + (Math.sin(h*12.9898)*43758.5453 % 1)*0.06;
+        points.push({h:hours+h, v:Math.max(6, base*daily*noise)});
+      }
+      hours += c.len;
+    });
+  })();
+  var totalH = points[points.length-1].h, maxV = 700, wipeHours=[0,168];
+
+  function size(){
+    var dpr = window.devicePixelRatio||1, r = canvas.getBoundingClientRect();
+    canvas.width = r.width*dpr; canvas.height = r.height*dpr;
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    return r;
+  }
+  var progress = reduced?1:0, started=false;
+
+  function draw(){
+    var r=size(), W=r.width, H=r.height, padB=26, padT=12;
+    ctx.clearRect(0,0,W,H);
+    function X(h){return (h/totalH)*W}
+    function Y(v){return padT + (1-v/maxV)*(H-padT-padB)}
+    var upto = Math.floor(points.length*progress);
+
+    ctx.strokeStyle='rgba(44,36,29,.9)';ctx.lineWidth=1;
+    ctx.font='11px "JetBrains Mono", monospace';
+    ctx.fillStyle='rgba(138,128,120,.7)';
+    for(var d=0; d<=totalH/24; d++){
+      var x=X(d*24);
+      ctx.beginPath();ctx.moveTo(x,padT);ctx.lineTo(x,H-padB);ctx.stroke();
+      if(d<totalH/24 && x<W-30) ctx.fillText('д'+((d%7)+1), x+5, H-9);
+    }
+    if(upto<2) return;
+
+    var grad=ctx.createLinearGradient(0,padT,0,H-padB);
+    grad.addColorStop(0,'rgba(201,80,30,.28)');
+    grad.addColorStop(1,'rgba(201,80,30,0)');
+    ctx.beginPath();
+    ctx.moveTo(X(points[0].h),H-padB);
+    for(var i=0;i<upto;i++) ctx.lineTo(X(points[i].h),Y(points[i].v));
+    ctx.lineTo(X(points[upto-1].h),H-padB);
+    ctx.closePath();ctx.fillStyle=grad;ctx.fill();
+
+    ctx.beginPath();
+    for(var j=0;j<upto;j++){
+      var px=X(points[j].h),py=Y(points[j].v);
+      if(j===0)ctx.moveTo(px,py);else ctx.lineTo(px,py);
+    }
+    ctx.strokeStyle='#e86a2f';ctx.lineWidth=2;
+    ctx.shadowColor='rgba(232,106,47,.55)';ctx.shadowBlur=10;
+    ctx.stroke();ctx.shadowBlur=0;
+
+    ctx.font='11px "JetBrains Mono", monospace';
+    wipeHours.forEach(function(wh){
+      if(points[upto-1].h>=wh){
+        var wx=X(wh);
+        ctx.fillStyle='#e86a2f';
+        ctx.beginPath();ctx.arc(wx,Y(points[Math.min(wh+2,points.length-1)].v),3.5,0,Math.PI*2);ctx.fill();
+        ctx.fillText('вайп',wx+7,Y(600));
+      }
+    });
+
+    if(progress>=1){
+      var last=points[points.length-1], t=(Date.now()%1600)/1600;
+      var lr=4+5*Math.abs(Math.sin(t*Math.PI));
+      ctx.beginPath();ctx.arc(X(last.h)-2,Y(last.v),lr,0,Math.PI*2);
+      ctx.fillStyle='rgba(232,106,47,.18)';ctx.fill();
+      ctx.beginPath();ctx.arc(X(last.h)-2,Y(last.v),3.5,0,Math.PI*2);
+      ctx.fillStyle='#e86a2f';ctx.fill();
+    }
+  }
+  function tick(){
+    if(progress<1) progress=Math.min(1,progress+0.008);
+    draw();
+    if(!reduced||progress<1) requestAnimationFrame(tick);
+  }
+  function startChart(){
+    if(started)return;started=true;
+    if(reduced){progress=1;draw();} else requestAnimationFrame(tick);
+  }
+  if('IntersectionObserver' in window){
+    new IntersectionObserver(function(es,obs){
+      es.forEach(function(e){if(e.isIntersecting){startChart();obs.disconnect();}});
+    },{threshold:.2}).observe(canvas);
+  } else startChart();
+  window.addEventListener('resize',function(){if(started)draw();});
+
+  /* ---------- бары досье ---------- */
+  var dossier=document.getElementById('dossier');
+  function fillBars(){
+    dossier.querySelectorAll('.dayrow__bar').forEach(function(b,i){
+      setTimeout(function(){b.style.width=b.dataset.w+'%';},reduced?0:i*85);
+    });
+  }
+  if('IntersectionObserver' in window){
+    new IntersectionObserver(function(es,obs){
+      es.forEach(function(e){if(e.isIntersecting){fillBars();obs.disconnect();}});
+    },{threshold:.25}).observe(dossier);
+  } else fillBars();
+
+  /* ---------- trust ring ---------- */
+  var ring=document.getElementById('trustRing');
+  if('IntersectionObserver' in window && !reduced){
+    new IntersectionObserver(function(es,obs){
+      es.forEach(function(e){
+        if(e.isIntersecting){
+          setTimeout(function(){ring.style.strokeDashoffset=251-251*0.74;},120);
+          obs.disconnect();
+        }
+      });
+    },{threshold:.4}).observe(ring);
+  } else {
+    ring.style.strokeDashoffset=251-251*0.74;
+  }
+})();
+</script><script>
+(function () {
+  function parseNum(text) {
+    var digits = (text || '').replace(/[^\d]/g, '');
+    return digits ? parseInt(digits, 10) : 0;
+  }
+
+  function formatThousands(n) {
+    return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+  }
+
+  function animateValue(el, from, to, formatFn, duration) {
+    duration = duration || 700;
+    if (from === to) {
+      el.textContent = formatFn(to);
+      return;
+    }
+    var start = null;
+    function step(timestamp) {
+      if (start === null) start = timestamp;
+      var progress = Math.min((timestamp - start) / duration, 1);
+      var eased = 1 - Math.pow(1 - progress, 3);
+      var current = Math.round(from + (to - from) * eased);
+      el.textContent = formatFn(current);
+      if (progress < 1) requestAnimationFrame(step);
+    }
+    requestAnimationFrame(step);
+  }
+
+  function updateStat(selector, value, formatFn) {
+    document.querySelectorAll(selector).forEach(function (el) {
+      animateValue(el, parseNum(el.textContent), value, formatFn);
+    });
+  }
+
+  function applyStats(stats) {
+    if (!stats) return;
+    if (typeof stats.online_measurements === 'number') {
+      updateStat('[data-stat="online_measurements"]', stats.online_measurements, formatThousands);
+      var millions = Math.round(stats.online_measurements / 1e6);
+      updateStat('[data-stat="online_measurements_short"]', millions, function (n) {
+        return '~' + n + ' млн';
+      });
+    }
+    if (typeof stats.wipes === 'number') {
+      updateStat('[data-stat="wipes"]', stats.wipes, formatThousands);
+    }
+    if (typeof stats.servers_total === 'number') {
+      updateStat('[data-stat="servers_total"]', stats.servers_total, formatThousands);
+    }
+    if (typeof stats.servers_tracked === 'number') {
+      updateStat('[data-stat="servers_tracked"]', stats.servers_tracked, formatThousands);
+    }
+  }
+
+  function loadStats() {
+    fetch('/api/stats', { cache: 'no-store' })
+      .then(function (res) {
+        if (!res.ok) throw new Error('bad status');
+        return res.json();
+      })
+      .then(applyStats)
+      .catch(function () {
+        // тихий fallback: оставляем захардкоженные цифры из HTML как есть
+      });
+  }
+
+  loadStats();
+  setInterval(loadStats, 2 * 60 * 1000);
+})();
+</script>
+</body>
+</html>
