@@ -199,6 +199,13 @@ input{font-family:inherit;color:inherit}
   font-size:15px;
 }
 .srvlist__empty b{color:var(--bone)}
+.srvlist__bmhead{
+  color:var(--steel);font-size:13px;padding:14px 4px 2px;
+  border-top:1px dashed var(--line);margin-top:6px;
+}
+.srv--bm{cursor:default;opacity:.7}
+.srv--bm:hover{border-color:var(--line);transform:none}
+.srv--bm .srv__wipe .w{color:var(--steel)}
 
 /* ---------- SERVER DETAIL ---------- */
 .detail{
@@ -659,7 +666,7 @@ input{font-family:inherit;color:inherit}
       })
       .then(function(data){
         if(mySeq !== searchSeq) return; // устаревший ответ, юзер уже ввёл новый запрос
-        renderList(data.servers || [], data.count || 0);
+        renderList(data);
       })
       .catch(function(err){
         if(err && err.name === 'AbortError') return; // штатная отмена, не ошибка
@@ -670,24 +677,66 @@ input{font-family:inherit;color:inherit}
       });
   }
 
-  function renderList(items, count){
+  // текст чипа фильтра — берём как есть (без эмодзи в начале), чтобы
+  // причина пустой выдачи слово в слово совпадала с тем, что юзер видел
+  // на самой кнопке, и не расходилась с ней при будущих правках текста чипов
+  function activeFilterLabel(){
+    var chip = document.querySelector('.chip[data-filter="'+curFilter+'"]');
+    if(!chip) return curFilter;
+    return chip.textContent.replace(/^[^\wа-яё]+/i, '').trim();
+  }
+
+  function renderLocalCard(s){
+    return '<button class="srv" data-id="'+s.id+'">'+
+      '<span class="srv__dot '+dotCls(s.wipe_state)+'"></span>'+
+      '<span><span class="srv__name">'+s.name+'</span>'+
+      '<span class="srv__meta"><span>👥 <b>'+s.online+'</b>/'+s.max+'</span><span>🗺 '+s.map_size+'</span><span>'+s.rate+' · '+(s.type==='vanilla'?'ванилла':'моды')+'</span></span></span>'+
+      '<span class="srv__wipe"><span class="w">'+wipeLabel(s)+'</span></span>'+
+    '</button>';
+  }
+
+  // второй блок гибридного поиска — нашли живьём в BattleMetrics, ещё не
+  // в нашей базе (или только поставлено в очередь на импорт), карточку
+  // открыть нельзя (id===null), поэтому это <div>, а не кликабельная <button>
+  function renderBmCard(s){
+    return '<div class="srv srv--bm">'+
+      '<span class="srv__dot srv__dot--old"></span>'+
+      '<span><span class="srv__name">'+s.name+'</span>'+
+      '<span class="srv__meta"><span>👥 <b>'+s.online+'</b>/'+s.max+'</span><span>🗺 '+(s.map_size||'?')+'</span></span></span>'+
+      '<span class="srv__wipe"><span class="w">нет истории</span></span>'+
+    '</div>';
+  }
+
+  function renderList(data){
     srvCount.classList.remove('is-loading');
+    var items = data.servers || [];
+    var localItems = items.filter(function(s){ return s.source !== 'battlemetrics_live'; });
+    var bmItems = items.filter(function(s){ return s.source === 'battlemetrics_live'; });
+
     if(!items.length){
       srvCount.textContent = '';
-      srvList.innerHTML = '<div class="srvlist__empty">Под такие фильтры <b>пусто</b> — ослабь один-два, и я найду.</div>';
+      var beforeFilter = data.local_count_before_filter || 0;
+      var filterApplied = data.filter_applied || 'all';
+      if(beforeFilter > 0 && filterApplied !== 'all'){
+        srvList.innerHTML = '<div class="srvlist__empty">Нашлось <b>'+beforeFilter+'</b> '+plural(beforeFilter)+
+          ', но ни один не подошёл под «'+activeFilterLabel()+'» — ослабь фильтр, и я найду.</div>';
+      } else {
+        srvList.innerHTML = '<div class="srvlist__empty">Ничего не нашлось — проверь название, поищу ещё и в BattleMetrics.</div>';
+      }
       return;
     }
-    var countLabel = count > items.length ? items.length + '+' : String(count);
-    srvCount.innerHTML = 'Подходит <b>'+countLabel+'</b> '+plural(count)+' 🎯';
-    srvList.innerHTML = items.map(function(s){
-      return '<button class="srv" data-id="'+s.id+'">'+
-        '<span class="srv__dot '+dotCls(s.wipe_state)+'"></span>'+
-        '<span><span class="srv__name">'+s.name+'</span>'+
-        '<span class="srv__meta"><span>👥 <b>'+s.online+'</b>/'+s.max+'</span><span>🗺 '+s.map_size+'</span><span>'+s.rate+' · '+(s.type==='vanilla'?'ванилла':'моды')+'</span></span></span>'+
-        '<span class="srv__wipe"><span class="w">'+wipeLabel(s)+'</span></span>'+
-      '</button>';
-    }).join('');
-    srvList.querySelectorAll('.srv').forEach(function(el){
+
+    var countLabel = localItems.length + (localItems.length >= 50 ? '+' : '');
+    srvCount.innerHTML = 'Подходит <b>'+countLabel+'</b> '+plural(localItems.length)+' 🎯';
+
+    var html = localItems.map(renderLocalCard).join('');
+    if(bmItems.length){
+      html += '<div class="srvlist__bmhead">📡 Нашёл ещё в BattleMetrics — истории и Trust Score по ним пока нет:</div>';
+      html += bmItems.map(renderBmCard).join('');
+    }
+    srvList.innerHTML = html;
+
+    srvList.querySelectorAll('.srv[data-id]').forEach(function(el){
       el.addEventListener('click', function(){ openDetail(+el.dataset.id); });
     });
   }
