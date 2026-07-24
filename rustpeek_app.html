@@ -164,36 +164,57 @@ input{font-family:inherit;color:inherit}
   background:rgba(201,80,30,.1);
 }
 
-/* ---------- SERVER LIST ---------- */
-.srvlist{display:flex;flex-direction:column;gap:10px}
-.srv{
+/* ---------- SERVER PANEL: CHIPS + SORT ---------- */
+.srvpanel{margin-bottom:14px}
+.sortrow{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.sortrow__label{
+  font-family:var(--font-mono);font-size:11.5px;color:var(--steel);
+  align-self:center;margin-right:2px;
+}
+.sortbtn{
+  font-family:var(--font-mono);font-size:12px;color:var(--steel);
+  border:1px solid var(--line);border-radius:20px;padding:5px 12px;
+  transition:all .18s;
+}
+.sortbtn:hover{border-color:var(--steel);color:var(--bone)}
+.sortbtn.is-on{border-color:var(--rust);color:var(--rust-hot);background:rgba(201,80,30,.1)}
+
+/* ---------- SERVER LIST (строки со спарклайнами) ---------- */
+.srvlist{display:flex;flex-direction:column;gap:8px}
+.srvrow{
   background:var(--surface);
   border:1px solid var(--line);
   border-radius:6px;
-  padding:16px 18px;
+  padding:12px 16px;
   display:grid;
-  grid-template-columns:14px 1fr auto;
-  gap:14px;align-items:center;
+  grid-template-columns:1fr 150px auto;
+  gap:16px;align-items:center;
   cursor:pointer;
   transition:border-color .2s, transform .15s;
   text-align:left;width:100%;
+  min-width:0;
 }
-.srv:hover{border-color:rgba(201,80,30,.5);transform:translateX(3px)}
-.srv__dot{width:10px;height:10px;border-radius:50%;justify-self:center}
-.srv__dot--fresh{background:var(--green);box-shadow:0 0 8px rgba(111,174,92,.6)}
-.srv__dot--old{background:var(--red);box-shadow:0 0 8px rgba(201,74,58,.5)}
-.srv__dot--soon{background:var(--yellow);box-shadow:0 0 8px rgba(217,165,63,.55)}
-.srv__name{font-weight:600;font-size:15px}
-.srv__meta{
-  font-family:var(--font-mono);font-size:12.5px;color:var(--steel);
-  margin-top:3px;display:flex;gap:14px;flex-wrap:wrap;
+.srvrow:hover{border-color:rgba(201,80,30,.5);transform:translateX(3px)}
+.srvrow__main{min-width:0}
+.srvrow__name{
+  font-weight:600;font-size:14.5px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  display:block;
 }
-.srv__meta b{color:var(--bone);font-weight:600}
-.srv__wipe{
-  font-family:var(--font-mono);font-size:12.5px;text-align:right;
+.srvrow__meta{
+  font-family:var(--font-mono);font-size:11.5px;color:var(--steel);
+  margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  display:block;
 }
-.srv__wipe .w{color:var(--bone)}
-.srv__wipe .cyc{color:var(--steel);display:block;margin-top:2px}
+.srvrow__spark{display:flex;align-items:center;justify-content:center;flex:none}
+.srvrow__spark svg{display:block}
+.srvrow__right{display:flex;align-items:center;gap:10px;justify-self:end;flex:none}
+.srvrow__online{font-family:var(--font-mono);font-size:13px;white-space:nowrap}
+.srvrow__online b{color:var(--bone);font-weight:600}
+.srvrow__dot{width:9px;height:9px;border-radius:50%;flex:none}
+.srvrow__dot--fresh{background:var(--green);box-shadow:0 0 8px rgba(111,174,92,.6)}
+.srvrow__dot--soon{background:var(--yellow);box-shadow:0 0 8px rgba(217,165,63,.55)}
+.srvrow__dot--normal{background:var(--steel)}
 .srvlist__empty{
   text-align:center;color:var(--steel);padding:50px 20px;
   font-size:15px;
@@ -203,9 +224,25 @@ input{font-family:inherit;color:inherit}
   color:var(--steel);font-size:13px;padding:14px 4px 2px;
   border-top:1px dashed var(--line);margin-top:6px;
 }
-.srv--bm{cursor:default;opacity:.7}
-.srv--bm:hover{border-color:var(--line);transform:none}
-.srv--bm .srv__wipe .w{color:var(--steel)}
+.srvrow--bm{cursor:default;opacity:.7}
+.srvrow--bm:hover{border-color:var(--line);transform:none}
+.srvrow--bm .srvrow__meta{color:var(--steel)}
+
+.loadmorewrap{display:flex;justify-content:center;margin-top:18px}
+.loadmore{
+  font-family:var(--font-mono);font-size:13px;color:var(--bone);
+  border:1px solid var(--line);border-radius:20px;padding:9px 24px;
+  transition:all .18s;
+}
+.loadmore:hover{border-color:var(--rust);color:var(--rust-hot)}
+.loadmore:disabled{opacity:.4;cursor:default}
+
+@media(max-width:680px){
+  .srvrow{grid-template-columns:1fr;gap:6px}
+  .srvrow__spark{justify-self:start;width:100%}
+  .srvrow__spark svg{width:100%}
+  .srvrow__right{justify-self:start}
+}
 
 /* ---------- SERVER DETAIL ---------- */
 .detail{
@@ -241,46 +278,65 @@ input{font-family:inherit;color:inherit}
 .stat__v small{font-size:12px;color:var(--steel);font-weight:400}
 .stat__v.hot{color:var(--rust-hot)}
 .stat__v.ok{color:var(--green)}
-.days__head{
-  display:flex;justify-content:space-between;align-items:baseline;
-  font-family:var(--font-mono);font-size:12.5px;color:var(--steel);
-  margin-bottom:14px;flex-wrap:wrap;gap:6px;
-}
-.days__head b{color:var(--bone)}
-.dayrow{
-  display:grid;grid-template-columns:128px 1fr 104px;
-  align-items:center;gap:12px;
-  padding:5px 0;
-  font-family:var(--font-mono);font-size:12.5px;
-}
-.dayrow__label{color:var(--steel)}
-.dayrow__label.is-wipe{color:var(--rust-hot);font-weight:600}
-.dayrow__label.is-gap{color:var(--line)}
-.dayrow__bar{
-  height:13px;border-radius:2px;
-  background:linear-gradient(90deg,var(--rust),var(--rust-hot));
-  width:0%;
-  transition:width .8s cubic-bezier(.2,.7,.2,1);
-  min-width:2px;
-}
-.dayrow--dead .dayrow__bar{background:var(--line)}
-.dayrow--gap .dayrow__bar{background:repeating-linear-gradient(45deg,var(--line),var(--line) 4px,transparent 4px,transparent 8px);height:8px}
-.dayrow__val{color:var(--bone);text-align:right}
-.dayrow__val small{color:var(--steel)}
 .detail__memory{
   margin-top:18px;padding-top:16px;border-top:1px dashed var(--line);
   font-family:var(--font-mono);font-size:12.5px;color:var(--steel);
 }
 .detail__memory b{color:var(--rust-hot)}
-.cycle-div{
-  font-family:var(--font-mono);font-size:11px;color:var(--patina);
-  text-transform:uppercase;letter-spacing:.08em;
-  margin:14px 0 6px;padding-top:10px;border-top:1px dashed var(--line);
+
+/* ---------- CARD: period switcher + chart ---------- */
+.periodrow{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:4px 0 14px}
+.periodbtn{
+  font-family:var(--font-mono);font-size:12px;color:var(--steel);
+  border:1px solid var(--line);border-radius:20px;padding:5px 12px;
+  transition:all .18s;
 }
-.cycle-div:first-child{margin-top:0;padding-top:0;border-top:none}
-.days-warn{
-  font-family:var(--font-mono);font-size:12.5px;color:var(--yellow);
-  padding:10px 0;
+.periodbtn:hover{border-color:var(--steel);color:var(--bone)}
+.periodbtn.is-on{border-color:var(--rust);color:var(--rust-hot);background:rgba(201,80,30,.1)}
+.cyclenav{display:flex;align-items:center;gap:8px;margin-left:auto;font-family:var(--font-mono);font-size:12.5px;color:var(--steel)}
+.cyclenav button{
+  width:26px;height:26px;border:1px solid var(--line);border-radius:5px;
+  display:flex;align-items:center;justify-content:center;color:var(--bone);
+  transition:border-color .2s;line-height:1;
+}
+.cyclenav button:hover:not(:disabled){border-color:var(--rust)}
+.cyclenav button:disabled{opacity:.3;cursor:default}
+
+.chartwrap{
+  position:relative;background:var(--surface-2);
+  border:1px solid var(--line);border-radius:6px;
+  padding:14px;margin-bottom:20px;
+}
+.chartwrap svg{display:block;width:100%;height:auto}
+.chart__tooltip{
+  position:absolute;pointer-events:none;
+  background:var(--bg);border:1px solid var(--rust);border-radius:5px;
+  padding:8px 11px;font-family:var(--font-mono);font-size:12px;color:var(--bone);
+  white-space:nowrap;opacity:0;transition:opacity .1s;z-index:10;
+}
+.chart__tooltip.is-visible{opacity:1}
+.chart__tooltip .tt__day{color:var(--steel)}
+
+.wipehist{margin-top:6px}
+.wipehist__title{
+  font-family:var(--font-mono);font-size:12px;color:var(--steel);
+  text-transform:uppercase;letter-spacing:.1em;margin-bottom:10px;
+}
+.wipehist__rows{display:flex;flex-direction:column;gap:6px}
+.wipehist__row{
+  display:grid;grid-template-columns:118px 76px 64px 1fr;gap:10px;
+  align-items:center;
+  background:var(--surface-2);border:1px solid var(--line);border-radius:5px;
+  padding:9px 12px;font-family:var(--font-mono);font-size:12px;
+}
+.wipehist__when{color:var(--bone)}
+.wipehist__weekday{color:var(--steel)}
+.wipehist__interval{color:var(--steel)}
+.wipehist__note{color:var(--patina);text-align:right;font-size:11px}
+@media(max-width:680px){
+  .wipehist__row{grid-template-columns:1fr 1fr;row-gap:2px}
+  .wipehist__interval{display:none}
+  .wipehist__note{text-align:left}
 }
 .srv-loading, .srv-error{
   font-family:var(--font-mono);font-size:13.5px;color:var(--steel);
@@ -446,11 +502,8 @@ input{font-family:inherit;color:inherit}
 .alert__time{font-family:var(--font-mono);font-size:12px;color:var(--steel)}
 
 @media(max-width:680px){
-  .srv{grid-template-columns:12px 1fr}
-  .srv__wipe{grid-column:2;text-align:left;margin-top:4px}
   .phist__row{grid-template-columns:1fr auto}
   .phist__hours{display:none}
-  .dayrow{grid-template-columns:104px 1fr 88px;gap:8px;font-size:11.5px}
 }
 @media(prefers-reduced-motion:reduce){
   *{animation:none!important;transition:none!important}
@@ -492,16 +545,25 @@ input{font-family:inherit;color:inherit}
       <input class="search__input" id="srvSearch" type="text" placeholder="Название сервера — найду и скажу правду про вайп…">
       <button class="search__btn">Найти</button>
     </div>
-    <div class="chips" id="srvChips">
-      <button class="chip is-on" data-filter="all">Все</button>
-      <button class="chip" data-filter="fresh">🟢 Свежак ≤48ч</button>
-      <button class="chip" data-filter="soon">🟡 Скоро вайп</button>
-      <button class="chip" data-filter="vanilla">Ванилла</button>
-      <button class="chip" data-filter="mod">Моды</button>
+    <div class="srvpanel">
+      <div class="chips" id="srvChips">
+        <button class="chip is-on" data-filter="all">Все</button>
+        <button class="chip" data-filter="vanilla">Ванилла</button>
+        <button class="chip" data-filter="mod">Моды</button>
+      </div>
+      <div class="sortrow" id="srvSort">
+        <span class="sortrow__label">Сортировка:</span>
+        <button class="sortbtn is-on" data-sort="online">Онлайн</button>
+        <button class="sortbtn" data-sort="wipe_fresh">Свежак</button>
+        <button class="sortbtn" data-sort="cycle">Цикл</button>
+      </div>
     </div>
     <div class="srvcount" id="srvCount"></div>
     <div id="srvDetail"></div>
     <div class="srvlist" id="srvList"></div>
+    <div class="loadmorewrap" id="srvLoadMoreWrap" style="display:none">
+      <button class="loadmore" id="srvLoadMore">Показать ещё 50</button>
+    </div>
   </section>
 
   <!-- ================= ИГРОКИ ================= -->
@@ -616,23 +678,106 @@ input{font-family:inherit;color:inherit}
     });
   });
 
-  /* ---------- СЕРВЕРЫ: список + фильтры + поиск (живой API) ---------- */
+  /* ---------- СЕРВЕРЫ: список со спарклайнами + карточка с графиком (живой API) ---------- */
   var curFilter = 'all';
+  var curSort = 'online';
+  var curOffset = 0;
+  var curTotal = 0;
+  var srvShown = 0;
+  var LIMIT = 50;
+
   var srvList = document.getElementById('srvList');
   var srvDetail = document.getElementById('srvDetail');
   var srvSearch = document.getElementById('srvSearch');
   var srvCount = document.getElementById('srvCount');
+  var srvLoadMoreWrap = document.getElementById('srvLoadMoreWrap');
+  var srvLoadMoreBtn = document.getElementById('srvLoadMore');
 
-  function dotCls(s){ return s==='fresh'?'srv__dot--fresh':(s==='soon'?'srv__dot--soon':'srv__dot--old'); }
-  function wipeLabel(s){
-    if(s.wipe_state==='soon') return '🟡 вайп '+(s.wipe_label||'скоро');
-    return (s.wipe_state==='fresh'?'🟢 ':'🔴 ')+(s.wipe_label||'неизвестно');
+  var WEEKDAYS_SHORT = ['вс','пн','вт','ср','чт','пт','сб']; // Date.getDay(): 0=воскресенье
+  var WEEKDAYS_FULL = ['понедельник','вторник','среда','четверг','пятница','суббота','воскресенье']; // backend weekday(): 0=понедельник
+
+  // Ники/имена серверов из API/БД — экранируем перед вставкой в innerHTML:
+  // в никах и названиях Rust полно угловых скобок (теги кланов <RU>, [EU] и
+  // т.п.), без экранирования верстка/скрипт ломаются на первом же таком имени.
+  function escapeHtml(str){
+    return String(str==null ? '' : str).replace(/[&<>"']/g, function(c){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+    });
+  }
+  function pad2(n){ return (n<10?'0':'')+n; }
+  // "YYYY-MM-DD HH:MM:SS" или "YYYY-MM-DD" -> Date (локальное время)
+  function parseSqlDateTime(s){
+    if(!s) return null;
+    var m = /^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2}):(\d{2}))?/.exec(s);
+    if(!m) return null;
+    return new Date(+m[1], +m[2]-1, +m[3], +(m[4]||0), +(m[5]||0), +(m[6]||0));
   }
   function plural(n){
     var m10=n%10, m100=n%100;
     if(m10===1 && m100!==11) return 'сервер';
     if(m10>=2 && m10<=4 && (m100<10||m100>=20)) return 'сервера';
     return 'серверов';
+  }
+
+  /* ---------- СПИСОК: спарклайн, строка сервера, пагинация ---------- */
+  function dotCls(s){
+    if(s.wipe_state==='fresh') return 'srvrow__dot--fresh';
+    if(s.wipe_state==='soon') return 'srvrow__dot--soon';
+    return 'srvrow__dot--normal';
+  }
+
+  function buildMetaLine(s){
+    var wipeDatePart = s.wipe_label ? s.wipe_label.split(' ')[0] : '—';
+    var cyclePart = s.cycle ? (s.cycle+' дн') : '—';
+    var nextDt = parseSqlDateTime(s.next_wipe_estimate);
+    var nextPart = nextDt ? ('~'+pad2(nextDt.getDate())+'.'+pad2(nextDt.getMonth()+1)) : '—';
+    return 'вайп '+wipeDatePart+' · цикл '+cyclePart+' · некст '+nextPart;
+  }
+
+  // values — ~28 точек (6ч-бакеты за 7 суток), могут содержать null (нет
+  // данных за бакет); wipeLabel — "DD.MM HH:MM" последнего вайпа, если
+  // попадает в окно спарклайна — рисуем точку на нём.
+  function renderSparkline(values, wipeLabel){
+    var w=150, h=34, pad=2;
+    values = values || [];
+    var nums = values.filter(function(v){ return v!=null; });
+    if(!nums.length){
+      return '<svg class="spark" width="'+w+'" height="'+h+'" viewBox="0 0 '+w+' '+h+'"></svg>';
+    }
+    var max = Math.max.apply(null, nums);
+    if(max<=0) max=1;
+    var n = values.length;
+    var stepX = n>1 ? (w-pad*2)/(n-1) : 0;
+    var pts=[]; var last=0;
+    for(var i=0;i<n;i++){
+      var v = values[i];
+      if(v==null) v=last; else last=v;
+      var x = pad + i*stepX;
+      var y = h-pad - (v/max)*(h-pad*2);
+      pts.push({x:x, y:y});
+    }
+    var lineStr = pts.map(function(p){ return p.x.toFixed(1)+','+p.y.toFixed(1); }).join(' ');
+    var areaStr = pts[0].x.toFixed(1)+','+(h-pad)+' '+lineStr+' '+pts[n-1].x.toFixed(1)+','+(h-pad);
+
+    var dotSvg = '';
+    var wipeMatch = /^(\d{2})\.(\d{2})\s+(\d{2}):(\d{2})$/.exec(wipeLabel||'');
+    if(wipeMatch){
+      var now = new Date();
+      var wd = new Date(now.getFullYear(), +wipeMatch[2]-1, +wipeMatch[1], +wipeMatch[3], +wipeMatch[4]);
+      if(wd > now) wd.setFullYear(wd.getFullYear()-1);
+      var hoursAgo = (now.getTime()-wd.getTime())/3600000;
+      var bucketFromEnd = Math.floor(hoursAgo/6);
+      var idx = n-1-bucketFromEnd;
+      if(idx>=0 && idx<n){
+        dotSvg = '<circle cx="'+pts[idx].x.toFixed(1)+'" cy="'+pts[idx].y.toFixed(1)+'" r="2.4" fill="var(--rust-hot)"></circle>';
+      }
+    }
+
+    return '<svg class="spark" width="'+w+'" height="'+h+'" viewBox="0 0 '+w+' '+h+'">'+
+      '<polygon points="'+areaStr+'" fill="var(--rust-hot)" opacity="0.08"></polygon>'+
+      '<polyline points="'+lineStr+'" fill="none" stroke="var(--rust-hot)" stroke-width="1.5"></polyline>'+
+      dotSvg+
+    '</svg>';
   }
 
   // дебаунс: не долбим API на каждый символ, ждём паузу в наборе
@@ -645,28 +790,34 @@ input{font-family:inherit;color:inherit}
     searchTimer = setTimeout(runSearch, 300);
   }
 
-  function runSearch(){
+  function buildSearchUrl(offset){
+    var url = API_BASE + '/api/servers/search?filter=' + encodeURIComponent(curFilter) +
+      '&limit=' + LIMIT + '&offset=' + offset + '&sort=' + encodeURIComponent(curSort);
     var q = srvSearch.value.trim();
+    if(q) url += '&q=' + encodeURIComponent(q);
+    return url;
+  }
+
+  function runSearch(){
+    curOffset = 0;
     var mySeq = ++searchSeq;
     srvCount.classList.add('is-loading');
     srvList.innerHTML = '<div class="srv-loading">Ищу…</div>';
+    srvLoadMoreWrap.style.display = 'none';
 
     // обрываем предыдущий незавершённый запрос — не даём ему молотить на
     // сервере полную классификацию впустую, пока юзер уже печатает дальше
     if(searchAbort) searchAbort.abort();
     searchAbort = ('AbortController' in window) ? new AbortController() : null;
 
-    var url = API_BASE + '/api/servers/search?filter=' + encodeURIComponent(curFilter) + '&limit=50';
-    if(q) url += '&q=' + encodeURIComponent(q);
-
-    fetch(url, searchAbort ? {signal: searchAbort.signal} : {})
+    fetch(buildSearchUrl(0), searchAbort ? {signal: searchAbort.signal} : {})
       .then(function(res){
         if(!res.ok) throw new Error('bad status ' + res.status);
         return res.json();
       })
       .then(function(data){
         if(mySeq !== searchSeq) return; // устаревший ответ, юзер уже ввёл новый запрос
-        renderList(data);
+        renderList(data, false);
       })
       .catch(function(err){
         if(err && err.name === 'AbortError') return; // штатная отмена, не ошибка
@@ -674,6 +825,23 @@ input{font-family:inherit;color:inherit}
         srvCount.classList.remove('is-loading');
         srvCount.textContent = '';
         srvList.innerHTML = '<div class="srv-error">Не дотянулся до базы — попробуй ещё раз через пару секунд.</div>';
+      });
+  }
+
+  function loadMore(){
+    curOffset += LIMIT;
+    srvLoadMoreBtn.disabled = true;
+    srvLoadMoreBtn.textContent = 'Загружаю…';
+    fetch(buildSearchUrl(curOffset))
+      .then(function(res){
+        if(!res.ok) throw new Error('bad status ' + res.status);
+        return res.json();
+      })
+      .then(function(data){ renderList(data, true); })
+      .catch(function(){})
+      .then(function(){
+        srvLoadMoreBtn.disabled = false;
+        srvLoadMoreBtn.textContent = 'Показать ещё 50';
       });
   }
 
@@ -686,34 +854,45 @@ input{font-family:inherit;color:inherit}
     return chip.textContent.replace(/^[^\wа-яё]+/i, '').trim();
   }
 
-  function renderLocalCard(s){
-    return '<button class="srv" data-id="'+s.id+'">'+
-      '<span class="srv__dot '+dotCls(s.wipe_state)+'"></span>'+
-      '<span><span class="srv__name">'+s.name+'</span>'+
-      '<span class="srv__meta"><span>👥 <b>'+s.online+'</b>/'+s.max+'</span><span>🗺 '+s.map_size+'</span><span>'+s.rate+' · '+(s.type==='vanilla'?'ванилла':'моды')+'</span></span></span>'+
-      '<span class="srv__wipe"><span class="w">'+wipeLabel(s)+'</span></span>'+
+  function renderLocalRow(s){
+    return '<button class="srvrow" data-id="'+s.id+'">'+
+      '<span class="srvrow__main">'+
+        '<span class="srvrow__name">'+escapeHtml(s.name)+'</span>'+
+        '<span class="srvrow__meta">'+buildMetaLine(s)+'</span>'+
+      '</span>'+
+      '<span class="srvrow__spark">'+renderSparkline(s.sparkline, s.wipe_label)+'</span>'+
+      '<span class="srvrow__right">'+
+        '<span class="srvrow__online">👥 <b>'+s.online+'</b>/'+s.max+'</span>'+
+        '<span class="srvrow__dot '+dotCls(s)+'"></span>'+
+      '</span>'+
     '</button>';
   }
 
   // второй блок гибридного поиска — нашли живьём в BattleMetrics, ещё не
   // в нашей базе (или только поставлено в очередь на импорт), карточку
   // открыть нельзя (id===null), поэтому это <div>, а не кликабельная <button>
-  function renderBmCard(s){
-    return '<div class="srv srv--bm">'+
-      '<span class="srv__dot srv__dot--old"></span>'+
-      '<span><span class="srv__name">'+s.name+'</span>'+
-      '<span class="srv__meta"><span>👥 <b>'+s.online+'</b>/'+s.max+'</span><span>🗺 '+(s.map_size||'?')+'</span></span></span>'+
-      '<span class="srv__wipe"><span class="w">нет истории</span></span>'+
+  function renderBmRow(s){
+    return '<div class="srvrow srvrow--bm">'+
+      '<span class="srvrow__main">'+
+        '<span class="srvrow__name">'+escapeHtml(s.name)+'</span>'+
+        '<span class="srvrow__meta">нет истории — найден в BattleMetrics</span>'+
+      '</span>'+
+      '<span class="srvrow__spark">'+renderSparkline([], null)+'</span>'+
+      '<span class="srvrow__right">'+
+        '<span class="srvrow__online">👥 <b>'+s.online+'</b>/'+s.max+'</span>'+
+      '</span>'+
     '</div>';
   }
 
-  function renderList(data){
+  function renderList(data, append){
     srvCount.classList.remove('is-loading');
     var items = data.servers || [];
     var localItems = items.filter(function(s){ return s.source !== 'battlemetrics_live'; });
     var bmItems = items.filter(function(s){ return s.source === 'battlemetrics_live'; });
 
-    if(!items.length){
+    if(!append) srvShown = 0;
+
+    if(!items.length && !append){
       srvCount.textContent = '';
       var beforeFilter = data.local_count_before_filter || 0;
       var filterApplied = data.filter_applied || 'all';
@@ -723,20 +902,35 @@ input{font-family:inherit;color:inherit}
       } else {
         srvList.innerHTML = '<div class="srvlist__empty">Ничего не нашлось — проверь название, поищу ещё и в BattleMetrics.</div>';
       }
+      srvLoadMoreWrap.style.display = 'none';
       return;
     }
 
-    var countLabel = localItems.length + (localItems.length >= 50 ? '+' : '');
-    srvCount.innerHTML = 'Подходит <b>'+countLabel+'</b> '+plural(localItems.length)+' 🎯';
+    curTotal = data.total != null ? data.total : localItems.length;
 
-    var html = localItems.map(renderLocalCard).join('');
+    // BM-блок всегда должен быть В КОНЦЕ — при append убираем старый и
+    // пересобираем заново после дописанных строк текущей страницы
+    var oldBmHead = srvList.querySelector('.srvlist__bmhead');
+    if(oldBmHead) oldBmHead.parentNode.removeChild(oldBmHead);
+    srvList.querySelectorAll('.srvrow--bm').forEach(function(el){ el.parentNode.removeChild(el); });
+
+    var localHtml = localItems.map(renderLocalRow).join('');
+    if(append) srvList.insertAdjacentHTML('beforeend', localHtml);
+    else srvList.innerHTML = localHtml;
+
     if(bmItems.length){
-      html += '<div class="srvlist__bmhead">📡 Нашёл ещё в BattleMetrics — истории и Trust Score по ним пока нет:</div>';
-      html += bmItems.map(renderBmCard).join('');
+      var bmHtml = '<div class="srvlist__bmhead">📡 Нашёл ещё в BattleMetrics — истории и Trust Score по ним пока нет:</div>'+
+        bmItems.map(renderBmRow).join('');
+      srvList.insertAdjacentHTML('beforeend', bmHtml);
     }
-    srvList.innerHTML = html;
 
-    srvList.querySelectorAll('.srv[data-id]').forEach(function(el){
+    srvShown += localItems.length;
+    srvCount.innerHTML = curTotal+' '+plural(curTotal)+' под наблюдением · показано 1–'+srvShown;
+
+    var canLoadMore = (curOffset + localItems.length) < curTotal;
+    srvLoadMoreWrap.style.display = canLoadMore ? '' : 'none';
+
+    srvList.querySelectorAll('.srvrow[data-id]').forEach(function(el){
       el.addEventListener('click', function(){ openDetail(+el.dataset.id); });
     });
   }
@@ -750,10 +944,30 @@ input{font-family:inherit;color:inherit}
     if(btn) btn.addEventListener('click', function(){ history.back(); });
   }
 
+  /* ---------- КАРТОЧКА: плитки + переключатель периода + график + история вайпов ---------- */
+  var curCardId = null;
+  var curPeriod = '24h';
+  var curCycleOffset = 0;
+
+  function formatShortDT(iso){
+    var d = parseSqlDateTime(iso);
+    if(!d) return null;
+    return pad2(d.getDate())+'.'+pad2(d.getMonth()+1)+' '+pad2(d.getHours())+':'+pad2(d.getMinutes());
+  }
+  function formatInterval(hours){
+    if(hours==null) return '—';
+    if(hours < 48) return Math.round(hours)+'ч';
+    return Math.round(hours/24)+'д';
+  }
+
   function openDetail(id, fromPopstate){
     if(!fromPopstate) history.pushState({view:'detail', id:id}, '', '#server-'+id);
+    curCardId = id;
+    curPeriod = '24h';
+    curCycleOffset = 0;
     srvDetail.innerHTML = '<div class="srv-loading">Загружаю карточку…</div>';
     srvList.style.display='none';
+    srvLoadMoreWrap.style.display='none';
     window.scrollTo({top:0, behavior: reduced?'auto':'smooth'});
 
     fetch(API_BASE + '/api/servers/' + id)
@@ -762,7 +976,10 @@ input{font-family:inherit;color:inherit}
         if(!res.ok) throw new Error('bad status ' + res.status);
         return res.json();
       })
-      .then(renderDetail)
+      .then(function(s){
+        renderDetailShell(s);
+        loadHistoryAndWipes();
+      })
       .catch(function(err){
         srvDetail.innerHTML = '<button class="detail__back" id="detailBack">← к списку</button>'+
           '<div class="srv-error">'+(err.message==='not_found' ? 'Сервер пропал из базы.' : 'Не дотянулся до базы — попробуй ещё раз.')+'</div>';
@@ -776,50 +993,202 @@ input{font-family:inherit;color:inherit}
     else { showList(); }
   });
 
-  function renderDetail(s){
-    var rowsHtml = '';
-    if(s.days_unavailable){
-      rowsHtml = '<div class="days-warn">⚠ История временно недоступна — чиним, загляни чуть позже.</div>';
-    } else if(!s.days || !s.days.length){
-      rowsHtml = '<div class="days-warn">Пока мало данных по этому серверу — начал считать недавно.</div>';
-    } else {
-      rowsHtml = s.days.map(function(d, i){
-        var rowCls = d.is_gap ? 'dayrow dayrow--gap' : (d.pct <= 5 && !d.is_wipe ? 'dayrow dayrow--dead' : 'dayrow');
-        var labCls = d.is_gap ? 'dayrow__label is-gap' : 'dayrow__label '+(d.is_wipe?'is-wipe':'');
-        var val = d.is_gap ? '<small>— нет данных</small>' : String(d.value).replace(/(−\d+%)/, '<small>$1</small>');
-        var labelText = d.label + (d.date ? ' · '+d.date : '');
-        // разделитель нового цикла: вайп, который не первая строка в списке
-        var divider = (d.is_wipe && i > 0) ? '<div class="cycle-div">Новый цикл</div>' : '';
-        return divider + '<div class="'+rowCls+'"><span class="'+labCls+'">'+labelText+'</span>'+
-               '<div class="dayrow__bar" data-w="'+d.pct+'"></div>'+
-               '<span class="dayrow__val">'+val+'</span></div>';
-      }).join('');
-    }
+  function renderDetailShell(s){
+    var nextTile = formatShortDT(s.next_wipe_estimate);
 
     srvDetail.innerHTML =
       '<div class="detail">'+
         '<button class="detail__back" id="detailBack">← к списку</button>'+
-        '<div class="detail__title">'+s.name+'</div>'+
+        '<div class="detail__title">'+escapeHtml(s.name)+'</div>'+
         '<div class="detail__sub">👥 '+s.online+'/'+s.max+' · 🗺 '+s.map_size+' · '+s.rate+'</div>'+
         '<div class="detail__grid">'+
           '<div class="stat"><div class="stat__k">Последний вайп</div><div class="stat__v '+(s.wipe_state==='fresh'?'ok':'')+'">'+(s.wipe||'неизвестно')+'</div></div>'+
           '<div class="stat"><div class="stat__k">Цикл</div><div class="stat__v">'+(s.cycle||'нерегулярный')+'</div></div>'+
+          '<div class="stat"><div class="stat__k">Следующий</div><div class="stat__v hot">'+(nextTile ? '~'+nextTile : '—')+'</div></div>'+
           '<div class="stat"><div class="stat__k">Пик / средний</div><div class="stat__v">'+(s.peak!=null?s.peak:'—')+' <small>/ '+(s.avg!=null?s.avg:'—')+'</small></div></div>'+
-          '<div class="stat"><div class="stat__k">Прайм-тайм</div><div class="stat__v hot">'+(s.prime_time||'—')+'</div></div>'+
         '</div>'+
-        '<div class="days__head"><span><b>По дням</b> · вся история с последнего глобального вайпа</span><span>подтверждено по циклам онлайна, не по last_wipe</span></div>'+
-        rowsHtml+
+        '<div class="periodrow" id="periodRow">'+
+          '<button class="periodbtn is-on" data-period="24h">24ч</button>'+
+          '<button class="periodbtn" data-period="cycle">Цикл</button>'+
+          '<button class="periodbtn" data-period="month">Месяц</button>'+
+          '<button class="periodbtn" data-period="all">Всё</button>'+
+          '<span class="cyclenav" id="cycleNav" style="display:none">'+
+            '<button id="cyclePrev" disabled>‹</button>'+
+            '<span id="cycleLabel"></span>'+
+            '<button id="cycleNext" disabled>›</button>'+
+          '</span>'+
+        '</div>'+
+        '<div class="chartwrap" id="chartWrap"><div class="chart-empty">Загружаю график…</div></div>'+
+        '<div class="wipehist" id="wipeHist"></div>'+
         (s.history_days ? '<div class="detail__memory">Веду историю этого сервера уже <b>'+s.history_days+'</b> 📈</div>' : '')+
       '</div>';
 
-    document.getElementById('detailBack').addEventListener('click', function(){
-      history.back();
+    document.getElementById('detailBack').addEventListener('click', function(){ history.back(); });
+
+    document.getElementById('periodRow').addEventListener('click', function(e){
+      var btn = e.target.closest('.periodbtn'); if(!btn) return;
+      document.querySelectorAll('#periodRow .periodbtn').forEach(function(b){b.classList.remove('is-on')});
+      btn.classList.add('is-on');
+      curPeriod = btn.dataset.period;
+      curCycleOffset = 0;
+      document.getElementById('cycleNav').style.display = curPeriod==='cycle' ? '' : 'none';
+      loadHistoryOnly();
     });
-    setTimeout(function(){
-      srvDetail.querySelectorAll('.dayrow__bar').forEach(function(b,i){
-        setTimeout(function(){ b.style.width=b.dataset.w+'%'; }, reduced?0:i*45);
+
+    document.getElementById('cyclePrev').addEventListener('click', function(){
+      curCycleOffset -= 1;
+      loadHistoryOnly();
+    });
+    document.getElementById('cycleNext').addEventListener('click', function(){
+      curCycleOffset += 1;
+      loadHistoryOnly();
+    });
+  }
+
+  function updateCycleNav(cycle){
+    var prevBtn = document.getElementById('cyclePrev');
+    var nextBtn = document.getElementById('cycleNext');
+    var label = document.getElementById('cycleLabel');
+    if(!prevBtn) return;
+    if(!cycle){ prevBtn.disabled = true; nextBtn.disabled = true; label.textContent=''; return; }
+    prevBtn.disabled = !cycle.has_prev;
+    nextBtn.disabled = !cycle.has_next;
+    label.textContent = cycle.cycle_offset === 0 ? 'текущий цикл' : (cycle.cycle_offset+' цикл');
+  }
+
+  function findNearestPointIndex(points, wipeTimeIso){
+    var target = parseSqlDateTime(wipeTimeIso);
+    if(!target) return null;
+    var best=null, bestDiff=Infinity;
+    for(var i=0;i<points.length;i++){
+      var pd = parseSqlDateTime(points[i].ts);
+      if(!pd) continue;
+      var diff = Math.abs(pd.getTime()-target.getTime());
+      if(diff<bestDiff){ bestDiff=diff; best=i; }
+    }
+    return best;
+  }
+
+  function formatTooltipDate(ts, granularity){
+    var d = parseSqlDateTime(ts);
+    if(!d) return ts;
+    var wd = WEEKDAYS_SHORT[d.getDay()];
+    if(granularity==='daily') return wd+', '+pad2(d.getDate())+'.'+pad2(d.getMonth()+1);
+    return wd+', '+pad2(d.getDate())+'.'+pad2(d.getMonth()+1)+' '+pad2(d.getHours())+':00';
+  }
+
+  function renderChart(points, wipes, granularity){
+    var chartWrap = document.getElementById('chartWrap');
+    if(!points || !points.length){
+      chartWrap.innerHTML = '<div class="chart-empty">Пока мало данных за этот период.</div>';
+      return;
+    }
+
+    var W=680, H=220, pad=24;
+    var innerW = W - pad*2, innerH = H - pad*2;
+    var n = points.length;
+    var vals = points.map(function(p){ return p.avg!=null?p.avg:(p.max!=null?p.max:0); });
+    var maxV = Math.max.apply(null, vals.concat([1]));
+    var stepX = n>1 ? innerW/(n-1) : 0;
+
+    function xAt(i){ return pad + i*stepX; }
+    function yAt(v){ return pad + innerH - (v/maxV)*innerH; }
+
+    var linePts = vals.map(function(v,i){ return xAt(i).toFixed(1)+','+yAt(v).toFixed(1); }).join(' ');
+    var areaPts = xAt(0).toFixed(1)+','+(pad+innerH)+' '+linePts+' '+xAt(n-1).toFixed(1)+','+(pad+innerH);
+
+    var wipeMarkersSvg = '';
+    (wipes||[]).forEach(function(w){
+      var idx = findNearestPointIndex(points, w.wipe_time);
+      if(idx==null) return;
+      var x = xAt(idx);
+      var label = formatShortDT(w.wipe_time);
+      wipeMarkersSvg += '<line x1="'+x.toFixed(1)+'" y1="'+pad+'" x2="'+x.toFixed(1)+'" y2="'+(pad+innerH)+'" stroke="var(--rust-hot)" stroke-width="1" stroke-dasharray="3,3" opacity="0.6"></line>'+
+        '<text x="'+x.toFixed(1)+'" y="'+(pad-6)+'" class="chart__wipelabel" text-anchor="middle">вайп '+escapeHtml(label)+' ✓</text>';
+    });
+
+    chartWrap.innerHTML =
+      '<svg viewBox="0 0 '+W+' '+H+'" id="chartSvg">'+
+        '<polygon points="'+areaPts+'" fill="var(--rust-hot)" opacity="0.08"></polygon>'+
+        '<polyline points="'+linePts+'" fill="none" stroke="var(--rust-hot)" stroke-width="2"></polyline>'+
+        wipeMarkersSvg+
+        '<rect x="0" y="0" width="'+W+'" height="'+H+'" fill="transparent" id="chartHoverArea"></rect>'+
+      '</svg>'+
+      '<div class="chart__tooltip" id="chartTooltip"></div>';
+
+    var svgEl = document.getElementById('chartSvg');
+    var hoverArea = document.getElementById('chartHoverArea');
+    var tooltip = document.getElementById('chartTooltip');
+
+    hoverArea.addEventListener('mousemove', function(e){
+      var rect = svgEl.getBoundingClientRect();
+      var relX = (e.clientX - rect.left) / rect.width * W;
+      var idx = stepX ? Math.round((relX - pad) / stepX) : 0;
+      idx = Math.max(0, Math.min(n-1, idx));
+      var p = points[idx];
+      var val = p.avg!=null ? p.avg : p.max;
+      tooltip.innerHTML = '<span class="tt__day">'+formatTooltipDate(p.ts, granularity)+'</span><br>онлайн: <b>'+(val!=null?val:'—')+'</b>';
+      tooltip.classList.add('is-visible');
+      tooltip.style.left = Math.max(0, Math.min(e.clientX - rect.left + 12, rect.width - 150)) + 'px';
+      tooltip.style.top = Math.max(0, e.clientY - rect.top - 44) + 'px';
+    });
+    hoverArea.addEventListener('mouseleave', function(){ tooltip.classList.remove('is-visible'); });
+  }
+
+  function renderWipeHistList(wipes){
+    var el = document.getElementById('wipeHist');
+    if(!el) return;
+    if(!wipes || !wipes.length){ el.innerHTML=''; return; }
+
+    var rows = wipes.map(function(w){
+      var when = formatShortDT(w.wipe_time) || w.wipe_time;
+      var wd = (w.weekday!=null) ? WEEKDAYS_FULL[w.weekday] : '';
+      var interval = formatInterval(w.interval_hours);
+      var peak = w.peak_after_24h!=null ? ('пик '+w.peak_after_24h) : '';
+      var note = w.source_note ? escapeHtml(w.source_note) : '';
+      return '<div class="wipehist__row">'+
+        '<span class="wipehist__when">'+when+'</span>'+
+        '<span class="wipehist__weekday">'+wd+'</span>'+
+        '<span class="wipehist__interval">'+interval+'</span>'+
+        '<span class="wipehist__note">'+[peak, note].filter(Boolean).join(' · ')+'</span>'+
+      '</div>';
+    }).join('');
+
+    el.innerHTML = '<div class="wipehist__title">История вайпов</div><div class="wipehist__rows">'+rows+'</div>';
+  }
+
+  function historyUrl(){
+    var url = API_BASE + '/api/servers/' + curCardId + '/history?period=' + curPeriod;
+    if(curPeriod === 'cycle') url += '&cycle_offset=' + curCycleOffset;
+    return url;
+  }
+
+  function loadHistoryOnly(){
+    var chartWrap = document.getElementById('chartWrap');
+    if(chartWrap) chartWrap.innerHTML = '<div class="chart-empty">Загружаю график…</div>';
+    fetch(historyUrl())
+      .then(function(res){
+        if(!res.ok) throw new Error('bad status ' + res.status);
+        return res.json();
+      })
+      .then(function(data){
+        renderChart(data.points, data.wipes, data.granularity);
+        updateCycleNav(data.cycle);
+      })
+      .catch(function(){
+        if(chartWrap) chartWrap.innerHTML = '<div class="chart-empty">Не получилось загрузить график.</div>';
       });
-    }, 60);
+  }
+
+  function loadHistoryAndWipes(){
+    loadHistoryOnly();
+    fetch(API_BASE + '/api/servers/' + curCardId + '/wipes')
+      .then(function(res){
+        if(!res.ok) throw new Error('bad status ' + res.status);
+        return res.json();
+      })
+      .then(function(data){ renderWipeHistList(data.wipes); })
+      .catch(function(){ var el=document.getElementById('wipeHist'); if(el) el.innerHTML=''; });
   }
 
   document.getElementById('srvChips').addEventListener('click', function(e){
@@ -830,6 +1199,15 @@ input{font-family:inherit;color:inherit}
     showList();
     runSearch();
   });
+  document.getElementById('srvSort').addEventListener('click', function(e){
+    var btn = e.target.closest('.sortbtn'); if(!btn) return;
+    document.querySelectorAll('#srvSort .sortbtn').forEach(function(b){b.classList.remove('is-on')});
+    btn.classList.add('is-on');
+    curSort = btn.dataset.sort;
+    showList();
+    runSearch();
+  });
+  srvLoadMoreBtn.addEventListener('click', loadMore);
   srvSearch.addEventListener('input', scheduleSearch);
   runSearch();
 
