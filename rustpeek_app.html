@@ -316,6 +316,11 @@ input{font-family:inherit;color:inherit}
 }
 .chart__tooltip.is-visible{opacity:1}
 .chart__tooltip .tt__day{color:var(--steel)}
+.chart__wipetriangle{fill:var(--rust-hot)}
+.chart__wipenum{
+  font-family:var(--font-mono);font-size:9px;fill:var(--steel);
+  text-anchor:middle;
+}
 
 .wipehist{margin-top:6px}
 .wipehist__title{
@@ -324,17 +329,20 @@ input{font-family:inherit;color:inherit}
 }
 .wipehist__rows{display:flex;flex-direction:column;gap:6px}
 .wipehist__row{
-  display:grid;grid-template-columns:118px 76px 64px 1fr;gap:10px;
+  display:grid;grid-template-columns:24px 118px 76px 64px 1fr;gap:10px;
   align-items:center;
   background:var(--surface-2);border:1px solid var(--line);border-radius:5px;
   padding:9px 12px;font-family:var(--font-mono);font-size:12px;
 }
+.wipehist__row--suspicious{border-color:var(--rust)}
+.wipehist__num{color:var(--steel);text-align:right}
 .wipehist__when{color:var(--bone)}
 .wipehist__weekday{color:var(--steel)}
 .wipehist__interval{color:var(--steel)}
 .wipehist__note{color:var(--patina);text-align:right;font-size:11px}
+.wipehist__flag{color:var(--rust-hot)}
 @media(max-width:680px){
-  .wipehist__row{grid-template-columns:1fr 1fr;row-gap:2px}
+  .wipehist__row{grid-template-columns:16px 1fr 1fr;row-gap:2px}
   .wipehist__interval{display:none}
   .wipehist__note{text-align:left}
 }
@@ -554,7 +562,7 @@ input{font-family:inherit;color:inherit}
       <div class="sortrow" id="srvSort">
         <span class="sortrow__label">Сортировка:</span>
         <button class="sortbtn is-on" data-sort="online">Онлайн</button>
-        <button class="sortbtn" data-sort="wipe_fresh">Свежак</button>
+        <button class="sortbtn" data-sort="wipe_fresh" title="Свежий вайп · ≤24ч">Свежий вайп</button>
         <button class="sortbtn" data-sort="cycle">Цикл</button>
       </div>
     </div>
@@ -731,7 +739,7 @@ input{font-family:inherit;color:inherit}
     var cyclePart = s.cycle ? (s.cycle+' дн') : '—';
     var nextDt = parseSqlDateTime(s.next_wipe_estimate);
     var nextPart = nextDt ? ('~'+pad2(nextDt.getDate())+'.'+pad2(nextDt.getMonth()+1)) : '—';
-    return 'вайп '+wipeDatePart+' · цикл '+cyclePart+' · некст '+nextPart;
+    return 'вайп '+wipeDatePart+' · цикл '+cyclePart+' · след. вайп '+nextPart;
   }
 
   // values — ~28 точек (6ч-бакеты за 7 суток), могут содержать null (нет
@@ -948,6 +956,12 @@ input{font-family:inherit;color:inherit}
   var curCardId = null;
   var curPeriod = '24h';
   var curCycleOffset = 0;
+  // Нумерация вайпов на графике должна совпадать с нумерацией в таблице
+  // "История вайпов" ниже (2026-07-25) — но это два независимых запроса
+  // (/history отдаёт вайпы периода, /wipes — полную историю), поэтому номер
+  // сопоставляется по wipe_time через общую карту, а не по позиции в массиве.
+  var wipeNumberMap = {};
+  var lastChartData = null;
 
   function formatShortDT(iso){
     var d = parseSqlDateTime(iso);
@@ -1078,6 +1092,7 @@ input{font-family:inherit;color:inherit}
   }
 
   function renderChart(points, wipes, granularity){
+    lastChartData = {points: points, wipes: wipes, granularity: granularity};
     var chartWrap = document.getElementById('chartWrap');
     if(!points || !points.length){
       chartWrap.innerHTML = '<div class="chart-empty">Пока мало данных за этот период.</div>';
@@ -1097,14 +1112,23 @@ input{font-family:inherit;color:inherit}
     var linePts = vals.map(function(v,i){ return xAt(i).toFixed(1)+','+yAt(v).toFixed(1); }).join(' ');
     var areaPts = xAt(0).toFixed(1)+','+(pad+innerH)+' '+linePts+' '+xAt(n-1).toFixed(1)+','+(pad+innerH);
 
+    // Треугольники на оси X с номером вместо текстовых подписей у линии
+    // (2026-07-25) — на 30-дневном периоде подписи "вайп DD.MM HH:MM ✓"
+    // рядом стоящих вайпов наезжали друг на друга. Номер соответствует
+    // строке в таблице "История вайпов" ниже (см. wipeNumberMap).
+    var axisY = pad + innerH;
     var wipeMarkersSvg = '';
     (wipes||[]).forEach(function(w){
       var idx = findNearestPointIndex(points, w.wipe_time);
       if(idx==null) return;
       var x = xAt(idx);
       var label = formatShortDT(w.wipe_time);
-      wipeMarkersSvg += '<line x1="'+x.toFixed(1)+'" y1="'+pad+'" x2="'+x.toFixed(1)+'" y2="'+(pad+innerH)+'" stroke="var(--rust-hot)" stroke-width="1" stroke-dasharray="3,3" opacity="0.6"></line>'+
-        '<text x="'+x.toFixed(1)+'" y="'+(pad-6)+'" class="chart__wipelabel" text-anchor="middle">вайп '+escapeHtml(label)+' ✓</text>';
+      var num = wipeNumberMap[w.wipe_time];
+      wipeMarkersSvg += '<line x1="'+x.toFixed(1)+'" y1="'+pad+'" x2="'+x.toFixed(1)+'" y2="'+axisY+'" stroke="var(--rust-hot)" stroke-width="1" stroke-dasharray="3,3" opacity="0.6"></line>'+
+        '<polygon class="chart__wipetriangle" points="'+x.toFixed(1)+','+axisY+' '+(x-5).toFixed(1)+','+(axisY+9)+' '+(x+5).toFixed(1)+','+(axisY+9)+'">'+
+          '<title>вайп '+escapeHtml(label||'')+'</title>'+
+        '</polygon>'+
+        (num!=null ? '<text x="'+x.toFixed(1)+'" y="'+(axisY+18)+'" class="chart__wipenum">'+num+'</text>' : '');
     });
 
     chartWrap.innerHTML =
@@ -1138,23 +1162,36 @@ input{font-family:inherit;color:inherit}
   function renderWipeHistList(wipes){
     var el = document.getElementById('wipeHist');
     if(!el) return;
-    if(!wipes || !wipes.length){ el.innerHTML=''; return; }
+    if(!wipes || !wipes.length){ el.innerHTML=''; wipeNumberMap={}; return; }
 
-    var rows = wipes.map(function(w){
+    // Нумерация строк — источник правды для номеров-треугольников на
+    // графике (см. wipeNumberMap выше). wipes уже приходят "новые сверху"
+    // (backend разворачивает), поэтому строка 1 — самый свежий вайп.
+    wipeNumberMap = {};
+    wipes.forEach(function(w, i){ wipeNumberMap[w.wipe_time] = i+1; });
+
+    var rows = wipes.map(function(w, i){
       var when = formatShortDT(w.wipe_time) || w.wipe_time;
       var wd = (w.weekday!=null) ? WEEKDAYS_FULL[w.weekday] : '';
       var interval = formatInterval(w.interval_hours);
       var peak = w.peak_after_24h!=null ? ('пик '+w.peak_after_24h) : '';
       var note = w.source_note ? escapeHtml(w.source_note) : '';
-      return '<div class="wipehist__row">'+
+      var flag = w.suspicious ? '<span class="wipehist__flag" title="Интервал от предыдущего меньше 6ч — вряд ли два настоящих вайпа, скорее шум детекта">🚩</span> ' : '';
+      return '<div class="wipehist__row'+(w.suspicious?' wipehist__row--suspicious':'')+'">'+
+        '<span class="wipehist__num">'+(i+1)+'</span>'+
         '<span class="wipehist__when">'+when+'</span>'+
         '<span class="wipehist__weekday">'+wd+'</span>'+
         '<span class="wipehist__interval">'+interval+'</span>'+
-        '<span class="wipehist__note">'+[peak, note].filter(Boolean).join(' · ')+'</span>'+
+        '<span class="wipehist__note">'+flag+[peak, note].filter(Boolean).join(' · ')+'</span>'+
       '</div>';
     }).join('');
 
     el.innerHTML = '<div class="wipehist__title">История вайпов</div><div class="wipehist__rows">'+rows+'</div>';
+
+    // График мог отрисоваться раньше (параллельный fetch) — перерисовываем
+    // с уже готовой wipeNumberMap, чтобы номера на треугольниках появились
+    // независимо от порядка ответа /history и /wipes.
+    if(lastChartData){ renderChart(lastChartData.points, lastChartData.wipes, lastChartData.granularity); }
   }
 
   function historyUrl(){
