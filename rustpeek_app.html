@@ -1246,12 +1246,23 @@ input{font-family:inherit;color:inherit}
   });
   srvLoadMoreBtn.addEventListener('click', loadMore);
   srvSearch.addEventListener('input', scheduleSearch);
+
+  // ?q=... — редирект с поисковой строки лендинга (2026-07-26), подставляем
+  // запрос до первого runSearch(), чтобы не делать два запроса подряд
+  var initialQ = new URLSearchParams(location.search).get('q');
+  if(initialQ) srvSearch.value = initialQ;
   runSearch();
 
   // deep link: если открыли сайт по ссылке вида #server-1007 — сразу карточка
   if(location.hash.indexOf('#server-') === 0){
     var deepId = parseInt(location.hash.replace('#server-',''), 10);
     if(deepId) openDetail(deepId, true);
+  }
+
+  // deep link: #players — ссылка "или пробей игрока →" с лендинга
+  if(location.hash === '#players'){
+    var playersTabBtn = document.querySelector('.tab[data-tab="players"]');
+    if(playersTabBtn) playersTabBtn.click();
   }
 
   /* ---------- ВОЧЛИСТ ---------- */

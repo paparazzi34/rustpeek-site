@@ -76,8 +76,10 @@ button{font-family:inherit;color:inherit;background:none;border:none;cursor:poin
   display:inline-flex;align-items:center;gap:10px;
   font-weight:600;font-size:15px;text-decoration:none;
   padding:11px 20px;border-radius:3px;
-  transition:background .2s, border-color .2s, color .2s;
+  transition:background .2s, border-color .2s, color .2s, transform .2s;
 }
+.btn:hover{transform:translateY(-2px)}
+.btn:active{transform:translateY(0)}
 .btn--solid{background:var(--rust);color:#fff;border:1px solid var(--rust)}
 .btn--solid:hover{background:var(--rust-hot);border-color:var(--rust-hot)}
 .btn--ghost{border:1px solid var(--line);color:var(--bone)}
@@ -99,43 +101,78 @@ button{font-family:inherit;color:inherit;background:none;border:none;cursor:poin
   padding:9px 0;
   animation:ticker 46s linear infinite;
 }
+.ticker:hover .ticker__track{animation-play-state:paused}
 .ticker__track span{padding:0 28px;border-right:1px solid var(--line)}
 .ticker__track b{color:var(--rust-hot);font-weight:600}
 .ticker__track i{color:var(--green);font-style:normal}
 @keyframes ticker{from{transform:translateX(0)}to{transform:translateX(-50%)}}
 
 /* ---------- HERO ---------- */
-.hero{padding:84px 0 0}
+.hero{padding:84px 0 90px}
 .hero h1{
   font-family:var(--font-display);font-weight:800;
-  font-size:clamp(36px, 6.4vw, 78px);
-  line-height:1.04;letter-spacing:-.01em;
-  max-width:14ch;
+  font-size:clamp(32px, 5.2vw, 60px);
+  line-height:1.14;letter-spacing:-.01em;
+  max-width:20ch;
 }
-.hero h1 .dim{color:var(--steel);font-weight:700}
+.hero h1 .line{display:block;opacity:0;transform:translateY(14px)}
 .hero h1 .hot{color:var(--rust-hot)}
-.hero__row{
-  display:grid;grid-template-columns:1.25fr .9fr;gap:56px;
-  margin-top:34px;align-items:end;
+.hero.is-in h1 .line{
+  animation:heroLine .6s cubic-bezier(.2,.7,.2,1) forwards;
 }
-.hero__sub{font-size:clamp(16px,1.55vw,19px);color:var(--steel);max-width:54ch}
-.hero__sub b{color:var(--bone);font-weight:600}
-.hero__facts{
-  font-family:var(--font-mono);font-size:13px;
-  display:flex;flex-direction:column;gap:9px;
-  border-left:2px solid var(--rust);
-  padding-left:18px;
+.hero.is-in h1 .line:nth-child(1){animation-delay:0ms}
+.hero.is-in h1 .line:nth-child(2){animation-delay:80ms}
+@keyframes heroLine{to{opacity:1;transform:translateY(0)}}
+
+.hero__search{
+  margin-top:40px;display:flex;gap:12px;flex-wrap:wrap;max-width:640px;
+  opacity:0;transform:translateY(10px);
 }
-.hero__facts span{color:var(--steel)}
-.hero__facts b{color:var(--bone);font-weight:600}
-.hero__cta{margin-top:36px;display:flex;gap:14px;flex-wrap:wrap}
-.hero__chart-wrap{position:relative;margin-top:58px;border-top:1px solid var(--line)}
-.hero__chart-label{
-  position:absolute;top:12px;left:0;
-  font-family:var(--font-mono);font-size:12px;color:var(--steel);
-  letter-spacing:.1em;text-transform:uppercase;
+.hero.is-in .hero__search{
+  animation:heroLine .6s cubic-bezier(.2,.7,.2,1) forwards;
+  animation-delay:260ms;
 }
-#cycleChart{display:block;width:100%;height:250px}
+.hero__search-input{
+  flex:1;min-width:240px;
+  background:var(--surface);border:1px solid var(--line);border-radius:4px;
+  padding:15px 17px;color:var(--bone);font-size:15.5px;font-family:inherit;
+  transition:border-color .2s;
+}
+.hero__search-input::placeholder{color:var(--steel)}
+.hero__search-input:focus{outline:none;border-color:var(--rust)}
+.hero__search-btn{white-space:nowrap}
+.hero__links{margin-top:16px}
+.hero__player-link{
+  font-family:var(--font-mono);font-size:13.5px;color:var(--steel);
+  text-decoration:none;border-bottom:1px dashed var(--line);
+  transition:color .2s, border-color .2s;
+}
+.hero__player-link:hover{color:var(--rust-hot);border-color:var(--rust-hot)}
+.hero__cta{margin-top:34px;display:flex;gap:14px;flex-wrap:wrap}
+
+/* ---------- СЛОГАН + ЖИВЫЕ СЧЁТЧИКИ ---------- */
+.slogan{
+  margin-top:20px;padding:52px 0 56px;
+  border-top:1px solid var(--line);border-bottom:1px solid var(--line);
+}
+.slogan__line{
+  font-family:var(--font-display);font-weight:700;
+  font-size:clamp(21px,2.9vw,32px);line-height:1.3;
+}
+.slogan__line .dim{color:var(--steel);font-weight:700}
+.slogan__line .hot{color:var(--rust-hot)}
+.slogan__stats{
+  margin-top:32px;display:flex;gap:44px;flex-wrap:wrap;
+  font-family:var(--font-mono);
+}
+.slogan__stat b{
+  display:block;font-size:clamp(23px,2.8vw,32px);color:var(--bone);
+  font-variant-numeric:tabular-nums;font-feature-settings:"tnum";
+}
+.slogan__stat span{
+  font-size:12px;color:var(--steel);
+  text-transform:uppercase;letter-spacing:.08em;
+}
 
 /* ---------- СЕКЦИИ ОБЩЕЕ ---------- */
 .sec-head{
@@ -170,6 +207,15 @@ button{font-family:inherit;color:inherit;background:none;border:none;cursor:poin
   padding:84px 28px 90px;
   display:grid;grid-template-columns:1fr 1fr;gap:64px;
 }
+/* min-width:0 на грид-айтемах — без него replaced-элемент (SVG-график в
+   .atlas с intrinsic width=520) диктует min-content всей 1fr-колонке и
+   раздувает грид шире вьюпорта на мобиле (классический CSS Grid blowout) */
+.paper__in > *{min-width:0}
+.paper__text{
+  opacity:0;transform:translateX(-16px);
+  transition:transform .7s cubic-bezier(.2,.7,.2,1), opacity .7s ease;
+}
+.paper__text.is-in{opacity:1;transform:translateX(0)}
 .paper__eyebrow{
   font-family:var(--font-mono);font-size:12.5px;
   letter-spacing:.14em;text-transform:uppercase;
@@ -191,7 +237,7 @@ button{font-family:inherit;color:inherit;background:none;border:none;cursor:poin
   color:#4c4232;
 }
 .paper__pattern b{color:var(--rust);font-weight:600}
-.dossier{
+.atlas{
   background:var(--bg);
   color:var(--bone);
   border:1px solid #b3a789;
@@ -199,9 +245,12 @@ button{font-family:inherit;color:inherit;background:none;border:none;cursor:poin
   padding:26px 26px 22px;
   position:relative;
   align-self:start;
-  transform:rotate(.6deg);
+  transform:rotate(2deg) translateX(18px);
+  opacity:0;
+  transition:transform .7s cubic-bezier(.2,.7,.2,1), opacity .7s ease;
 }
-.dossier__stamp{
+.atlas.is-in{transform:rotate(.6deg) translateX(0);opacity:1}
+.atlas__stamp{
   position:absolute;top:14px;right:-14px;
   transform:rotate(7deg);
   font-family:var(--font-mono);font-weight:600;font-size:12px;
@@ -212,30 +261,45 @@ button{font-family:inherit;color:inherit;background:none;border:none;cursor:poin
   background:rgba(16,13,11,.92);
   box-shadow:0 0 0 3px rgba(16,13,11,.92);
 }
-.dossier__title{font-family:var(--font-display);font-weight:700;font-size:16px}
-.dossier__meta{font-family:var(--font-mono);font-size:12px;color:var(--steel);margin:4px 0 18px}
-.dayrow{
-  display:grid;grid-template-columns:88px 1fr 104px;
-  align-items:center;gap:12px;padding:4.5px 0;
-  font-family:var(--font-mono);font-size:12.5px;
+.atlas__title{
+  font-family:var(--font-display);font-weight:700;font-size:16px;
+  max-width:calc(100% - 96px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
 }
-.dayrow__label{color:var(--steel)}
-.dayrow__label.is-wipe{color:var(--rust-hot);font-weight:600}
-.dayrow__bar{
-  height:12px;border-radius:2px;
-  background:linear-gradient(90deg,var(--rust),var(--rust-hot));
-  width:0%;
-  transition:width .9s cubic-bezier(.2,.7,.2,1);
-  min-width:2px;
+.atlas__meta{font-family:var(--font-mono);font-size:12px;color:var(--steel);margin:4px 0 18px}
+.atlas__chart-wrap{position:relative}
+.atlas__chart-wrap svg{display:block;width:100%;height:auto;overflow:visible}
+.atlas__area{fill:url(#atlasGrad);stroke:none}
+.atlas__line{
+  fill:none;stroke:var(--rust-hot);stroke-width:2;
+  stroke-linecap:round;stroke-linejoin:round;
+  filter:drop-shadow(0 0 5px rgba(232,106,47,.5));
 }
-.dayrow--dead .dayrow__bar{background:var(--line)}
-.dayrow__val{color:var(--bone);text-align:right}
-.dayrow__val small{color:var(--steel)}
-.dossier__foot{
+.atlas__wipedot{fill:var(--rust-hot)}
+.atlas__wipedot.is-pulse{animation:atlasPulse 1.1s ease-out 1}
+@keyframes atlasPulse{
+  0%{r:4;opacity:1}
+  70%{r:12;opacity:0}
+  100%{r:4;opacity:1}
+}
+.atlas__tooltip{
+  position:absolute;pointer-events:none;top:0;left:0;
+  background:var(--surface);border:1px solid var(--rust);border-radius:5px;
+  padding:7px 10px;font-family:var(--font-mono);font-size:11.5px;color:var(--bone);
+  white-space:nowrap;opacity:0;transition:opacity .12s;transform:translate(-50%,-125%);
+}
+.atlas__tooltip.is-visible{opacity:1}
+.atlas__stats{
+  margin-top:16px;display:grid;grid-template-columns:repeat(4,1fr);gap:10px;
+  font-family:var(--font-mono);
+}
+.atlas__stats div{display:flex;flex-direction:column;gap:2px}
+.atlas__stats span{font-size:10.5px;color:var(--steel);text-transform:uppercase;letter-spacing:.06em}
+.atlas__stats b{font-size:15px;color:var(--bone);font-variant-numeric:tabular-nums}
+.atlas__foot{
   margin-top:16px;padding-top:14px;border-top:1px dashed var(--line);
   font-family:var(--font-mono);font-size:12px;color:var(--steel);
 }
-.dossier__foot b{color:var(--rust-hot)}
+.atlas__foot b{color:var(--rust-hot)}
 
 /* ---------- ЧТО УМЕЮ (редакционные ряды) ---------- */
 .rows{margin-top:44px;border-top:1px solid var(--line)}
@@ -245,6 +309,7 @@ button{font-family:inherit;color:inherit;background:none;border:none;cursor:poin
   border-bottom:1px solid var(--line);
   align-items:center;
 }
+.row > *{min-width:0}
 .row:nth-child(even){grid-template-columns:1fr 1fr}
 .row:nth-child(even) .row__demo{order:-1}
 .row h3{
@@ -259,6 +324,22 @@ button{font-family:inherit;color:inherit;background:none;border:none;cursor:poin
   font-family:var(--font-mono);font-size:12.5px;color:var(--patina);
 }
 .row__demo{min-width:0}
+
+/* stagger элементов ВНУТРИ строки при входе в вьюпорт — не всей секции разом,
+   каждая .row наблюдается своим IntersectionObserver (см. скрипт внизу) */
+.row__body > *, .row__demo > *{
+  opacity:0;transform:translateY(16px);
+  transition:opacity .5s ease, transform .5s cubic-bezier(.2,.7,.2,1);
+}
+.row.is-in .row__body > *, .row.is-in .row__demo > *{opacity:1;transform:translateY(0)}
+.row__body > *:nth-child(1){transition-delay:0ms}
+.row__body > *:nth-child(2){transition-delay:70ms}
+.row__body > *:nth-child(3){transition-delay:140ms}
+.row__body > *:nth-child(4){transition-delay:210ms}
+.row__demo > *:nth-child(1){transition-delay:120ms}
+.row__demo > *:nth-child(2){transition-delay:190ms}
+.row__demo > *:nth-child(3){transition-delay:260ms}
+
 /* demo: server rows */
 .demo-srv{
   background:var(--surface);border:1px solid var(--line);border-radius:5px;
@@ -294,6 +375,7 @@ button{font-family:inherit;color:inherit;background:none;border:none;cursor:poin
 /* demo: watchlist */
 .demo-wl{background:var(--surface);border:1px solid var(--line);border-radius:5px;padding:13px 16px;
   display:grid;grid-template-columns:12px 1fr auto;gap:12px;align-items:center;font-size:14px;margin-bottom:8px}
+.demo-wl .m{font-family:var(--font-mono);font-size:11.5px;color:var(--steel);display:block;margin-top:2px}
 .demo-wl .t{font-family:var(--font-mono);font-size:11.5px;color:var(--steel)}
 .demo-wl .t i{color:var(--green);font-style:normal}
 /* demo: alerts */
@@ -304,7 +386,8 @@ button{font-family:inherit;color:inherit;background:none;border:none;cursor:poin
 }
 .demo-al.a2{border-left-color:#d9a53f}
 .demo-al.a3{border-left-color:var(--steel)}
-.demo-al .tm{margin-left:auto;font-family:var(--font-mono);font-size:11.5px;color:var(--steel)}
+.demo-al .tm{margin-left:auto;font-family:var(--font-mono);font-size:11.5px;color:var(--steel);flex:none}
+.demo-al > span:not(.tm){min-width:0}
 
 /* ---------- ВЕБ-ВЕРСИЯ ---------- */
 .webv{
@@ -316,6 +399,7 @@ button{font-family:inherit;color:inherit;background:none;border:none;cursor:poin
   display:grid;grid-template-columns:1.3fr .7fr;gap:40px;align-items:center;
   position:relative;overflow:hidden;
 }
+.webv > *{min-width:0}
 .webv::after{
   content:'';position:absolute;right:-60px;top:-60px;width:260px;height:260px;
   border:1px solid rgba(201,80,30,.25);border-radius:50%;
@@ -352,7 +436,7 @@ button{font-family:inherit;color:inherit;background:none;border:none;cursor:poin
 .faq .a b{color:var(--bone);font-weight:600}
 
 /* ---------- FINAL ---------- */
-.final{padding:120px 0 90px;text-align:left}
+.final{padding-top:120px;padding-bottom:90px;text-align:left}
 .final h2{
   font-family:var(--font-display);font-weight:800;
   font-size:clamp(30px,5vw,58px);line-height:1.08;max-width:16ch;
@@ -380,17 +464,38 @@ button{font-family:inherit;color:inherit;background:none;border:none;cursor:poin
 .footer a:hover{color:var(--rust-hot)}
 
 /* ---------- RESPONSIVE ---------- */
-@media(max-width:880px){
-  .hero__row,.paper__in,.row,.webv{grid-template-columns:1fr;gap:32px}
+@media(max-width:900px){
+  .paper__in,.row,.webv{grid-template-columns:1fr;gap:32px}
+  .row:nth-child(even){grid-template-columns:1fr}
   .row:nth-child(even) .row__demo{order:0}
-  .hero__facts{border-left:none;border-top:2px solid var(--rust);padding:16px 0 0}
-  .dossier{transform:none;margin-top:8px}
+  /* нав переполнял вьюпорт по горизонтали на мобиле (логотип + 4 ссылки/кнопки
+     не помещались в 390px) — баг был уже в проде, не только в редизайне,
+     чиню заодно (2026-07-26, мобильный QA-проход). Оставляю логотип и
+     главный CTA, остальное прячу — как и было с текстовыми nav__a. */
+  .nav__in{padding:14px 16px}
+  .nav__links{gap:10px}
   .nav__links .nav__a{display:none}
-  #cycleChart{height:190px}
+  .nav__links .btn--ghost{display:none}
+  .nav__links .btn--solid{padding:9px 14px;font-size:13.5px}
+  .slogan__stats{gap:28px}
+
+  /* мобила (≤900px, ТЗ редизайна 2026-07-26): сдержанный режим — только
+     fade+translate ≤300мс, без stagger/наклонов/hover-эффектов. Докрутка
+     счётчиков и отрисовка графика Atlas остаются (дешёвые, не scroll-linked). */
+  .hero h1 .line{transition:none;animation:none!important;opacity:1;transform:none}
+  .hero__search{transition:none;animation:none!important;opacity:1;transform:none}
+  .atlas{transform:none;transition-duration:.3s}
+  .atlas.is-in{transform:none}
+  .paper__text{transition-duration:.3s}
+  .row__body > *, .row__demo > *{transition-duration:.3s!important;transition-delay:0ms!important}
 }
 @media(prefers-reduced-motion:reduce){
   *{animation:none!important;transition:none!important}
   .ticker__track{animation:none!important}
+  .hero h1 .line,.hero__search{opacity:1!important;transform:none!important}
+  .paper__text,.atlas{opacity:1!important;transform:none!important}
+  .row__body > *, .row__demo > *{opacity:1!important;transform:none!important}
+  .atlas__line{stroke-dashoffset:0!important}
 }
 :focus-visible{outline:2px solid var(--rust-hot);outline-offset:3px}
 </style>
@@ -410,48 +515,54 @@ button{font-family:inherit;color:inherit;background:none;border:none;cursor:poin
   </div>
 </nav>
 
-<!-- живой лог мониторинга -->
+<!-- живой лог мониторинга: подтянется из /api/events/recent, см. скрипт внизу.
+     Эти строки — фолбэк без таймстампов, на случай если API молчит. -->
 <div class="ticker" aria-hidden="true">
   <div class="ticker__track" id="tickerTrack">
-    <span>10:40:33 · <b>вайп подтверждён</b> · Hustle Rust · паттерн пик→провал→рост <i>✓</i></span>
-    <span>10:41:07 · замер онлайна · 1 098 серверов в очереди</span>
-    <span>10:41:52 · цель из вочлиста <b>зашла</b> · пуш отправлен</span>
-    <span>10:42:19 · «JUST WIPED» в названии · last_wipe протух 6 дней · <b>не верю</b></span>
-    <span>10:43:05 · A2S-скан · закрытый профиль опознан на сервере <i>✓</i></span>
-    <span>10:43:48 · Rust+ · Smart Alarm «Главная дверь» · серия алертов ушла</span>
-    <span>10:44:12 · дедуп проверен · дубль вайпа не пропущен <i>✓</i></span>
-    <span>10:44:58 · тариф Free · Trust Score и алерты — без ограничений</span>
-    <span>10:45:31 · сервер вышел из дырки мониторинга · история восстановлена</span>
+    <span>слежу за онлайном серверов круглосуточно</span>
+    <span>вайп подтверждаю по форме кривой — пик → провал → рост, а не по словам админа</span>
+    <span>Trust Score считаю по часам, возрасту аккаунта и банам</span>
+    <span>историю сервера не обнуляю — помню циклы месяцами</span>
+    <span>дубли и ложные срабатывания отсекаю прежде, чем показать тебе дату</span>
   </div>
 </div>
 
-<header class="hero">
+<header class="hero" id="hero">
   <div class="wrap">
-    <h1><span class="dim">BattleMetrics — снапшот.</span><br>Я — <span class="hot">память</span>.</h1>
-    <div class="hero__row">
-      <p class="hero__sub">Я — Telegram-бот, который <b>круглосуточно пишет историю Rust-серверов</b>: каждый замер онлайна, каждый настоящий вайп, каждого замеченного игрока. Снапшот покажет тебе число в моменте. Я покажу, <b>что за этим числом стоит</b> — и что будет дальше.</p>
-      <div class="hero__facts">
-        <span><b data-stat="online_measurements">1 980 611</b> замеров онлайна — и счётчик крутится</span>
-        <span><b data-stat="wipes">9 676</b> подтверждённых вайпов в памяти</span>
-        <span><b data-stat="servers_total">2 479</b> серверов в базе · <b data-stat="servers_tracked">1 098</b> под наблюдением</span>
-        <span><b>топ-500</b> серверов — прямой A2S-скан</span>
-      </div>
+    <h1>
+      <span class="line">Пишу историю Rust-серверов круглосуточно.</span>
+      <span class="line">Вайпы проверяю по циклам онлайна — <span class="hot">не по словам админа</span>.</span>
+    </h1>
+    <form class="hero__search" id="heroSearchForm" action="rustpeek_app.html" method="get">
+      <input class="hero__search-input" id="heroSearchInput" type="text" name="q" placeholder="Название сервера — найду и скажу правду про вайп…" autocomplete="off">
+      <button class="btn btn--solid hero__search-btn" type="submit">Найти сервер</button>
+    </form>
+    <div class="hero__links">
+      <a class="hero__player-link" href="rustpeek_app.html#players">или пробей игрока →</a>
     </div>
     <div class="hero__cta">
       <a class="btn btn--solid" href="https://t.me/RustPeek_Bot" target="_blank" rel="noopener">Открыть в Telegram</a>
       <a class="btn btn--ghost" href="rustpeek_app.html">Веб-версия</a>
     </div>
-    <div class="hero__chart-wrap">
-      <div class="hero__chart-label">так живёт сервер · два цикла вайпа</div>
-      <canvas id="cycleChart"></canvas>
-    </div>
   </div>
 </header>
 
-<!-- ================= КАК Я ЛОВЛЮ ВАЙПЫ (досье на бумаге) ================= -->
+<!-- ================= СЛОГАН + ЖИВЫЕ СЧЁТЧИКИ ================= -->
+<div class="wrap">
+  <div class="slogan">
+    <p class="slogan__line"><span class="dim">BattleMetrics — снапшот.</span> Я — <span class="hot">память</span>.</p>
+    <div class="slogan__stats">
+      <div class="slogan__stat"><b data-stat="online_measurements">1 980 611</b><span>замеров онлайна</span></div>
+      <div class="slogan__stat"><b data-stat="wipes">9 676</b><span>подтверждённых вайпов</span></div>
+      <div class="slogan__stat"><b data-stat="servers_total">2 479</b><span>серверов в базе</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- ================= КАК Я ЛОВЛЮ ВАЙПЫ (живая карточка Atlas, server_id=299) ================= -->
 <section class="paper" id="how">
   <div class="paper__in">
-    <div>
+    <div class="paper__text" id="paperText">
       <div class="paper__eyebrow">Дело № 1 · метод</div>
       <h2>Почему я знаю больше</h2>
       <p>Поле «дата вайпа» на мониторингах заполняет <b>админ сервера</b>. Захотел — обновил, забыл — висит прошлогоднее. А «JUST WIPED» в названии — это маркетинг: у половины серверов оно стоит там <b>вечно</b>, как неоновая вывеска.</p>
@@ -461,21 +572,34 @@ button{font-family:inherit;color:inherit;background:none;border:none;cursor:poin
         <br><b>провал</b> — рестарт, карта стёрта, все вылетели
         <br><b>рост</b> — толпа врывается на свежую землю
       </div>
-      <p>Нет подписи — нет вайпа, что бы ни писал админ. Есть подпись — я фиксирую дату с точностью до минуты, считаю цикл сервера и говорю тебе, <b>когда будет следующий</b>.</p>
+      <p>Нет подписи — нет вайпа, что бы ни писал админ. Есть подпись — я фиксирую дату с точностью до минуты, считаю цикл сервера и говорю тебе, <b>когда будет следующий</b> — если цикл вообще устойчив. Не устойчив — так и скажу: «не определён», а не нарисую число.</p>
     </div>
-    <div class="dossier" id="dossier">
-      <div class="dossier__stamp">вайп подтверждён ✓</div>
-      <div class="dossier__title">Hustle Rust - [2X, VANILLA]</div>
-      <div class="dossier__meta">июльский цикл · реальная карточка из бота</div>
-      <div class="dayrow"><span class="dayrow__label is-wipe">День 1 · вайп</span><div class="dayrow__bar" data-w="100"></div><span class="dayrow__val">588</span></div>
-      <div class="dayrow"><span class="dayrow__label">День 2</span><div class="dayrow__bar" data-w="61"></div><span class="dayrow__val">358 <small>−39%</small></span></div>
-      <div class="dayrow"><span class="dayrow__label">День 3</span><div class="dayrow__bar" data-w="30"></div><span class="dayrow__val">175 <small>−70%</small></span></div>
-      <div class="dayrow"><span class="dayrow__label">День 4</span><div class="dayrow__bar" data-w="19"></div><span class="dayrow__val">114 <small>−81%</small></span></div>
-      <div class="dayrow dayrow--dead"><span class="dayrow__label">День 5</span><div class="dayrow__bar" data-w="9"></div><span class="dayrow__val">53 <small>−91%</small></span></div>
-      <div class="dayrow dayrow--dead"><span class="dayrow__label">День 6</span><div class="dayrow__bar" data-w="4"></div><span class="dayrow__val">25 <small>−96%</small></span></div>
-      <div class="dayrow dayrow--dead"><span class="dayrow__label">День 7</span><div class="dayrow__bar" data-w="2"></div><span class="dayrow__val">11 <small>−98%</small></span></div>
-      <div class="dayrow"><span class="dayrow__label is-wipe">День 1 · вайп</span><div class="dayrow__bar" data-w="99"></div><span class="dayrow__val">586</span></div>
-      <div class="dossier__foot">Прайм: 12:00–16:00 · цикл <b>7 дней</b> · веду историю уже <b>2 месяца</b></div>
+    <div class="atlas" id="atlasCard">
+      <div class="atlas__stamp">вайп подтверждён ✓</div>
+      <div class="atlas__title" id="atlasTitle">Atlas - EU 2X Monthly | Vanilla+ | No BP Wipes</div>
+      <div class="atlas__meta">реальный сервер · текущий цикл · server_id 299</div>
+      <div class="atlas__chart-wrap">
+        <svg viewBox="0 0 520 190" width="520" height="190" id="atlasSvg" preserveAspectRatio="none">
+          <defs>
+            <linearGradient id="atlasGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#c9501e" stop-opacity=".28"/>
+              <stop offset="100%" stop-color="#c9501e" stop-opacity="0"/>
+            </linearGradient>
+          </defs>
+          <polygon class="atlas__area" id="atlasArea" points=""></polygon>
+          <polyline class="atlas__line" id="atlasLine" points=""></polyline>
+          <circle class="atlas__wipedot" id="atlasWipeDot" r="4" cx="0" cy="0"></circle>
+          <rect id="atlasHoverArea" x="0" y="0" width="520" height="190" fill="transparent"></rect>
+        </svg>
+        <div class="atlas__tooltip" id="atlasTooltip"></div>
+      </div>
+      <div class="atlas__stats">
+        <div><span>цикл</span><b id="atlasCycle">7 дней</b></div>
+        <div><span>след. вайп</span><b id="atlasNext">~30.07</b></div>
+        <div><span>прайм</span><b id="atlasPrime">17:00–21:00</b></div>
+        <div><span>пик цикла</span><b id="atlasPeak">1 495</b></div>
+      </div>
+      <div class="atlas__foot">Веду историю этого сервера уже <b id="atlasHistoryDays">2 месяца</b></div>
     </div>
   </div>
 </section>
@@ -492,14 +616,14 @@ button{font-family:inherit;color:inherit;background:none;border:none;cursor:poin
     <div class="row">
       <div class="row__body">
         <h3>Поиск серверов — с правдой о вайпе</h3>
-        <p>Ищи по названию или собирай подбор фильтрами: тип, рейт, цикл, стадия, размер команды, онлайн. Каждый сервер в выдаче получает честную метку: <b>🟢 свежак</b> — вайп меньше 48 часов, <b>🔴 старьё</b>, <b>🟡 вайп скоро</b> — успей собрать команду.</p>
-        <p>Сортировка «Свежак» поднимает сервера, которые вайпнулись <b>по-настоящему</b>, а не переименовались в JUST WIPED третий месяц подряд.</p>
+        <p>Ищи по названию или собирай подбор фильтрами: тип, рейт, цикл, стадия, размер команды, онлайн. Каждый сервер в выдаче получает честную метку: <b>🟢 Свежий вайп</b> — меньше 24 часов, <b>🟡 вайп скоро</b> — успей собрать команду. Цикл посчитан не всегда — если интервалы между вайпами гуляют, честно пишу «не определён», а не рисую дату.</p>
+        <p>Сортировка «Свежий вайп» поднимает сервера, которые вайпнулись <b>по-настоящему</b>, а не переименовались в JUST WIPED третий месяц подряд.</p>
         <div class="row__note">даты валидируются по циклам онлайна, не по полю last_wipe</div>
       </div>
       <div class="row__demo">
-        <div class="demo-srv"><span class="dot dot--g"></span><span><b>Hustle Rust - [2X, VANILLA]</b><span class="m">👥 486/520 · 🗺 4250 · x2</span></span><span class="w">🟢 20.07 10:40<small>цикл: 7 дней</small></span></div>
-        <div class="demo-srv"><span class="dot dot--y"></span><span><b>Rustoria.co - EU Main</b><span class="m">👥 874/900 · 🗺 4800 · x1</span></span><span class="w">🟡 вайп ~23.07<small>цикл: 2 недели</small></span></div>
-        <div class="demo-srv"><span class="dot dot--r"></span><span><b>WARBANDITS X2 [JUST WIPED]</b><span class="m">👥 154/300 · 🗺 3500 · x2</span></span><span class="w">🔴 16.07 11:20<small>название врёт</small></span></div>
+        <div class="demo-srv"><span class="dot dot--g"></span><span><b>EU RENEGADE 2x Monthly Medium</b><span class="m">👥 106/150 · 🗺 4250 · x2</span></span><span class="w">🟢 Свежий вайп 25.07<small>след. вайп ~01.08</small></span></div>
+        <div class="demo-srv"><span class="dot dot--g"></span><span><b>[EU] RustValley 10x PVE #2</b><span class="m">👥 28/100 · 🗺 4500 · x10</span></span><span class="w">🟢 Свежий вайп 25.07<small>след. вайп ~28.07</small></span></div>
+        <div class="demo-srv"><span class="dot dot--g"></span><span><b>Rustoria.co - EU East Medium</b><span class="m">👥 209/225 · 🗺 4250 · x1</span></span><span class="w">🟢 Свежий вайп 25.07<small>цикл не определён</small></span></div>
       </div>
     </div>
 
@@ -514,10 +638,11 @@ button{font-family:inherit;color:inherit;background:none;border:none;cursor:poin
         <div class="demo-trust">
           <div class="tring">
             <svg width="92" height="92"><circle class="bgc" cx="46" cy="46" r="40"/><circle class="fgc" id="trustRing" cx="46" cy="46" r="40"/></svg>
-            <div class="tring__num"><b>74</b><span>trust</span></div>
+            <div class="tring__num"><b>73</b><span>trust</span></div>
           </div>
-          <div class="demo-trust__t"><b>ShadowKiller_228</b> — скорее чист. 1 240 часов, аккаунту 4 года, банов нет.
-            <span class="mono">профиль закрыт · опознан через A2S · сейчас на Hustle Rust</span>
+          <div class="demo-trust__t"><b>paparazzi34</b> <span style="color:var(--green)">● в сети</span> — RustPeek в целом доверяет, но проверь сам.
+            <span class="mono">ветеран 5+ лет · Rust 1611ч (1000ч+) · аккаунт с 2021 · профиль открыт · банов нет</span>
+            <span class="mono">наблюдение RustPeek: ведётся</span>
           </div>
         </div>
       </div>
@@ -628,9 +753,40 @@ button{font-family:inherit;color:inherit;background:none;border:none;cursor:poin
 (function(){
   var reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-  /* тикер: дублируем ленту для бесшовного цикла */
+  /* тот же бэкенд, что и веб-версия (rustpeek_app.html) */
+  var API_BASE = 'https://api.rustpeek.ru';
+
+  function escapeHtml(str){
+    return String(str==null ? '' : str).replace(/[&<>"']/g, function(c){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+    });
+  }
+
+  /* ---------- тикер: живой /api/events/recent, дублируем ленту для бесшовного цикла ---------- */
   var track = document.getElementById('tickerTrack');
-  track.innerHTML += track.innerHTML;
+  function duplicateTrack(){ track.innerHTML = track.innerHTML + track.innerHTML; }
+  duplicateTrack();
+
+  function formatEventTime(sqlDt){
+    var m = /(\d{2}):(\d{2}):(\d{2})/.exec(sqlDt || '');
+    return m ? (m[1]+':'+m[2]+':'+m[3]) : '';
+  }
+  function loadTicker(){
+    fetch(API_BASE + '/api/events/recent', { cache: 'no-store' })
+      .then(function(res){ if(!res.ok) throw new Error('bad status'); return res.json(); })
+      .then(function(data){
+        var events = (data && data.events) || [];
+        if(!events.length) return; // молчит — оставляем статичный фолбэк из разметки
+        track.innerHTML = events.map(function(e){
+          var t = formatEventTime(e.time);
+          return '<span>' + (t ? t + ' · ' : '') + escapeHtml(e.text) + '</span>';
+        }).join('');
+        duplicateTrack();
+      })
+      .catch(function(){ /* тихий фолбэк — статичные строки без таймстампов остаются */ });
+  }
+  loadTicker();
+  setInterval(loadTicker, 60000);
 
   /* тикер не должен уезжать под фиксированную шапку */
   var navEl = document.querySelector('.nav');
@@ -639,115 +795,140 @@ button{font-family:inherit;color:inherit;background:none;border:none;cursor:poin
   padTicker();
   window.addEventListener('resize', padTicker);
 
-  /* ---------- график цикла ---------- */
-  var canvas = document.getElementById('cycleChart');
-  var ctx = canvas.getContext('2d');
-  var points = [];
-  (function gen(){
-    var hours = 0;
-    [{peak:640,len:168},{peak:590,len:168}].forEach(function(c){
-      for(var h=0; h<c.len; h++){
-        var t = h/c.len;
-        var base = c.peak * Math.exp(-4.2*t);
-        var daily = 1 + 0.35*Math.sin((h%24)/24*Math.PI*2 - 1.2);
-        var noise = 1 + (Math.sin(h*12.9898)*43758.5453 % 1)*0.06;
-        points.push({h:hours+h, v:Math.max(6, base*daily*noise)});
-      }
-      hours += c.len;
-    });
-  })();
-  var totalH = points[points.length-1].h, maxV = 700, wipeHours=[0,168];
+  /* ---------- хиро: реплики заголовка/поиска видны сразу (above the fold,
+     не нужен IntersectionObserver — просто включаем анимацию на старте) ---------- */
+  document.getElementById('hero').classList.add('is-in');
 
-  function size(){
-    var dpr = window.devicePixelRatio||1, r = canvas.getBoundingClientRect();
-    canvas.width = r.width*dpr; canvas.height = r.height*dpr;
-    ctx.setTransform(dpr,0,0,dpr,0,0);
-    return r;
+  /* ---------- Atlas-299: живая карточка "Почему я знаю больше" ----------
+     Слепок ниже — реальный ответ API на момент вёрстки (2026-07-25),
+     рендерится сразу синхронно (без ожидания сети). Один fetch молча
+     освежает данные, если API доступен; если нет — слепок так и остаётся. */
+  var ATLAS_ID = 299;
+  var atlasFallback = {
+    title: 'Atlas - EU 2X Monthly | Vanilla+ | No BP Wipes',
+    cycle: '7 дней',
+    nextWipeEstimate: '2026-07-30 06:01:52',
+    prime: '17:00–21:00',
+    peak: 1495,
+    historyDays: '2 месяца',
+    avgs: [50.0,61.3,87.0,104.7,116.5,122.0,126.0,160.8,270.5,1221.3,1492.0,1485.0,1404.5,1207.7,1184.0,1123.5,1075.5,928.7,778.5,697.5,676.0,672.3,645.0,695.5,758.7,890.0,889.0,891.5,890.3,890.0,893.0,890.0,889.0,891.5,901.0,891.0,881.0,893.0,846.5,791.0,711.0,615.0,600.5,587.0,503.0,588.0,689.7,692.0]
+  };
+
+  function formatShortDate(sqlDt){
+    var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(sqlDt || '');
+    return m ? (m[3]+'.'+m[2]) : '';
   }
-  var progress = reduced?1:0, started=false;
 
-  function draw(){
-    var r=size(), W=r.width, H=r.height, padB=26, padT=12;
-    ctx.clearRect(0,0,W,H);
-    function X(h){return (h/totalH)*W}
+  var atlasSvg = document.getElementById('atlasSvg');
+  var atlasArea = document.getElementById('atlasArea');
+  var atlasLine = document.getElementById('atlasLine');
+  var atlasWipeDot = document.getElementById('atlasWipeDot');
+  var atlasHoverArea = document.getElementById('atlasHoverArea');
+  var atlasTooltip = document.getElementById('atlasTooltip');
+  var atlasCardEl = document.getElementById('atlasCard');
+  var atlasData = null;
+  var atlasAnimated = false;
+
+  function renderAtlas(model){
+    document.getElementById('atlasTitle').textContent = model.title;
+    document.getElementById('atlasCycle').textContent = model.cycle || 'не определён';
+    document.getElementById('atlasNext').textContent = model.nextWipeEstimate ? ('~'+formatShortDate(model.nextWipeEstimate)) : '—';
+    document.getElementById('atlasPrime').textContent = model.prime || '—';
+    document.getElementById('atlasPeak').textContent = (model.peak!=null ? Math.round(model.peak).toLocaleString('ru-RU') : '—');
+    document.getElementById('atlasHistoryDays').textContent = model.historyDays || '—';
+
+    var W=520,H=190,padT=8,padB=8;
+    var avgs = model.avgs;
+    var maxV = Math.max.apply(null, avgs.concat([1]));
+    var n = avgs.length;
+    var stepX = n>1 ? (W/(n-1)) : 0;
+    function X(i){return i*stepX}
     function Y(v){return padT + (1-v/maxV)*(H-padT-padB)}
-    var upto = Math.floor(points.length*progress);
 
-    ctx.strokeStyle='rgba(44,36,29,.9)';ctx.lineWidth=1;
-    ctx.font='11px "JetBrains Mono", monospace';
-    ctx.fillStyle='rgba(138,128,120,.7)';
-    for(var d=0; d<=totalH/24; d++){
-      var x=X(d*24);
-      ctx.beginPath();ctx.moveTo(x,padT);ctx.lineTo(x,H-padB);ctx.stroke();
-      if(d<totalH/24 && x<W-30) ctx.fillText('д'+((d%7)+1), x+5, H-9);
-    }
-    if(upto<2) return;
+    var linePts = avgs.map(function(v,i){return X(i).toFixed(1)+','+Y(v).toFixed(1)}).join(' ');
+    var areaPts = '0,'+H+' '+linePts+' '+X(n-1).toFixed(1)+','+H;
+    atlasLine.setAttribute('points', linePts);
+    atlasArea.setAttribute('points', areaPts);
 
-    var grad=ctx.createLinearGradient(0,padT,0,H-padB);
-    grad.addColorStop(0,'rgba(201,80,30,.28)');
-    grad.addColorStop(1,'rgba(201,80,30,0)');
-    ctx.beginPath();
-    ctx.moveTo(X(points[0].h),H-padB);
-    for(var i=0;i<upto;i++) ctx.lineTo(X(points[i].h),Y(points[i].v));
-    ctx.lineTo(X(points[upto-1].h),H-padB);
-    ctx.closePath();ctx.fillStyle=grad;ctx.fill();
+    // вайп — первая точка цикла (period=cycle начинается сразу после вайпа)
+    atlasWipeDot.setAttribute('cx', X(0));
+    atlasWipeDot.setAttribute('cy', Y(avgs[0]));
 
-    ctx.beginPath();
-    for(var j=0;j<upto;j++){
-      var px=X(points[j].h),py=Y(points[j].v);
-      if(j===0)ctx.moveTo(px,py);else ctx.lineTo(px,py);
-    }
-    ctx.strokeStyle='#e86a2f';ctx.lineWidth=2;
-    ctx.shadowColor='rgba(232,106,47,.55)';ctx.shadowBlur=10;
-    ctx.stroke();ctx.shadowBlur=0;
+    atlasData = {avgs: avgs, X: X, Y: Y, n: n};
 
-    ctx.font='11px "JetBrains Mono", monospace';
-    wipeHours.forEach(function(wh){
-      if(points[upto-1].h>=wh){
-        var wx=X(wh);
-        ctx.fillStyle='#e86a2f';
-        ctx.beginPath();ctx.arc(wx,Y(points[Math.min(wh+2,points.length-1)].v),3.5,0,Math.PI*2);ctx.fill();
-        ctx.fillText('вайп',wx+7,Y(600));
-      }
+    var alreadyRevealed = atlasCardEl.classList.contains('is-in');
+    var len = atlasLine.getTotalLength();
+    atlasLine.style.transition = 'none';
+    atlasLine.style.strokeDasharray = len;
+    atlasLine.style.strokeDashoffset = (reduced || alreadyRevealed) ? 0 : len;
+    atlasLine.getBoundingClientRect(); // форсируем reflow перед следующей transition
+    atlasLine.style.transition = '';
+  }
+
+  function playAtlasDraw(){
+    if(atlasAnimated) return;
+    atlasAnimated = true;
+    if(reduced){ atlasLine.style.strokeDashoffset = 0; return; }
+    atlasLine.style.transition = 'stroke-dashoffset 1.2s cubic-bezier(.2,.7,.2,1)';
+    requestAnimationFrame(function(){
+      requestAnimationFrame(function(){ atlasLine.style.strokeDashoffset = 0; });
     });
+    setTimeout(function(){ atlasWipeDot.classList.add('is-pulse'); }, 1250);
+  }
 
-    if(progress>=1){
-      var last=points[points.length-1], t=(Date.now()%1600)/1600;
-      var lr=4+5*Math.abs(Math.sin(t*Math.PI));
-      ctx.beginPath();ctx.arc(X(last.h)-2,Y(last.v),lr,0,Math.PI*2);
-      ctx.fillStyle='rgba(232,106,47,.18)';ctx.fill();
-      ctx.beginPath();ctx.arc(X(last.h)-2,Y(last.v),3.5,0,Math.PI*2);
-      ctx.fillStyle='#e86a2f';ctx.fill();
-    }
-  }
-  function tick(){
-    if(progress<1) progress=Math.min(1,progress+0.008);
-    draw();
-    if(!reduced||progress<1) requestAnimationFrame(tick);
-  }
-  function startChart(){
-    if(started)return;started=true;
-    if(reduced){progress=1;draw();} else requestAnimationFrame(tick);
+  renderAtlas(atlasFallback);
+
+  fetch(API_BASE + '/api/servers/' + ATLAS_ID)
+    .then(function(res){ if(!res.ok) throw new Error('bad status'); return res.json(); })
+    .then(function(detail){
+      return fetch(API_BASE + '/api/servers/' + ATLAS_ID + '/history?period=cycle')
+        .then(function(res){ if(!res.ok) throw new Error('bad status'); return res.json(); })
+        .then(function(hist){
+          var avgs = (hist.points || [])
+            .map(function(p){ return p.avg!=null ? p.avg : p.max; })
+            .filter(function(v){ return v!=null; });
+          if(avgs.length < 2) return; // мало точек — оставляем слепок
+          renderAtlas({
+            title: detail.name || atlasFallback.title,
+            cycle: detail.cycle,
+            nextWipeEstimate: detail.next_wipe_estimate,
+            prime: detail.prime_time,
+            peak: detail.peak,
+            historyDays: detail.history_days,
+            avgs: avgs
+          });
+        });
+    })
+    .catch(function(){ /* тихий фолбэк — слепок остаётся как есть */ });
+
+  /* скролл-хореография: текст слева + карточка справа при входе в вьюпорт */
+  var paperText = document.getElementById('paperText');
+  function revealPaper(){
+    paperText.classList.add('is-in');
+    atlasCardEl.classList.add('is-in');
+    playAtlasDraw();
   }
   if('IntersectionObserver' in window){
     new IntersectionObserver(function(es,obs){
-      es.forEach(function(e){if(e.isIntersecting){startChart();obs.disconnect();}});
-    },{threshold:.2}).observe(canvas);
-  } else startChart();
-  window.addEventListener('resize',function(){if(started)draw();});
+      es.forEach(function(e){ if(e.isIntersecting){ revealPaper(); obs.disconnect(); } });
+    },{threshold:.25}).observe(atlasCardEl);
+  } else revealPaper();
 
-  /* ---------- бары досье ---------- */
-  var dossier=document.getElementById('dossier');
-  function fillBars(){
-    dossier.querySelectorAll('.dayrow__bar').forEach(function(b,i){
-      setTimeout(function(){b.style.width=b.dataset.w+'%';},reduced?0:i*85);
-    });
-  }
-  if('IntersectionObserver' in window){
-    new IntersectionObserver(function(es,obs){
-      es.forEach(function(e){if(e.isIntersecting){fillBars();obs.disconnect();}});
-    },{threshold:.25}).observe(dossier);
-  } else fillBars();
+  /* hover-тултип по точкам графика */
+  atlasHoverArea.addEventListener('mousemove', function(e){
+    if(!atlasData) return;
+    var rect = atlasSvg.getBoundingClientRect();
+    var relX = (e.clientX - rect.left) / rect.width * 520;
+    var stepX = atlasData.n>1 ? 520/(atlasData.n-1) : 0;
+    var idx = stepX ? Math.round(relX/stepX) : 0;
+    idx = Math.max(0, Math.min(atlasData.n-1, idx));
+    var v = atlasData.avgs[idx];
+    atlasTooltip.textContent = 'онлайн: ' + Math.round(v);
+    atlasTooltip.classList.add('is-visible');
+    atlasTooltip.style.left = ((atlasData.X(idx)/520)*rect.width) + 'px';
+    atlasTooltip.style.top = ((atlasData.Y(v)/190)*rect.height) + 'px';
+  });
+  atlasHoverArea.addEventListener('mouseleave', function(){ atlasTooltip.classList.remove('is-visible'); });
 
   /* ---------- trust ring ---------- */
   var ring=document.getElementById('trustRing');
@@ -755,13 +936,30 @@ button{font-family:inherit;color:inherit;background:none;border:none;cursor:poin
     new IntersectionObserver(function(es,obs){
       es.forEach(function(e){
         if(e.isIntersecting){
-          setTimeout(function(){ring.style.strokeDashoffset=251-251*0.74;},120);
+          setTimeout(function(){ring.style.strokeDashoffset=251-251*0.73;},120);
           obs.disconnect();
         }
       });
     },{threshold:.4}).observe(ring);
   } else {
-    ring.style.strokeDashoffset=251-251*0.74;
+    ring.style.strokeDashoffset=251-251*0.73;
+  }
+
+  /* ---------- "Что умею": stagger внутри каждой строки отдельно, не всей
+     секции разом — своя IntersectionObserver-запись на каждый .row ---------- */
+  var rows = document.querySelectorAll('.row');
+  if('IntersectionObserver' in window){
+    var rowObserver = new IntersectionObserver(function(es){
+      es.forEach(function(e){
+        if(e.isIntersecting){
+          e.target.classList.add('is-in');
+          rowObserver.unobserve(e.target);
+        }
+      });
+    },{threshold:.2});
+    rows.forEach(function(r){ rowObserver.observe(r); });
+  } else {
+    rows.forEach(function(r){ r.classList.add('is-in'); });
   }
 })();
 </script><script>
