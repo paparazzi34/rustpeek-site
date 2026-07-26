@@ -245,47 +245,52 @@ input{font-family:inherit;color:inherit}
 }
 
 /* ---------- SERVER DETAIL ---------- */
-.detail{
-  background:var(--surface);
-  border:1px solid rgba(201,80,30,.35);
-  border-radius:6px;
-  padding:24px;
-  margin:0 auto 14px;
-  max-width:720px;
-  position:relative;
+/* ---------- СТРАНИЦА СЕРВЕРА: плотный монитор-стиль, без карточки-коробки
+   (2026-07-26, второй утверждённый макет) — полная ширина, секции разделены
+   тонкой border-bottom линией, не рамками/фоном. ---------- */
+.dpage{padding:4px 0 8px}
+.dpage__crumbs{
+  font-family:var(--font-mono);font-size:12px;color:var(--steel);
+  margin-bottom:18px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;
 }
-.detail__back{
-  font-family:var(--font-mono);font-size:12.5px;color:var(--steel);
-  margin-bottom:16px;display:inline-flex;align-items:center;gap:6px;
-  transition:color .2s;
-}
-.detail__back:hover{color:var(--rust-hot)}
-.detail__title{font-family:var(--font-display);font-weight:700;font-size:19px;margin-bottom:4px}
-.detail__sub{font-family:var(--font-mono);font-size:12.5px;color:var(--steel);margin-bottom:20px}
-.detail__grid{
-  display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
-  gap:10px;margin-bottom:22px;
-}
-.stat{
-  background:var(--surface-2);
-  border:1px solid var(--line);
-  border-radius:5px;
-  padding:12px 14px;
-}
-.stat__k{font-family:var(--font-mono);font-size:11px;color:var(--steel);
-  text-transform:uppercase;letter-spacing:.08em;margin-bottom:5px}
-.stat__v{font-family:var(--font-mono);font-size:16px;font-weight:600}
-.stat__v small{font-size:12px;color:var(--steel);font-weight:400}
-.stat__v.hot{color:var(--rust-hot)}
-.stat__v.ok{color:var(--green)}
-.detail__memory{
-  margin-top:18px;padding-top:16px;border-top:1px dashed var(--line);
-  font-family:var(--font-mono);font-size:12.5px;color:var(--steel);
-}
-.detail__memory b{color:var(--rust-hot)}
+.dpage__crumbs a{color:var(--steel);text-decoration:none;transition:color .2s}
+.dpage__crumbs a:hover{color:var(--rust-hot)}
+.dpage__crumbs span.sep{color:var(--line)}
 
-/* ---------- CARD: period switcher + chart ---------- */
-.periodrow{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:4px 0 14px}
+.dpage__head{
+  display:flex;justify-content:space-between;align-items:flex-end;gap:24px;
+  flex-wrap:wrap;padding-bottom:20px;border-bottom:1px solid var(--line);
+}
+.dpage__title{font-family:var(--font-display);font-weight:700;font-size:clamp(19px,2.4vw,26px);line-height:1.2}
+.dpage__status{
+  font-family:var(--font-mono);font-size:13px;color:var(--steel);
+  margin-top:8px;display:flex;gap:10px;flex-wrap:wrap;align-items:center;
+}
+.dpage__status .dot{width:8px;height:8px;border-radius:50%;background:var(--steel)}
+.dpage__status .dot.is-live{background:var(--green);box-shadow:0 0 6px rgba(111,174,92,.6)}
+.dpage__online{text-align:right;font-family:var(--font-mono)}
+.dpage__online b{font-size:clamp(22px,3vw,30px);color:var(--bone);font-variant-numeric:tabular-nums}
+.dpage__online .rank{font-size:12px;color:var(--steel);margin-top:4px}
+
+/* ---------- полоса из 5 метрик ---------- */
+.metricbar{display:flex;flex-wrap:wrap;border-bottom:1px solid var(--line)}
+.metricbar__item{flex:1 1 0;min-width:130px;padding:16px 20px;border-left:1px solid var(--line)}
+.metricbar__item:first-child{border-left:none;padding-left:0}
+.metricbar__k{
+  font-family:var(--font-mono);font-size:10.5px;color:var(--steel);
+  text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px;
+}
+.metricbar__v{font-family:var(--font-mono);font-size:17px;font-weight:600;color:var(--bone)}
+.metricbar__v small{font-size:12px;color:var(--steel);font-weight:400}
+.metricbar__v.hot{color:var(--rust-hot)}
+.metricbar__v.ok{color:var(--green)}
+.metricbar__v.muted{color:var(--steel);font-weight:400}
+
+/* ---------- переключатель периода + отдельный cycle-nav ---------- */
+.periodrow{
+  display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+  padding:16px 0;border-bottom:1px solid var(--line);
+}
 .periodbtn{
   font-family:var(--font-mono);font-size:12px;color:var(--steel);
   border:1px solid var(--line);border-radius:20px;padding:5px 12px;
@@ -293,21 +298,68 @@ input{font-family:inherit;color:inherit}
 }
 .periodbtn:hover{border-color:var(--steel);color:var(--bone)}
 .periodbtn.is-on{border-color:var(--rust);color:var(--rust-hot);background:rgba(201,80,30,.1)}
-.cyclenav{display:flex;align-items:center;gap:8px;margin-left:auto;font-family:var(--font-mono);font-size:12.5px;color:var(--steel)}
-.cyclenav button{
+.cyclenav{display:flex;align-items:center;gap:6px;margin-left:auto;font-family:var(--font-mono);font-size:12.5px;color:var(--steel)}
+.cyclenav.is-hidden{display:none}
+.cyclenav__label{
+  border:1px solid var(--line);border-radius:20px;padding:5px 12px;
+  transition:all .18s;color:var(--steel);
+}
+.cyclenav__label:hover{border-color:var(--steel);color:var(--bone)}
+.cyclenav__label.is-on{border-color:var(--rust);color:var(--rust-hot);background:rgba(201,80,30,.1)}
+.cyclenav button:not(.cyclenav__label){
   width:26px;height:26px;border:1px solid var(--line);border-radius:5px;
   display:flex;align-items:center;justify-content:center;color:var(--bone);
   transition:border-color .2s;line-height:1;
 }
-.cyclenav button:hover:not(:disabled){border-color:var(--rust)}
+.cyclenav button:not(.cyclenav__label):hover:not(:disabled){border-color:var(--rust)}
 .cyclenav button:disabled{opacity:.3;cursor:default}
 
-.chartwrap{
-  position:relative;background:var(--surface-2);
-  border:1px solid var(--line);border-radius:6px;
-  padding:14px;margin-bottom:20px;
-}
+/* ---------- график: полноширинный, без обёртки-карточки ---------- */
+.dchart{padding:20px 0;border-bottom:1px solid var(--line)}
+.chartwrap{position:relative}
 .chartwrap svg{display:block;width:100%;height:auto}
+.chartaxis{font-family:var(--font-mono);font-size:10px;fill:var(--steel)}
+.chartgrid{stroke:var(--line);stroke-width:1}
+.dchart__note{font-family:var(--font-mono);font-size:11.5px;color:var(--steel);margin-top:10px}
+.dchart__note b{color:var(--rust-hot);font-weight:600}
+
+/* ---------- полоса прайм-тайма ---------- */
+.primebar{padding:20px 0;border-bottom:1px solid var(--line)}
+.primebar__title{
+  font-family:var(--font-mono);font-size:11px;color:var(--steel);
+  text-transform:uppercase;letter-spacing:.07em;margin-bottom:12px;
+}
+.primebar__title b{color:var(--rust-hot);text-transform:none;letter-spacing:0;font-weight:600}
+.primebar__row{display:flex;gap:2px;height:34px}
+.primebar__seg{flex:1;border-radius:2px;background:var(--line);position:relative}
+.primebar__seg.is-peak::after{
+  content:'';position:absolute;top:-5px;left:50%;transform:translateX(-50%);
+  width:0;height:0;border-left:4px solid transparent;border-right:4px solid transparent;
+  border-top:5px solid var(--rust-hot);
+}
+.primebar__labels{
+  display:flex;justify-content:space-between;
+  font-family:var(--font-mono);font-size:10.5px;color:var(--steel);margin-top:8px;
+}
+
+/* ---------- две колонки: история вайпов + панель "Сервер" ---------- */
+.dcols{display:grid;grid-template-columns:1fr 300px;gap:40px;padding-top:24px}
+.dcols>*{min-width:0}
+.serverpanel__title{
+  font-family:var(--font-mono);font-size:12px;color:var(--steel);
+  text-transform:uppercase;letter-spacing:.1em;margin-bottom:14px;
+}
+.serverpanel__row{
+  display:flex;justify-content:space-between;gap:12px;
+  padding:9px 0;border-bottom:1px solid var(--line);
+  font-family:var(--font-mono);font-size:12.5px;
+}
+.serverpanel__row:last-child{border-bottom:none}
+.serverpanel__k{color:var(--steel)}
+.serverpanel__v{color:var(--bone);text-align:right}
+@media(max-width:820px){
+  .dcols{grid-template-columns:1fr}
+}
 .chart__tooltip{
   position:absolute;pointer-events:none;
   background:var(--bg);border:1px solid var(--rust);border-radius:5px;
@@ -991,11 +1043,13 @@ input{font-family:inherit;color:inherit}
         return res.json();
       })
       .then(function(s){
+        curServerData = s;
         renderDetailShell(s);
         loadHistoryAndWipes();
+        loadPrimeTime();
       })
       .catch(function(err){
-        srvDetail.innerHTML = '<button class="detail__back" id="detailBack">← к списку</button>'+
+        srvDetail.innerHTML = '<a class="dpage__crumbs" href="#" id="detailBack">← к списку</a>'+
           '<div class="srv-error">'+(err.message==='not_found' ? 'Сервер пропал из базы.' : 'Не дотянулся до базы — попробуй ещё раз.')+'</div>';
         bindBackButton();
       });
@@ -1007,45 +1061,146 @@ input{font-family:inherit;color:inherit}
     else { showList(); }
   });
 
-  function renderDetailShell(s){
+  var curServerData = null;
+
+  function formatThousands(n){
+    return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+  }
+
+  // "Дело N / регион / тип" — только то, что реально знаем, ничего не
+  // додумываем (2026-07-26, плотный макет страницы сервера).
+  function buildCrumbs(s){
+    var parts = ['<a href="#" id="crumbServers">Серверы</a>'];
+    if(s.country) parts.push('<span class="sep">/</span><span>'+escapeHtml(s.country)+'</span>');
+    parts.push('<span class="sep">/</span><span>'+(s.type==='vanilla'?'Vanilla':'Mod')+'</span>');
+    return parts.join('');
+  }
+
+  // BM иногда кладёт в map_name рекламный текст/ссылку вместо названия
+  // карты (напр. "discord.gg/..."). Показывать такое как "карту" — позориться
+  // очевидным мусором, честнее промолчать, чем выдать URL за факт.
+  function isJunkMapName(name){
+    return /https?:|discord\.gg|\.(com|net|ru|gg|org)\b|\//i.test(name || '');
+  }
+
+  function buildStatusLine(s){
+    var bits = [];
+    bits.push('<span class="dot'+(s.online>0?' is-live':'')+'"></span>');
+    bits.push('<span>'+s.rate+'</span>');
+    bits.push('<span>'+(s.type==='vanilla'?'Vanilla':'Mod')+'</span>');
+    var mapName = (s.map_name && !isJunkMapName(s.map_name)) ? s.map_name : null;
+    bits.push('<span>🗺 '+(s.map_size||'—')+(mapName?(' · '+escapeHtml(mapName)):'')+'</span>');
+    if(s.ip && s.port) bits.push('<span class="mono">'+escapeHtml(s.ip)+':'+s.port+'</span>');
+    return bits.join('<span>·</span>');
+  }
+
+  function renderMetricBar(s){
     var nextTile = formatShortDT(s.next_wipe_estimate);
+    var inBaseVal = (s.history_span_days!=null)
+      ? (s.history_span_days+' дн <small>· '+formatThousands(s.total_measurements||0)+' зам.</small>')
+      : '—';
+    return '<div class="metricbar">'+
+      '<div class="metricbar__item"><div class="metricbar__k">Последний вайп</div><div class="metricbar__v '+(s.wipe_state==='fresh'?'ok':'')+'">'+(s.wipe||'неизвестно')+'</div></div>'+
+      '<div class="metricbar__item"><div class="metricbar__k">Цикл</div><div class="metricbar__v'+(s.cycle?'':' muted')+'">'+(s.cycle||'не определён')+'</div></div>'+
+      '<div class="metricbar__item"><div class="metricbar__k">След. вайп</div><div class="metricbar__v'+(nextTile?' hot':' muted')+'">'+(nextTile ? '~'+nextTile : '—')+'</div></div>'+
+      '<div class="metricbar__item"><div class="metricbar__k">Пик / средний</div><div class="metricbar__v">'+(s.peak!=null?s.peak:'—')+' <small>/ '+(s.avg!=null?s.avg:'—')+'</small></div></div>'+
+      '<div class="metricbar__item"><div class="metricbar__k">В базе</div><div class="metricbar__v">'+inBaseVal+'</div></div>'+
+    '</div>';
+  }
+
+  function renderServerPanel(s){
+    var rows = [];
+    if(s.ip && s.port) rows.push(['Адрес', escapeHtml(s.ip)+':'+s.port]);
+    rows.push(['Карта', (s.map_size||'—')+' · '+(s.type==='vanilla'?'Vanilla':'Mod')]);
+    rows.push(['Рейт', s.rate]);
+    if(s.team_limit) rows.push(['Лимит команды', escapeHtml(s.team_limit)]);
+    rows.push(['BP-вайпы', s.bp_wipe ? escapeHtml(s.bp_wipe) : 'неизвестно']);
+    // Uptime сервера убран (2026-07-26) — то, что считалось, было покрытием
+    // НАШЕГО мониторинга (доля часов с хотя бы одной записью в
+    // online_history), а не аптаймом сервера: дыра в мониторинге даёт
+    // ложный "плохой аптайм" у идеально работающего сервера, и наоборот.
+    // Различить "сервер лежал" и "мы не смотрели" нечем — честнее не
+    // показывать вообще, чем выдавать своё за чужое.
+    rows.push(['Источник данных', 'BattleMetrics']);
+
+    var html = '<div class="serverpanel__title">Сервер</div>'+
+      rows.map(function(r){
+        return '<div class="serverpanel__row"><span class="serverpanel__k">'+r[0]+'</span><span class="serverpanel__v">'+r[1]+'</span></div>';
+      }).join('');
+    var el = document.getElementById('serverPanel');
+    if(el) el.innerHTML = html;
+  }
+
+  function renderDetailShell(s){
+    // Защита от гонки (пред-существующая, не связана с этой задачей): на
+    // холодной загрузке по прямой ссылке #server-N runSearch() и openDetail()
+    // стартуют параллельно — если ответ списка приходит позже, он снова
+    // показывает srvList/"показать ещё", перекрывая уже открытую карточку.
+    srvList.style.display='none';
+    srvLoadMoreWrap.style.display='none';
 
     srvDetail.innerHTML =
-      '<div class="detail">'+
-        '<button class="detail__back" id="detailBack">← к списку</button>'+
-        '<div class="detail__title">'+escapeHtml(s.name)+'</div>'+
-        '<div class="detail__sub">👥 '+s.online+'/'+s.max+' · 🗺 '+s.map_size+' · '+s.rate+'</div>'+
-        '<div class="detail__grid">'+
-          '<div class="stat"><div class="stat__k">Последний вайп</div><div class="stat__v '+(s.wipe_state==='fresh'?'ok':'')+'">'+(s.wipe||'неизвестно')+'</div></div>'+
-          '<div class="stat"><div class="stat__k">Цикл</div><div class="stat__v">'+(s.cycle||'нерегулярный')+'</div></div>'+
-          '<div class="stat"><div class="stat__k">Следующий</div><div class="stat__v hot">'+(nextTile ? '~'+nextTile : '—')+'</div></div>'+
-          '<div class="stat"><div class="stat__k">Пик / средний</div><div class="stat__v">'+(s.peak!=null?s.peak:'—')+' <small>/ '+(s.avg!=null?s.avg:'—')+'</small></div></div>'+
+      '<div class="dpage">'+
+        '<div class="dpage__crumbs">'+buildCrumbs(s)+'</div>'+
+        '<div class="dpage__head">'+
+          '<div>'+
+            '<div class="dpage__title">'+escapeHtml(s.name)+'</div>'+
+            '<div class="dpage__status">'+buildStatusLine(s)+'</div>'+
+          '</div>'+
+          '<div class="dpage__online"><b>'+s.online+'/'+s.max+'</b></div>'+
         '</div>'+
+        renderMetricBar(s)+
         '<div class="periodrow" id="periodRow">'+
           '<button class="periodbtn is-on" data-period="24h">24ч</button>'+
-          '<button class="periodbtn" data-period="cycle">Цикл</button>'+
-          '<button class="periodbtn" data-period="month">Месяц</button>'+
+          '<button class="periodbtn" data-period="7d">7д</button>'+
+          '<button class="periodbtn" data-period="month">30д</button>'+
           '<button class="periodbtn" data-period="all">Всё</button>'+
-          '<span class="cyclenav" id="cycleNav" style="display:none">'+
+          '<span class="cyclenav is-hidden" id="cycleNav">'+
             '<button id="cyclePrev" disabled>‹</button>'+
-            '<span id="cycleLabel"></span>'+
+            '<button class="cyclenav__label" id="cycleToggle">цикл</button>'+
             '<button id="cycleNext" disabled>›</button>'+
           '</span>'+
         '</div>'+
-        '<div class="chartwrap" id="chartWrap"><div class="chart-empty">Загружаю график…</div></div>'+
-        '<div class="wipehist" id="wipeHist"></div>'+
-        (s.history_days ? '<div class="detail__memory">Веду историю этого сервера уже <b>'+s.history_days+'</b> 📈</div>' : '')+
+        '<div class="dchart">'+
+          '<div class="chartwrap" id="chartWrap"><div class="chart-empty">Загружаю график…</div></div>'+
+          '<div class="dchart__note" id="chartNote" style="display:none">▲ <b>N</b> — подтверждённые вайпы, номера совпадают с таблицей ниже</div>'+
+        '</div>'+
+        '<div class="primebar" id="primeBar" style="display:none">'+
+          '<div class="primebar__title">Прайм-тайм (UTC, среднее за 30д) <b id="primePeakLabel"></b></div>'+
+          '<div class="primebar__row" id="primeRow"></div>'+
+          '<div class="primebar__labels"><span>00</span><span>06</span><span>12</span><span>18</span><span>23</span></div>'+
+        '</div>'+
+        '<div class="dcols">'+
+          '<div class="wipehist" id="wipeHist"></div>'+
+          '<div class="serverpanel" id="serverPanel"></div>'+
+        '</div>'+
       '</div>';
 
-    document.getElementById('detailBack').addEventListener('click', function(){ history.back(); });
+    renderServerPanel(s);
+
+    document.getElementById('crumbServers').addEventListener('click', function(e){ e.preventDefault(); history.back(); });
 
     document.getElementById('periodRow').addEventListener('click', function(e){
+      var toggle = e.target.closest('#cycleToggle');
+      if(toggle){
+        curPeriod = 'cycle';
+        curCycleOffset = 0;
+        document.querySelectorAll('#periodRow .periodbtn').forEach(function(b){b.classList.remove('is-on')});
+        document.getElementById('cycleToggle').classList.add('is-on');
+        loadHistoryOnly();
+        return;
+      }
       var btn = e.target.closest('.periodbtn'); if(!btn) return;
       document.querySelectorAll('#periodRow .periodbtn').forEach(function(b){b.classList.remove('is-on')});
       btn.classList.add('is-on');
+      document.getElementById('cycleToggle').classList.remove('is-on');
       curPeriod = btn.dataset.period;
       curCycleOffset = 0;
-      document.getElementById('cycleNav').style.display = curPeriod==='cycle' ? '' : 'none';
+      // цикл-навигация имеет смысл только на длинных окнах — на 24ч/7д
+      // "текущий цикл" почти совпадает с самим окном, прятать, чтобы не
+      // путать лишним контролом (см. отчёт по странице сервера, 2026-07-26)
+      var cycleNav = document.getElementById('cycleNav');
+      cycleNav.classList.toggle('is-hidden', curPeriod==='24h' || curPeriod==='7d');
       loadHistoryOnly();
     });
 
@@ -1062,12 +1217,37 @@ input{font-family:inherit;color:inherit}
   function updateCycleNav(cycle){
     var prevBtn = document.getElementById('cyclePrev');
     var nextBtn = document.getElementById('cycleNext');
-    var label = document.getElementById('cycleLabel');
+    var toggle = document.getElementById('cycleToggle');
     if(!prevBtn) return;
-    if(!cycle){ prevBtn.disabled = true; nextBtn.disabled = true; label.textContent=''; return; }
+    if(!cycle){ prevBtn.disabled = true; nextBtn.disabled = true; return; }
     prevBtn.disabled = !cycle.has_prev;
     nextBtn.disabled = !cycle.has_next;
-    label.textContent = cycle.cycle_offset === 0 ? 'текущий цикл' : (cycle.cycle_offset+' цикл');
+    if(toggle) toggle.textContent = cycle.cycle_offset === 0 ? 'текущий цикл' : (cycle.cycle_offset+' цикл');
+  }
+
+  function loadPrimeTime(){
+    fetch(API_BASE + '/api/servers/' + curCardId + '/hourly_profile')
+      .then(function(res){ if(!res.ok) throw new Error('bad status'); return res.json(); })
+      .then(function(data){
+        var bar = document.getElementById('primeBar');
+        var row = document.getElementById('primeRow');
+        var peakLabel = document.getElementById('primePeakLabel');
+        if(!bar || !row) return;
+        var hours = data.hours || [];
+        var values = hours.filter(function(v){ return v!=null; });
+        if(!values.length) return; // честно скрываем блок, а не рисуем пустую полосу
+        var maxV = Math.max.apply(null, values);
+        row.innerHTML = hours.map(function(v, h){
+          var pct = v!=null ? Math.max(6, Math.round(v/maxV*100)) : 0;
+          var isPeak = (data.peak_hour === h);
+          var bg = v!=null ? ('linear-gradient(180deg, transparent '+(100-pct)+'%, var(--rust-hot) '+(100-pct)+'%)') : 'var(--line)';
+          var title = v!=null ? (pad2(h)+':00 · '+Math.round(v)+' онлайн в среднем') : (pad2(h)+':00 · нет данных');
+          return '<div class="primebar__seg'+(isPeak?' is-peak':'')+'" style="background:'+bg+'" title="'+title+'"></div>';
+        }).join('');
+        if(data.peak_hour!=null) peakLabel.textContent = pad2(data.peak_hour)+':00 — пик';
+        bar.style.display = '';
+      })
+      .catch(function(){ /* тихо — блок остаётся скрытым, не рисуем нолики */ });
   }
 
   function findNearestPointIndex(points, wipeTimeIso){
@@ -1094,29 +1274,58 @@ input{font-family:inherit;color:inherit}
   function renderChart(points, wipes, granularity){
     lastChartData = {points: points, wipes: wipes, granularity: granularity};
     var chartWrap = document.getElementById('chartWrap');
+    var note = document.getElementById('chartNote');
     if(!points || !points.length){
       chartWrap.innerHTML = '<div class="chart-empty">Пока мало данных за этот период.</div>';
+      if(note) note.style.display = 'none';
       return;
     }
 
-    var W=680, H=220, pad=24;
-    var innerW = W - pad*2, innerH = H - pad*2;
+    // Полноширинный график страницы сервера (2026-07-26, плотный макет) —
+    // в отличие от спарклайна в списке серверов, здесь нужны оси с
+    // подписями: слева значения онлайна, снизу — даты/часы по паре точек.
+    var W=960, H=280, padL=46, padR=12, padT=16, padB=44;
+    var innerW = W - padL - padR, innerH = H - padT - padB;
     var n = points.length;
     var vals = points.map(function(p){ return p.avg!=null?p.avg:(p.max!=null?p.max:0); });
     var maxV = Math.max.apply(null, vals.concat([1]));
     var stepX = n>1 ? innerW/(n-1) : 0;
 
-    function xAt(i){ return pad + i*stepX; }
-    function yAt(v){ return pad + innerH - (v/maxV)*innerH; }
+    function xAt(i){ return padL + i*stepX; }
+    function yAt(v){ return padT + innerH - (v/maxV)*innerH; }
 
     var linePts = vals.map(function(v,i){ return xAt(i).toFixed(1)+','+yAt(v).toFixed(1); }).join(' ');
-    var areaPts = xAt(0).toFixed(1)+','+(pad+innerH)+' '+linePts+' '+xAt(n-1).toFixed(1)+','+(pad+innerH);
+    var areaPts = xAt(0).toFixed(1)+','+(padT+innerH)+' '+linePts+' '+xAt(n-1).toFixed(1)+','+(padT+innerH);
+
+    // Ось Y — 4 линии сетки с подписями значений онлайна
+    var yAxisSvg = '';
+    var yTicks = 4;
+    for(var yi=0; yi<=yTicks; yi++){
+      var v = maxV * yi / yTicks;
+      var y = yAt(v);
+      yAxisSvg += '<line class="chartgrid" x1="'+padL+'" y1="'+y.toFixed(1)+'" x2="'+(W-padR)+'" y2="'+y.toFixed(1)+'"></line>'+
+        '<text class="chartaxis" x="'+(padL-8)+'" y="'+(y+3).toFixed(1)+'" text-anchor="end">'+Math.round(v)+'</text>';
+    }
+
+    // Ось X — подписи дат/часов под 5 равномерными точками
+    var xAxisSvg = '';
+    var xTicks = Math.min(5, n);
+    for(var xi=0; xi<xTicks; xi++){
+      var idx = xTicks>1 ? Math.round(xi*(n-1)/(xTicks-1)) : 0;
+      var x = xAt(idx);
+      // крайние подписи центрируются по краю и вылезают за viewBox — первую
+      // прижимаем к началу, последнюю к концу, остальные по центру точки
+      var anchor = (xi===0) ? 'start' : (xi===xTicks-1 ? 'end' : 'middle');
+      // +34, а не +18 — иначе подпись оси совпадает по высоте с номером
+      // треугольника вайпа (обе привязаны к axisY) и сливаются в одну строку
+      xAxisSvg += '<text class="chartaxis" x="'+x.toFixed(1)+'" y="'+(H-padB+34)+'" text-anchor="'+anchor+'">'+escapeHtml(formatTooltipDate(points[idx].ts, granularity).replace(/^[а-яё]+,\s*/i,''))+'</text>';
+    }
 
     // Треугольники на оси X с номером вместо текстовых подписей у линии
     // (2026-07-25) — на 30-дневном периоде подписи "вайп DD.MM HH:MM ✓"
     // рядом стоящих вайпов наезжали друг на друга. Номер соответствует
     // строке в таблице "История вайпов" ниже (см. wipeNumberMap).
-    var axisY = pad + innerH;
+    var axisY = padT + innerH;
     var wipeMarkersSvg = '';
     (wipes||[]).forEach(function(w){
       var idx = findNearestPointIndex(points, w.wipe_time);
@@ -1124,15 +1333,22 @@ input{font-family:inherit;color:inherit}
       var x = xAt(idx);
       var label = formatShortDT(w.wipe_time);
       var num = wipeNumberMap[w.wipe_time];
-      wipeMarkersSvg += '<line x1="'+x.toFixed(1)+'" y1="'+pad+'" x2="'+x.toFixed(1)+'" y2="'+axisY+'" stroke="var(--rust-hot)" stroke-width="1" stroke-dasharray="3,3" opacity="0.6"></line>'+
+      wipeMarkersSvg += '<line x1="'+x.toFixed(1)+'" y1="'+padT+'" x2="'+x.toFixed(1)+'" y2="'+axisY+'" stroke="var(--rust-hot)" stroke-width="1" stroke-dasharray="3,3" opacity="0.6"></line>'+
         '<polygon class="chart__wipetriangle" points="'+x.toFixed(1)+','+axisY+' '+(x-5).toFixed(1)+','+(axisY+9)+' '+(x+5).toFixed(1)+','+(axisY+9)+'">'+
           '<title>вайп '+escapeHtml(label||'')+'</title>'+
         '</polygon>'+
         (num!=null ? '<text x="'+x.toFixed(1)+'" y="'+(axisY+18)+'" class="chart__wipenum">'+num+'</text>' : '');
     });
 
+    if(note){
+      var wipeCount = (wipes||[]).length;
+      note.style.display = wipeCount ? '' : 'none';
+      if(wipeCount) note.innerHTML = '▲ <b>'+wipeCount+'</b> — подтверждённые вайпы, номера совпадают с таблицей ниже';
+    }
+
     chartWrap.innerHTML =
       '<svg viewBox="0 0 '+W+' '+H+'" id="chartSvg">'+
+        yAxisSvg+xAxisSvg+
         '<polygon points="'+areaPts+'" fill="var(--rust-hot)" opacity="0.08"></polygon>'+
         '<polyline points="'+linePts+'" fill="none" stroke="var(--rust-hot)" stroke-width="2"></polyline>'+
         wipeMarkersSvg+
@@ -1147,7 +1363,7 @@ input{font-family:inherit;color:inherit}
     hoverArea.addEventListener('mousemove', function(e){
       var rect = svgEl.getBoundingClientRect();
       var relX = (e.clientX - rect.left) / rect.width * W;
-      var idx = stepX ? Math.round((relX - pad) / stepX) : 0;
+      var idx = stepX ? Math.round((relX - padL) / stepX) : 0;
       idx = Math.max(0, Math.min(n-1, idx));
       var p = points[idx];
       var val = p.avg!=null ? p.avg : p.max;
