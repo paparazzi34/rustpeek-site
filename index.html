@@ -7,16 +7,20 @@
 <meta name="description" content="Telegram-бот для игроков Rust: настоящие даты вайпов по анализу циклов онлайна, досье на игроков, вочлист 24/7 и рейд-алерты Rust+.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<!-- display=optional (не swap) — держит фолбэк, если шрифт не успел закэшироваться,
+     вместо позднего FOUT-подмена, который двигает layout и бьёт CLS (см. отчёт 2026-07-26) -->
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=optional" rel="stylesheet">
 <style>
 :root{
   --bg:#100d0b;
+  --void:#0a0806;       /* чуть темнее --bg — слоган-полоса */
   --surface:#1a1512;
   --surface-2:#221b16;
   --rust:#c9501e;
   --rust-hot:#e86a2f;
   --patina:#7a8450;
   --green:#6fae5c;
+  --yellow:#d9a53f;
   --paper:#e5dccb;      /* бумага досье */
   --paper-2:#dbd1bd;
   --ink:#221c15;        /* чернила на бумаге */
@@ -58,20 +62,25 @@ button{font-family:inherit;color:inherit;background:none;border:none;cursor:poin
 }
 .nav__in{
   max-width:1160px;margin:0 auto;
-  display:flex;align-items:center;justify-content:space-between;
+  display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:16px;
   padding:14px 28px;
 }
 .nav__logo{
   font-family:var(--font-display);font-weight:700;font-size:18px;
   text-decoration:none;display:flex;align-items:center;gap:0;
+  justify-self:start;
 }
 .nav__logo b{color:var(--rust-hot);font-weight:800}
 .nav__dot{width:8px;height:8px;border-radius:50%;margin-right:10px;background:var(--rust-hot);
   box-shadow:0 0 12px var(--rust-hot);animation:pulse 2.4s ease-in-out infinite}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
-.nav__links{display:flex;gap:24px;align-items:center;font-size:14.5px}
+/* центр — якорные ссылки строчными, разделены точкой (2026-07-26,
+   переделка первого экрана); CTA один, справа, см. .nav__cta */
+.nav__center{display:flex;gap:0;align-items:center;font-size:14px;justify-self:center;white-space:nowrap}
 .nav__a{text-decoration:none;color:var(--steel);transition:color .2s;font-weight:500}
 .nav__a:hover{color:var(--bone)}
+.nav__center .sep{color:var(--line);margin:0 12px}
+.nav__cta{justify-self:end}
 .btn{
   display:inline-flex;align-items:center;gap:10px;
   font-weight:600;font-size:15px;text-decoration:none;
@@ -105,15 +114,19 @@ button{font-family:inherit;color:inherit;background:none;border:none;cursor:poin
 .ticker__track span{padding:0 28px;border-right:1px solid var(--line)}
 .ticker__track b{color:var(--rust-hot);font-weight:600}
 .ticker__track i{color:var(--green);font-style:normal}
+.ticker__type{font-weight:600}
+.ticker__type--wipe{color:var(--green)}
+.ticker__type--cycle{color:var(--yellow)}
+.ticker__type--status{color:var(--steel)}
 @keyframes ticker{from{transform:translateX(0)}to{transform:translateX(-50%)}}
 
-/* ---------- HERO ---------- */
-.hero{padding:84px 0 90px}
+/* ---------- HERO (переделка первого экрана, 2026-07-26) ---------- */
+.hero{padding:60px 0 52px}
 .hero h1{
   font-family:var(--font-display);font-weight:800;
-  font-size:clamp(32px, 5.2vw, 60px);
-  line-height:1.14;letter-spacing:-.01em;
-  max-width:20ch;
+  font-size:clamp(28px, 4.1vw, 46px);
+  line-height:1.24;letter-spacing:-.01em;
+  max-width:19ch;
 }
 .hero h1 .line{display:block;opacity:0;transform:translateY(14px)}
 .hero h1 .hot{color:var(--rust-hot)}
@@ -124,56 +137,93 @@ button{font-family:inherit;color:inherit;background:none;border:none;cursor:poin
 .hero.is-in h1 .line:nth-child(2){animation-delay:80ms}
 @keyframes heroLine{to{opacity:1;transform:translateY(0)}}
 
-.hero__search{
-  margin-top:40px;display:flex;gap:12px;flex-wrap:wrap;max-width:640px;
+.hero__meta{
+  margin-top:14px;font-family:var(--font-mono);font-size:13px;color:var(--steel);
   opacity:0;transform:translateY(10px);
 }
+.hero.is-in .hero__meta{
+  animation:heroLine .5s cubic-bezier(.2,.7,.2,1) forwards;animation-delay:170ms;
+}
+.hero__meta b{color:var(--bone);font-weight:600}
+
+.hero__search{
+  margin-top:30px;display:flex;max-width:620px;height:54px;
+  border:1px solid var(--line);border-radius:6px;overflow:hidden;
+  background:var(--surface);transition:border-color .2s;
+  opacity:0;transform:translateY(10px);
+}
+.hero__search:focus-within{border-color:var(--rust)}
 .hero.is-in .hero__search{
   animation:heroLine .6s cubic-bezier(.2,.7,.2,1) forwards;
-  animation-delay:260ms;
+  animation-delay:280ms;
 }
 .hero__search-input{
-  flex:1;min-width:240px;
-  background:var(--surface);border:1px solid var(--line);border-radius:4px;
-  padding:15px 17px;color:var(--bone);font-size:15.5px;font-family:inherit;
-  transition:border-color .2s;
+  flex:1;min-width:0;border:none;background:transparent;
+  padding:0 18px;color:var(--bone);font-size:15.5px;font-family:inherit;
 }
 .hero__search-input::placeholder{color:var(--steel)}
-.hero__search-input:focus{outline:none;border-color:var(--rust)}
-.hero__search-btn{white-space:nowrap}
-.hero__links{margin-top:16px}
+.hero__search-input:focus{outline:none}
+.hero__search-btn{
+  background:var(--rust);color:#fff;font-weight:600;font-size:15px;
+  padding:0 26px;white-space:nowrap;border-radius:0;transition:background .2s;
+}
+.hero__search-btn:hover{background:var(--rust-hot)}
+
+.hero__quick{
+  margin-top:18px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  opacity:0;transform:translateY(8px);
+}
+.hero.is-in .hero__quick{
+  animation:heroLine .5s cubic-bezier(.2,.7,.2,1) forwards;animation-delay:400ms;
+}
+.hero__quick-label{font-family:var(--font-mono);font-size:12.5px;color:var(--steel)}
+.hero__chip{
+  font-family:var(--font-mono);font-size:12.5px;color:var(--steel);
+  border:1px solid var(--line);border-radius:16px;padding:5px 13px;
+  transition:all .18s;
+}
+.hero__chip:hover{border-color:var(--rust);color:var(--rust-hot)}
 .hero__player-link{
-  font-family:var(--font-mono);font-size:13.5px;color:var(--steel);
+  margin-left:auto;
+  font-family:var(--font-mono);font-size:13px;color:var(--steel);
   text-decoration:none;border-bottom:1px dashed var(--line);
   transition:color .2s, border-color .2s;
 }
 .hero__player-link:hover{color:var(--rust-hot);border-color:var(--rust-hot)}
-.hero__cta{margin-top:34px;display:flex;gap:14px;flex-wrap:wrap}
 
-/* ---------- СЛОГАН + ЖИВЫЕ СЧЁТЧИКИ ---------- */
-.slogan{
-  margin-top:20px;padding:52px 0 56px;
+/* ---------- ПОЛОСА СЧЁТЧИКОВ (отдельная секция под хиро) ---------- */
+.counterbar{
   border-top:1px solid var(--line);border-bottom:1px solid var(--line);
+  display:flex;flex-wrap:wrap;
 }
-.slogan__line{
+.counterbar__item{
+  flex:1 1 0;min-width:150px;padding:22px 24px;border-left:1px solid var(--line);
+}
+.counterbar__item:first-child{border-left:none}
+.counterbar__item b{
+  display:block;font-family:var(--font-mono);font-size:clamp(20px,2.3vw,28px);
+  color:var(--bone);font-variant-numeric:tabular-nums;
+}
+.counterbar__item span{
+  font-family:var(--font-mono);font-size:11.5px;color:var(--steel);
+  text-transform:uppercase;letter-spacing:.06em;
+}
+.counterbar__item.is-accent b, .counterbar__item.is-accent span{color:var(--green)}
+
+/* ---------- СЛОГАН-ПОЛОСА (тёмный фон, без счётчиков) ---------- */
+.slogan-strip{background:var(--void);padding:52px 0}
+.slogan-strip .slogan__line{
   font-family:var(--font-display);font-weight:700;
   font-size:clamp(21px,2.9vw,32px);line-height:1.3;
 }
-.slogan__line .dim{color:var(--steel);font-weight:700}
-.slogan__line .hot{color:var(--rust-hot)}
-.slogan__stats{
-  margin-top:32px;display:flex;gap:44px;flex-wrap:wrap;
-  font-family:var(--font-mono);
-}
-.slogan__stat b{
-  display:block;font-size:clamp(23px,2.8vw,32px);color:var(--bone);
-  font-variant-numeric:tabular-nums;font-feature-settings:"tnum";
-}
-.slogan__stat span{
-  font-size:12px;color:var(--steel);
-  text-transform:uppercase;letter-spacing:.08em;
+.slogan-strip .slogan__line .dim{color:var(--steel);font-weight:700}
+.slogan-strip .slogan__line .hot{color:var(--rust-hot)}
+.slogan-strip__note{
+  margin-top:14px;font-family:var(--font-mono);font-size:13.5px;color:var(--steel);
+  max-width:56ch;
 }
 
+/* ---------- СЛОГАН + ЖИВЫЕ СЧЁТЧИКИ ---------- */
 /* ---------- СЕКЦИИ ОБЩЕЕ ---------- */
 .sec-head{
   display:flex;align-items:baseline;gap:22px;flex-wrap:wrap;
@@ -288,6 +338,9 @@ button{font-family:inherit;color:inherit;background:none;border:none;cursor:poin
   white-space:nowrap;opacity:0;transition:opacity .12s;transform:translate(-50%,-125%);
 }
 .atlas__tooltip.is-visible{opacity:1}
+.atlas__tooltip .tt__day{color:var(--steel)}
+.atlas__axistext{font-family:var(--font-mono);font-size:9px;fill:var(--steel)}
+.atlas__wipelabel{font-family:var(--font-mono);font-size:9.5px;fill:var(--rust-hot);font-weight:600}
 .atlas__stats{
   margin-top:16px;display:grid;grid-template-columns:repeat(4,1fr);gap:10px;
   font-family:var(--font-mono);
@@ -472,18 +525,15 @@ button{font-family:inherit;color:inherit;background:none;border:none;cursor:poin
      не помещались в 390px) — баг был уже в проде, не только в редизайне,
      чиню заодно (2026-07-26, мобильный QA-проход). Оставляю логотип и
      главный CTA, остальное прячу — как и было с текстовыми nav__a. */
-  .nav__in{padding:14px 16px}
-  .nav__links{gap:10px}
-  .nav__links .nav__a{display:none}
-  .nav__links .btn--ghost{display:none}
-  .nav__links .btn--solid{padding:9px 14px;font-size:13.5px}
-  .slogan__stats{gap:28px}
+  .nav__in{padding:14px 16px;grid-template-columns:auto 1fr auto}
+  .nav__center{display:none}
+  .nav__cta{padding:9px 14px;font-size:13.5px}
+  .counterbar__item{flex:1 1 50%;padding:16px 18px}
 
   /* мобила (≤900px, ТЗ редизайна 2026-07-26): сдержанный режим — только
      fade+translate ≤300мс, без stagger/наклонов/hover-эффектов. Докрутка
      счётчиков и отрисовка графика Atlas остаются (дешёвые, не scroll-linked). */
-  .hero h1 .line{transition:none;animation:none!important;opacity:1;transform:none}
-  .hero__search{transition:none;animation:none!important;opacity:1;transform:none}
+  .hero h1 .line,.hero__meta,.hero__search,.hero__quick{transition:none;animation:none!important;opacity:1;transform:none}
   .atlas{transform:none;transition-duration:.3s}
   .atlas.is-in{transform:none}
   .paper__text{transition-duration:.3s}
@@ -492,7 +542,7 @@ button{font-family:inherit;color:inherit;background:none;border:none;cursor:poin
 @media(prefers-reduced-motion:reduce){
   *{animation:none!important;transition:none!important}
   .ticker__track{animation:none!important}
-  .hero h1 .line,.hero__search{opacity:1!important;transform:none!important}
+  .hero h1 .line,.hero__meta,.hero__search,.hero__quick{opacity:1!important;transform:none!important}
   .paper__text,.atlas{opacity:1!important;transform:none!important}
   .row__body > *, .row__demo > *{opacity:1!important;transform:none!important}
   .atlas__line{stroke-dashoffset:0!important}
@@ -505,13 +555,12 @@ button{font-family:inherit;color:inherit;background:none;border:none;cursor:poin
 <nav class="nav">
   <div class="nav__in">
     <a class="nav__logo" href="#"><span class="nav__dot"></span><span class="nav__logo-text">Rust<b>Peek</b></span></a>
-    <div class="nav__links">
-      <a class="nav__a" href="#how">Как работает</a>
-      <a class="nav__a" href="#features">Что умею</a>
-      <a class="nav__a" href="#faq">Вопросы</a>
-      <a class="btn btn--ghost" href="rustpeek_app.html">Веб-версия</a>
-      <a class="btn btn--solid" href="https://t.me/RustPeek_Bot" target="_blank" rel="noopener">Открыть бота</a>
+    <div class="nav__center">
+      <a class="nav__a" href="#how">как работает</a><span class="sep">·</span>
+      <a class="nav__a" href="#features">что умею</a><span class="sep">·</span>
+      <a class="nav__a" href="#faq">вопросы</a>
     </div>
+    <a class="btn btn--solid nav__cta" href="https://t.me/RustPeek_Bot" target="_blank" rel="noopener">Открыть бота</a>
   </div>
 </nav>
 
@@ -530,32 +579,38 @@ button{font-family:inherit;color:inherit;background:none;border:none;cursor:poin
 <header class="hero" id="hero">
   <div class="wrap">
     <h1>
-      <span class="line">Пишу историю Rust-серверов круглосуточно.</span>
-      <span class="line">Вайпы проверяю по циклам онлайна — <span class="hot">не по словам админа</span>.</span>
+      <span class="line">Настоящие даты вайпов —</span>
+      <span class="line">по циклам онлайна, <span class="hot">не по словам админа</span>.</span>
     </h1>
+    <p class="hero__meta"><b data-stat="servers_tracked">1 098</b> серверов под наблюдением · история пишется круглосуточно с мая</p>
     <form class="hero__search" id="heroSearchForm" action="rustpeek_app.html" method="get">
-      <input class="hero__search-input" id="heroSearchInput" type="text" name="q" placeholder="Название сервера — найду и скажу правду про вайп…" autocomplete="off">
-      <button class="btn btn--solid hero__search-btn" type="submit">Найти сервер</button>
+      <input class="hero__search-input" id="heroSearchInput" type="text" name="q" placeholder="Rustafied, Atlas, Magic Rust…" autocomplete="off">
+      <button class="hero__search-btn" type="submit">Найти</button>
     </form>
-    <div class="hero__links">
+    <div class="hero__quick" id="heroQuick">
+      <span class="hero__quick-label">часто ищут:</span>
+      <button class="hero__chip" type="button" data-q="Rustafied">Rustafied</button>
+      <button class="hero__chip" type="button" data-q="Atlas">Atlas</button>
+      <button class="hero__chip" type="button" data-q="Bestrust">Bestrust</button>
+      <button class="hero__chip" type="button" data-q="Magic Rust">Magic Rust</button>
       <a class="hero__player-link" href="rustpeek_app.html#players">или пробей игрока →</a>
-    </div>
-    <div class="hero__cta">
-      <a class="btn btn--solid" href="https://t.me/RustPeek_Bot" target="_blank" rel="noopener">Открыть в Telegram</a>
-      <a class="btn btn--ghost" href="rustpeek_app.html">Веб-версия</a>
     </div>
   </div>
 </header>
 
-<!-- ================= СЛОГАН + ЖИВЫЕ СЧЁТЧИКИ ================= -->
-<div class="wrap">
-  <div class="slogan">
+<!-- ================= ПОЛОСА СЧЁТЧИКОВ ================= -->
+<div class="counterbar">
+  <div class="counterbar__item"><b data-stat="online_measurements">1 980 611</b><span>замеров онлайна</span></div>
+  <div class="counterbar__item"><b data-stat="wipes">9 676</b><span>вайпов в памяти</span></div>
+  <div class="counterbar__item"><b data-stat="servers_total">2 479</b><span>серверов в базе</span></div>
+  <div class="counterbar__item is-accent"><b>топ-500</b><span>прямой A2S-скан</span></div>
+</div>
+
+<!-- ================= СЛОГАН-ПОЛОСА ================= -->
+<div class="slogan-strip">
+  <div class="wrap">
     <p class="slogan__line"><span class="dim">BattleMetrics — снапшот.</span> Я — <span class="hot">память</span>.</p>
-    <div class="slogan__stats">
-      <div class="slogan__stat"><b data-stat="online_measurements">1 980 611</b><span>замеров онлайна</span></div>
-      <div class="slogan__stat"><b data-stat="wipes">9 676</b><span>подтверждённых вайпов</span></div>
-      <div class="slogan__stat"><b data-stat="servers_total">2 479</b><span>серверов в базе</span></div>
-    </div>
+    <p class="slogan-strip__note">Снапшот покажет число в моменте. Я покажу, что за этим числом стоит — и что будет дальше.</p>
   </div>
 </div>
 
@@ -589,6 +644,7 @@ button{font-family:inherit;color:inherit;background:none;border:none;cursor:poin
           <polygon class="atlas__area" id="atlasArea" points=""></polygon>
           <polyline class="atlas__line" id="atlasLine" points=""></polyline>
           <circle class="atlas__wipedot" id="atlasWipeDot" r="4" cx="0" cy="0"></circle>
+          <g id="atlasAxis"></g>
           <rect id="atlasHoverArea" x="0" y="0" width="520" height="190" fill="transparent"></rect>
         </svg>
         <div class="atlas__tooltip" id="atlasTooltip"></div>
@@ -768,8 +824,24 @@ button{font-family:inherit;color:inherit;background:none;border:none;cursor:poin
   duplicateTrack();
 
   function formatEventTime(sqlDt){
-    var m = /(\d{2}):(\d{2}):(\d{2})/.exec(sqlDt || '');
-    return m ? (m[1]+':'+m[2]+':'+m[3]) : '';
+    var m = /(\d{2}):(\d{2})/.exec(sqlDt || '');
+    return m ? (m[1]+':'+m[2]) : '';
+  }
+  // «HH:MM · тип события · деталь» — тип отдельным цветным сегментом
+  // (2026-07-26): backend уже кладёт тип первым сегментом текста
+  // ("вайп подтверждён · Сервер · время" / "замер онлайна · N в очереди"),
+  // здесь просто режем по первому " · " и раскрашиваем. "цикл пересчитан"
+  // как тип событий пока не эмитится бэком — класс заведён на будущее,
+  // не выдумываю сам факт события.
+  function splitEventText(text){
+    var idx = text.indexOf(' · ');
+    if(idx === -1) return {type: text, detail: ''};
+    return {type: text.slice(0, idx), detail: text.slice(idx+3)};
+  }
+  function eventTypeClass(type){
+    if(type.indexOf('вайп подтверждён') === 0) return 'ticker__type--wipe';
+    if(type.indexOf('цикл пересчитан') === 0) return 'ticker__type--cycle';
+    return 'ticker__type--status';
   }
   function loadTicker(){
     fetch(API_BASE + '/api/events/recent', { cache: 'no-store' })
@@ -779,7 +851,12 @@ button{font-family:inherit;color:inherit;background:none;border:none;cursor:poin
         if(!events.length) return; // молчит — оставляем статичный фолбэк из разметки
         track.innerHTML = events.map(function(e){
           var t = formatEventTime(e.time);
-          return '<span>' + (t ? t + ' · ' : '') + escapeHtml(e.text) + '</span>';
+          var parts = splitEventText(e.text || '');
+          var cls = eventTypeClass(parts.type);
+          return '<span>' + (t ? t + ' · ' : '') +
+            '<span class="ticker__type ' + cls + '">' + escapeHtml(parts.type) + '</span>' +
+            (parts.detail ? ' · ' + escapeHtml(parts.detail) : '') +
+            '</span>';
         }).join('');
         duplicateTrack();
       })
@@ -799,11 +876,24 @@ button{font-family:inherit;color:inherit;background:none;border:none;cursor:poin
      не нужен IntersectionObserver — просто включаем анимацию на старте) ---------- */
   document.getElementById('hero').classList.add('is-in');
 
+  /* чипы быстрого поиска — тот же редирект в веб-версию с ?q=, что и сама
+     форма (2026-07-26), просто подставляют значение и сабмитят */
+  var heroSearchInput = document.getElementById('heroSearchInput');
+  var heroSearchForm = document.getElementById('heroSearchForm');
+  document.getElementById('heroQuick').addEventListener('click', function(e){
+    var chip = e.target.closest('.hero__chip'); if(!chip) return;
+    heroSearchInput.value = chip.dataset.q;
+    heroSearchForm.submit();
+  });
+
   /* ---------- Atlas-299: живая карточка "Почему я знаю больше" ----------
      Слепок ниже — реальный ответ API на момент вёрстки (2026-07-25),
      рендерится сразу синхронно (без ожидания сети). Один fetch молча
      освежает данные, если API доступен; если нет — слепок так и остаётся. */
   var ATLAS_ID = 299;
+  // points — {ts, avg} парами, не просто числа: без ts не построить ось дат
+  // и тултип с датой (фикс, отложенный с прошлого захода). Слепок — тот же
+  // реальный ответ /history?period=cycle на момент вёрстки (2026-07-25).
   var atlasFallback = {
     title: 'Atlas - EU 2X Monthly | Vanilla+ | No BP Wipes',
     cycle: '7 дней',
@@ -811,12 +901,33 @@ button{font-family:inherit;color:inherit;background:none;border:none;cursor:poin
     prime: '17:00–21:00',
     peak: 1495,
     historyDays: '2 месяца',
-    avgs: [50.0,61.3,87.0,104.7,116.5,122.0,126.0,160.8,270.5,1221.3,1492.0,1485.0,1404.5,1207.7,1184.0,1123.5,1075.5,928.7,778.5,697.5,676.0,672.3,645.0,695.5,758.7,890.0,889.0,891.5,890.3,890.0,893.0,890.0,889.0,891.5,901.0,891.0,881.0,893.0,846.5,791.0,711.0,615.0,600.5,587.0,503.0,588.0,689.7,692.0]
+    points: [
+      {ts:'2026-07-23 07:00:00',avg:50.0},{ts:'2026-07-23 08:00:00',avg:61.3},{ts:'2026-07-23 09:00:00',avg:87.0},
+      {ts:'2026-07-23 10:00:00',avg:104.7},{ts:'2026-07-23 11:00:00',avg:116.5},{ts:'2026-07-23 12:00:00',avg:122.0},
+      {ts:'2026-07-23 13:00:00',avg:126.0},{ts:'2026-07-23 14:00:00',avg:160.8},{ts:'2026-07-23 15:00:00',avg:270.5},
+      {ts:'2026-07-23 16:00:00',avg:1221.3},{ts:'2026-07-23 17:00:00',avg:1492.0},{ts:'2026-07-23 18:00:00',avg:1485.0},
+      {ts:'2026-07-23 19:00:00',avg:1404.5},{ts:'2026-07-23 20:00:00',avg:1207.7},{ts:'2026-07-23 21:00:00',avg:1184.0},
+      {ts:'2026-07-23 22:00:00',avg:1123.5},{ts:'2026-07-23 23:00:00',avg:1075.5},{ts:'2026-07-24 00:00:00',avg:928.7},
+      {ts:'2026-07-24 01:00:00',avg:778.5},{ts:'2026-07-24 02:00:00',avg:697.5},{ts:'2026-07-24 03:00:00',avg:676.0},
+      {ts:'2026-07-24 04:00:00',avg:672.3},{ts:'2026-07-24 05:00:00',avg:645.0},{ts:'2026-07-24 06:00:00',avg:695.5},
+      {ts:'2026-07-24 07:00:00',avg:758.7},{ts:'2026-07-24 08:00:00',avg:890.0},{ts:'2026-07-24 09:00:00',avg:889.0},
+      {ts:'2026-07-24 10:00:00',avg:891.5},{ts:'2026-07-24 11:00:00',avg:890.3},{ts:'2026-07-24 12:00:00',avg:890.0},
+      {ts:'2026-07-24 13:00:00',avg:893.0},{ts:'2026-07-24 14:00:00',avg:890.0},{ts:'2026-07-24 15:00:00',avg:889.0},
+      {ts:'2026-07-24 16:00:00',avg:891.5},{ts:'2026-07-24 19:00:00',avg:901.0},{ts:'2026-07-24 20:00:00',avg:891.0},
+      {ts:'2026-07-24 21:00:00',avg:881.0},{ts:'2026-07-24 22:00:00',avg:893.0},{ts:'2026-07-24 23:00:00',avg:846.5},
+      {ts:'2026-07-25 00:00:00',avg:791.0},{ts:'2026-07-25 01:00:00',avg:711.0},{ts:'2026-07-25 02:00:00',avg:615.0},
+      {ts:'2026-07-25 03:00:00',avg:600.5},{ts:'2026-07-25 04:00:00',avg:587.0},{ts:'2026-07-25 05:00:00',avg:503.0},
+      {ts:'2026-07-25 06:00:00',avg:588.0},{ts:'2026-07-25 07:00:00',avg:689.7},{ts:'2026-07-25 08:00:00',avg:692.0}
+    ]
   };
 
   function formatShortDate(sqlDt){
     var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(sqlDt || '');
     return m ? (m[3]+'.'+m[2]) : '';
+  }
+  function formatAtlasDT(sqlDt){
+    var m = /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/.exec(sqlDt || '');
+    return m ? (m[3]+'.'+m[2]+' '+m[4]+':'+m[5]) : '';
   }
 
   var atlasSvg = document.getElementById('atlasSvg');
@@ -837,16 +948,24 @@ button{font-family:inherit;color:inherit;background:none;border:none;cursor:poin
     document.getElementById('atlasPeak').textContent = (model.peak!=null ? Math.round(model.peak).toLocaleString('ru-RU') : '—');
     document.getElementById('atlasHistoryDays').textContent = model.historyDays || '—';
 
-    var W=520,H=190,padT=8,padB=8;
-    var avgs = model.avgs;
+    // padB увеличен под подписи оси дат (фикс, отложенный с прошлого
+    // захода) — без этого подписи налезали бы на нижний край карточки.
+    // padTLine (не padT) — верх области, где рисуется сама линия: пик
+    // графика почти всегда рядом со вайпом, то есть в том же левом верхнем
+    // углу, где живёт метка «вайп · дата» — если линия и метка делят один
+    // Y-диапазон, пик всегда упирается в текст. padTLine резервирует под
+    // метку чистую полосу, которую линия не занимает независимо от данных.
+    var W=520,H=190,padT=8,padTLine=24,padB=20;
+    var points = model.points;
+    var avgs = points.map(function(p){return p.avg});
     var maxV = Math.max.apply(null, avgs.concat([1]));
-    var n = avgs.length;
+    var n = points.length;
     var stepX = n>1 ? (W/(n-1)) : 0;
     function X(i){return i*stepX}
-    function Y(v){return padT + (1-v/maxV)*(H-padT-padB)}
+    function Y(v){return padTLine + (1-v/maxV)*(H-padB-padTLine)}
 
     var linePts = avgs.map(function(v,i){return X(i).toFixed(1)+','+Y(v).toFixed(1)}).join(' ');
-    var areaPts = '0,'+H+' '+linePts+' '+X(n-1).toFixed(1)+','+H;
+    var areaPts = '0,'+(H-padB)+' '+linePts+' '+X(n-1).toFixed(1)+','+(H-padB);
     atlasLine.setAttribute('points', linePts);
     atlasArea.setAttribute('points', areaPts);
 
@@ -854,7 +973,23 @@ button{font-family:inherit;color:inherit;background:none;border:none;cursor:poin
     atlasWipeDot.setAttribute('cx', X(0));
     atlasWipeDot.setAttribute('cy', Y(avgs[0]));
 
-    atlasData = {avgs: avgs, X: X, Y: Y, n: n};
+    // ось дат — 3 равномерные подписи (начало/середина/конец), плюс
+    // метка вайпа рядом с первой точкой (та самая точка, что пульсирует)
+    var axisEl = document.getElementById('atlasAxis');
+    if(axisEl){
+      var ticksSvg = '';
+      [0, Math.round((n-1)/2), n-1].forEach(function(i, ti){
+        var anchor = ti===0 ? 'start' : (ti===2 ? 'end' : 'middle');
+        ticksSvg += '<text class="atlas__axistext" x="'+X(i).toFixed(1)+'" y="'+(H-4)+'" text-anchor="'+anchor+'">'+escapeHtml(formatAtlasDT(points[i].ts).split(' ')[0])+'</text>';
+      });
+      // метка закреплена у верхнего левого края графика (не у самой точки —
+      // вайп почти всегда начинается с низкого онлайна, и метка у точки
+      // упирается в саму линию на её раннем подъёме, см. отчёт 2026-07-26)
+      ticksSvg += '<text class="atlas__wipelabel" x="6" y="'+(padT+10)+'">вайп · '+escapeHtml(formatAtlasDT(points[0].ts))+'</text>';
+      axisEl.innerHTML = ticksSvg;
+    }
+
+    atlasData = {points: points, X: X, Y: Y, n: n};
 
     var alreadyRevealed = atlasCardEl.classList.contains('is-in');
     var len = atlasLine.getTotalLength();
@@ -884,10 +1019,10 @@ button{font-family:inherit;color:inherit;background:none;border:none;cursor:poin
       return fetch(API_BASE + '/api/servers/' + ATLAS_ID + '/history?period=cycle')
         .then(function(res){ if(!res.ok) throw new Error('bad status'); return res.json(); })
         .then(function(hist){
-          var avgs = (hist.points || [])
-            .map(function(p){ return p.avg!=null ? p.avg : p.max; })
-            .filter(function(v){ return v!=null; });
-          if(avgs.length < 2) return; // мало точек — оставляем слепок
+          var points = (hist.points || [])
+            .map(function(p){ return {ts: p.ts, avg: (p.avg!=null ? p.avg : p.max)}; })
+            .filter(function(p){ return p.avg!=null; });
+          if(points.length < 2) return; // мало точек — оставляем слепок
           renderAtlas({
             title: detail.name || atlasFallback.title,
             cycle: detail.cycle,
@@ -895,7 +1030,7 @@ button{font-family:inherit;color:inherit;background:none;border:none;cursor:poin
             prime: detail.prime_time,
             peak: detail.peak,
             historyDays: detail.history_days,
-            avgs: avgs
+            points: points
           });
         });
     })
@@ -922,8 +1057,9 @@ button{font-family:inherit;color:inherit;background:none;border:none;cursor:poin
     var stepX = atlasData.n>1 ? 520/(atlasData.n-1) : 0;
     var idx = stepX ? Math.round(relX/stepX) : 0;
     idx = Math.max(0, Math.min(atlasData.n-1, idx));
-    var v = atlasData.avgs[idx];
-    atlasTooltip.textContent = 'онлайн: ' + Math.round(v);
+    var p = atlasData.points[idx];
+    var v = p.avg;
+    atlasTooltip.innerHTML = '<span class="tt__day">'+escapeHtml(formatAtlasDT(p.ts))+'</span><br>онлайн: <b>'+Math.round(v)+'</b>';
     atlasTooltip.classList.add('is-visible');
     atlasTooltip.style.left = ((atlasData.X(idx)/520)*rect.width) + 'px';
     atlasTooltip.style.top = ((atlasData.Y(v)/190)*rect.height) + 'px';
