@@ -42,6 +42,10 @@ body::before{
 ::selection{background:var(--rust);color:var(--bg)}
 button{font-family:inherit;color:inherit;background:none;border:none;cursor:pointer}
 input{font-family:inherit;color:inherit}
+/* mono — ТОЛЬКО для данных: числа онлайна, даты, время, интервалы, IP
+   (2026-07-28, типографика). Названия/заголовки/статусы словами/кнопки —
+   обычный font-body, иначе весь список читается как générique-нейронка. */
+.mono{font-family:var(--font-mono)}
 
 /* ---------- APP SHELL ---------- */
 .shell{max-width:1100px;margin:0 auto;padding:0 20px 80px}
@@ -57,7 +61,7 @@ input{font-family:inherit;color:inherit}
 .logo:hover b{color:var(--rust)}
 /* подписи под вкладками */
 .panel__cap{
-  font-family:var(--font-mono);font-size:12.5px;color:var(--steel);
+  font-family:var(--font-body);font-size:12.5px;color:var(--steel);
   margin-bottom:16px;
   display:flex;align-items:center;gap:10px;
 }
@@ -65,7 +69,7 @@ input{font-family:inherit;color:inherit}
 .panel__cap b{color:var(--bone);font-weight:600}
 /* счётчик выдачи */
 .srvcount{
-  font-family:var(--font-mono);font-size:12.5px;color:var(--steel);
+  font-family:var(--font-body);font-size:12.5px;color:var(--steel);
   margin:-6px 0 12px;
 }
 .srvcount b{color:var(--rust-hot);font-weight:600}
@@ -74,7 +78,7 @@ input{font-family:inherit;color:inherit}
   margin-top:56px;padding-top:20px;
   border-top:1px solid var(--line);
   display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px;
-  font-family:var(--font-mono);font-size:12.5px;color:var(--steel);
+  font-family:var(--font-body);font-size:12.5px;color:var(--steel);
 }
 .appfoot a{color:var(--steel);text-decoration:none;transition:color .2s}
 .appfoot a:hover{color:var(--rust-hot)}
@@ -83,7 +87,7 @@ input{font-family:inherit;color:inherit}
   box-shadow:0 0 12px var(--rust-hot);animation:pulse 2.4s ease-in-out infinite}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
 .topbar__user{
-  font-family:var(--font-mono);font-size:12.5px;color:var(--steel);
+  font-family:var(--font-body);font-size:12.5px;color:var(--steel);
   display:flex;align-items:center;gap:8px;
 }
 .topbar__ava{width:26px;height:26px;border-radius:50%;background:linear-gradient(135deg,var(--rust),var(--surface-2));
@@ -151,7 +155,7 @@ input{font-family:inherit;color:inherit}
 /* ---------- CHIPS ---------- */
 .chips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px}
 .chip{
-  font-family:var(--font-mono);font-size:12.5px;
+  font-family:var(--font-body);font-size:12.5px;
   color:var(--steel);
   border:1px solid var(--line);
   border-radius:20px;
@@ -164,22 +168,45 @@ input{font-family:inherit;color:inherit}
   background:rgba(201,80,30,.1);
 }
 
+/* ---------- ЗАГОЛОВОК СПИСКА + ВКЛАДКИ-КАЛЕНДАРЬ (2026-07-28) ---------- */
+.srv-heading{margin-bottom:16px}
+.srv-heading__title{font-family:var(--font-display);font-weight:700;font-size:clamp(20px,2.6vw,26px);line-height:1.2}
+.srv-heading__sub{margin-top:6px;color:var(--steel);font-size:14px}
+.caltabs{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0}
+.caltab{
+  font-family:var(--font-body);font-size:13px;color:var(--steel);
+  border:1px solid var(--line);border-radius:20px;padding:7px 14px;
+  transition:all .18s;display:flex;align-items:center;gap:7px;
+}
+.caltab:hover{border-color:var(--steel);color:var(--bone)}
+.caltab.is-on{border-color:var(--rust);color:var(--rust-hot);background:rgba(201,80,30,.1)}
+.caltab__n{
+  font-family:var(--font-mono);font-size:12px;color:inherit;
+  background:rgba(255,255,255,.06);border-radius:10px;padding:1px 7px;
+}
+
 /* ---------- SERVER PANEL: CHIPS + SORT ---------- */
 .srvpanel{margin-bottom:14px}
 .sortrow{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
 .sortrow__label{
-  font-family:var(--font-mono);font-size:11.5px;color:var(--steel);
+  font-family:var(--font-body);font-size:11.5px;color:var(--steel);
   align-self:center;margin-right:2px;
 }
 .sortbtn{
-  font-family:var(--font-mono);font-size:12px;color:var(--steel);
+  font-family:var(--font-body);font-size:12px;color:var(--steel);
   border:1px solid var(--line);border-radius:20px;padding:5px 12px;
   transition:all .18s;
 }
 .sortbtn:hover{border-color:var(--steel);color:var(--bone)}
 .sortbtn.is-on{border-color:var(--rust);color:var(--rust-hot);background:rgba(201,80,30,.1)}
 
-/* ---------- SERVER LIST (строки со спарклайнами) ---------- */
+/* ---------- SERVER LIST HEADER + ROWS (2026-07-28, вайп-календарь) ---------- */
+.srvlisthead{
+  display:grid;grid-template-columns:28px 1fr 96px 108px 108px;gap:16px;
+  padding:0 16px 8px;font-family:var(--font-body);font-size:11px;color:var(--steel);
+  text-transform:uppercase;letter-spacing:.06em;
+}
+.srvlisthead span:nth-child(n+3){text-align:center}
 .srvlist{display:flex;flex-direction:column;gap:8px}
 .srvrow{
   background:var(--surface);
@@ -187,34 +214,44 @@ input{font-family:inherit;color:inherit}
   border-radius:6px;
   padding:12px 16px;
   display:grid;
-  grid-template-columns:1fr 150px auto;
+  grid-template-columns:28px 1fr 96px 108px 108px;
   gap:16px;align-items:center;
   cursor:pointer;
-  transition:border-color .2s, transform .15s;
+  transition:border-color .2s, transform .15s, opacity .2s;
   text-align:left;width:100%;
   min-width:0;
 }
 .srvrow:hover{border-color:rgba(201,80,30,.5);transform:translateX(3px)}
+.srvrow--dim{opacity:.7}
+.srvrow__rank{
+  font-family:var(--font-mono);font-size:13px;color:var(--steel);text-align:center;
+}
+.srvrow__rank--first{color:var(--green);font-weight:600}
 .srvrow__main{min-width:0}
 .srvrow__name{
-  font-weight:600;font-size:14.5px;
+  font-family:var(--font-body);font-weight:600;font-size:14.5px;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
   display:block;
 }
 .srvrow__meta{
-  font-family:var(--font-mono);font-size:11.5px;color:var(--steel);
+  font-family:var(--font-body);font-size:11.5px;color:var(--steel);
   margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
   display:block;
 }
-.srvrow__spark{display:flex;align-items:center;justify-content:center;flex:none}
-.srvrow__spark svg{display:block}
-.srvrow__right{display:flex;align-items:center;gap:10px;justify-self:end;flex:none}
-.srvrow__online{font-family:var(--font-mono);font-size:13px;white-space:nowrap}
-.srvrow__online b{color:var(--bone);font-weight:600}
-.srvrow__dot{width:9px;height:9px;border-radius:50%;flex:none}
-.srvrow__dot--fresh{background:var(--green);box-shadow:0 0 8px rgba(111,174,92,.6)}
-.srvrow__dot--soon{background:var(--yellow);box-shadow:0 0 8px rgba(217,165,63,.55)}
-.srvrow__dot--normal{background:var(--steel)}
+.srvrow__meta .status{color:var(--patina)}
+.srvrow__online{display:flex;flex-direction:column;gap:4px;align-items:center}
+.srvrow__onlinebar{width:100%;height:4px;border-radius:2px;background:var(--line);overflow:hidden}
+.srvrow__onlinebar-fill{height:100%;background:var(--rust-hot);border-radius:2px}
+.srvrow__onlinebar-fill.is-full{background:var(--green)}
+.srvrow__online b{
+  font-family:var(--font-mono);font-size:12.5px;color:var(--bone);font-weight:600;
+  white-space:nowrap;
+}
+.srvrow__wipe, .srvrow__next{
+  font-family:var(--font-mono);font-size:12px;color:var(--steel);text-align:center;
+}
+.srvrow__next.is-soon{color:var(--rust-hot)}
+.srvrow__next.is-unknown{color:var(--steel);font-style:italic}
 .srvlist__empty{
   text-align:center;color:var(--steel);padding:50px 20px;
   font-size:15px;
@@ -230,7 +267,7 @@ input{font-family:inherit;color:inherit}
 
 .loadmorewrap{display:flex;justify-content:center;margin-top:18px}
 .loadmore{
-  font-family:var(--font-mono);font-size:13px;color:var(--bone);
+  font-family:var(--font-body);font-size:13px;color:var(--bone);
   border:1px solid var(--line);border-radius:20px;padding:9px 24px;
   transition:all .18s;
 }
@@ -238,10 +275,14 @@ input{font-family:inherit;color:inherit}
 .loadmore:disabled{opacity:.4;cursor:default}
 
 @media(max-width:680px){
-  .srvrow{grid-template-columns:1fr;gap:6px}
-  .srvrow__spark{justify-self:start;width:100%}
-  .srvrow__spark svg{width:100%}
-  .srvrow__right{justify-self:start}
+  .srvlisthead{display:none}
+  .srvrow{grid-template-columns:20px 1fr auto;grid-template-areas:"rank main online" "rank main wipe" "rank main next";gap:4px 12px}
+  .srvrow__rank{grid-area:rank;align-self:start}
+  .srvrow__main{grid-area:main}
+  .srvrow__online{grid-area:online;flex-direction:row;justify-content:flex-end;width:auto}
+  .srvrow__onlinebar{display:none}
+  .srvrow__wipe{grid-area:wipe;text-align:right}
+  .srvrow__next{grid-area:next;text-align:right}
 }
 
 /* ---------- SERVER DETAIL ---------- */
@@ -250,11 +291,15 @@ input{font-family:inherit;color:inherit}
    тонкой border-bottom линией, не рамками/фоном. ---------- */
 .dpage{padding:4px 0 8px}
 .dpage__crumbs{
-  font-family:var(--font-mono);font-size:12px;color:var(--steel);
+  font-family:var(--font-body);font-size:12px;color:var(--steel);
   margin-bottom:18px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;
 }
 .dpage__crumbs a{color:var(--steel);text-decoration:none;transition:color .2s}
 .dpage__crumbs a:hover{color:var(--rust-hot)}
+.dverdict{
+  font-family:var(--font-body);font-weight:600;font-size:clamp(16px,2vw,19px);
+  line-height:1.4;color:var(--bone);margin-bottom:20px;
+}
 .dpage__crumbs span.sep{color:var(--line)}
 
 .dpage__head{
@@ -263,7 +308,7 @@ input{font-family:inherit;color:inherit}
 }
 .dpage__title{font-family:var(--font-display);font-weight:700;font-size:clamp(19px,2.4vw,26px);line-height:1.2}
 .dpage__status{
-  font-family:var(--font-mono);font-size:13px;color:var(--steel);
+  font-family:var(--font-body);font-size:13px;color:var(--steel);
   margin-top:8px;display:flex;gap:10px;flex-wrap:wrap;align-items:center;
 }
 .dpage__status .dot{width:8px;height:8px;border-radius:50%;background:var(--steel)}
@@ -277,7 +322,7 @@ input{font-family:inherit;color:inherit}
 .metricbar__item{flex:1 1 0;min-width:130px;padding:16px 20px;border-left:1px solid var(--line)}
 .metricbar__item:first-child{border-left:none;padding-left:0}
 .metricbar__k{
-  font-family:var(--font-mono);font-size:10.5px;color:var(--steel);
+  font-family:var(--font-body);font-size:10.5px;color:var(--steel);
   text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px;
 }
 .metricbar__v{font-family:var(--font-mono);font-size:17px;font-weight:600;color:var(--bone)}
@@ -292,13 +337,13 @@ input{font-family:inherit;color:inherit}
   padding:16px 0;border-bottom:1px solid var(--line);
 }
 .periodbtn{
-  font-family:var(--font-mono);font-size:12px;color:var(--steel);
+  font-family:var(--font-body);font-size:12px;color:var(--steel);
   border:1px solid var(--line);border-radius:20px;padding:5px 12px;
   transition:all .18s;
 }
 .periodbtn:hover{border-color:var(--steel);color:var(--bone)}
 .periodbtn.is-on{border-color:var(--rust);color:var(--rust-hot);background:rgba(201,80,30,.1)}
-.cyclenav{display:flex;align-items:center;gap:6px;margin-left:auto;font-family:var(--font-mono);font-size:12.5px;color:var(--steel)}
+.cyclenav{display:flex;align-items:center;gap:6px;margin-left:auto;font-family:var(--font-body);font-size:12.5px;color:var(--steel)}
 .cyclenav.is-hidden{display:none}
 .cyclenav__label{
   border:1px solid var(--line);border-radius:20px;padding:5px 12px;
@@ -320,13 +365,13 @@ input{font-family:inherit;color:inherit}
 .chartwrap svg{display:block;width:100%;height:auto}
 .chartaxis{font-family:var(--font-mono);font-size:10px;fill:var(--steel)}
 .chartgrid{stroke:var(--line);stroke-width:1}
-.dchart__note{font-family:var(--font-mono);font-size:11.5px;color:var(--steel);margin-top:10px}
+.dchart__note{font-family:var(--font-body);font-size:11.5px;color:var(--steel);margin-top:10px}
 .dchart__note b{color:var(--rust-hot);font-weight:600}
 
 /* ---------- полоса прайм-тайма ---------- */
 .primebar{padding:20px 0;border-bottom:1px solid var(--line)}
 .primebar__title{
-  font-family:var(--font-mono);font-size:11px;color:var(--steel);
+  font-family:var(--font-body);font-size:11px;color:var(--steel);
   text-transform:uppercase;letter-spacing:.07em;margin-bottom:12px;
 }
 .primebar__title b{color:var(--rust-hot);text-transform:none;letter-spacing:0;font-weight:600}
@@ -346,13 +391,13 @@ input{font-family:inherit;color:inherit}
 .dcols{display:grid;grid-template-columns:1fr 300px;gap:40px;padding-top:24px}
 .dcols>*{min-width:0}
 .serverpanel__title{
-  font-family:var(--font-mono);font-size:12px;color:var(--steel);
+  font-family:var(--font-body);font-size:12px;color:var(--steel);
   text-transform:uppercase;letter-spacing:.1em;margin-bottom:14px;
 }
 .serverpanel__row{
   display:flex;justify-content:space-between;gap:12px;
   padding:9px 0;border-bottom:1px solid var(--line);
-  font-family:var(--font-mono);font-size:12.5px;
+  font-family:var(--font-body);font-size:12.5px;
 }
 .serverpanel__row:last-child{border-bottom:none}
 .serverpanel__k{color:var(--steel)}
@@ -368,6 +413,16 @@ input{font-family:inherit;color:inherit}
 }
 .chart__tooltip.is-visible{opacity:1}
 .chart__tooltip .tt__day{color:var(--steel)}
+.chart__hoverline{
+  stroke:var(--line);stroke-width:1;opacity:0;pointer-events:none;
+  transition:opacity .12s, x1 .06s linear, x2 .06s linear, y1 .06s linear;
+}
+.chart__hoverline.is-visible{opacity:1}
+.chart__hoverdot{
+  fill:var(--rust-hot);stroke:var(--bg);stroke-width:2;opacity:0;pointer-events:none;
+  transition:opacity .12s, cx .06s linear, cy .06s linear;
+}
+.chart__hoverdot.is-visible{opacity:1}
 .chart__wipetriangle{fill:var(--rust-hot)}
 .chart__wipenum{
   font-family:var(--font-mono);font-size:9px;fill:var(--steel);
@@ -376,7 +431,7 @@ input{font-family:inherit;color:inherit}
 
 .wipehist{margin-top:6px}
 .wipehist__title{
-  font-family:var(--font-mono);font-size:12px;color:var(--steel);
+  font-family:var(--font-body);font-size:12px;color:var(--steel);
   text-transform:uppercase;letter-spacing:.1em;margin-bottom:10px;
 }
 .wipehist__rows{display:flex;flex-direction:column;gap:6px}
@@ -384,13 +439,14 @@ input{font-family:inherit;color:inherit}
   display:grid;grid-template-columns:24px 118px 76px 64px 1fr;gap:10px;
   align-items:center;
   background:var(--surface-2);border:1px solid var(--line);border-radius:5px;
-  padding:9px 12px;font-family:var(--font-mono);font-size:12px;
+  padding:9px 12px;font-family:var(--font-body);font-size:12px;
 }
 .wipehist__row--suspicious{border-color:var(--rust)}
-.wipehist__num{color:var(--steel);text-align:right}
-.wipehist__when{color:var(--bone)}
+/* num/when/interval — данные (номер, дата, часы), mono; weekday/note — слова */
+.wipehist__num{color:var(--steel);text-align:right;font-family:var(--font-mono)}
+.wipehist__when{color:var(--bone);font-family:var(--font-mono)}
 .wipehist__weekday{color:var(--steel)}
-.wipehist__interval{color:var(--steel)}
+.wipehist__interval{color:var(--steel);font-family:var(--font-mono)}
 .wipehist__note{color:var(--patina);text-align:right;font-size:11px}
 .wipehist__flag{color:var(--rust-hot)}
 @media(max-width:680px){
@@ -399,7 +455,7 @@ input{font-family:inherit;color:inherit}
   .wipehist__note{text-align:left}
 }
 .srv-loading, .srv-error{
-  font-family:var(--font-mono);font-size:13.5px;color:var(--steel);
+  font-family:var(--font-body);font-size:13.5px;color:var(--steel);
   padding:30px 0;text-align:center;
 }
 .srv-error{color:var(--yellow)}
@@ -424,7 +480,7 @@ input{font-family:inherit;color:inherit}
 .pcard__id{font-family:var(--font-mono);font-size:12.5px;color:var(--steel);margin-top:3px}
 .pcard__status{
   margin-left:auto;
-  font-family:var(--font-mono);font-size:12.5px;
+  font-family:var(--font-body);font-size:12.5px;
   display:flex;align-items:center;gap:8px;
 }
 .pcard__status .dot{width:9px;height:9px;border-radius:50%}
@@ -451,11 +507,11 @@ input{font-family:inherit;color:inherit}
   font-family:var(--font-mono);
 }
 .trust__num b{font-size:24px;font-weight:600;color:var(--green)}
-.trust__num span{font-size:10px;color:var(--steel);text-transform:uppercase;letter-spacing:.08em}
+.trust__num span{font-family:var(--font-body);font-size:10px;color:var(--steel);text-transform:uppercase;letter-spacing:.08em}
 .trust__desc{font-size:14.5px;color:var(--steel);max-width:46ch}
 .trust__desc b{color:var(--bone)}
 .phist__title{
-  font-family:var(--font-mono);font-size:12px;color:var(--steel);
+  font-family:var(--font-body);font-size:12px;color:var(--steel);
   text-transform:uppercase;letter-spacing:.1em;margin-bottom:12px;
 }
 .phist{display:flex;flex-direction:column;gap:8px}
@@ -491,18 +547,27 @@ input{font-family:inherit;color:inherit}
 .wl__dot.off{background:var(--steel);opacity:.5}
 .wl__dot.hidden{background:var(--yellow);box-shadow:0 0 8px rgba(217,165,63,.5)}
 .wl__nick{font-weight:600;font-size:14.5px}
-.wl__where{font-family:var(--font-mono);font-size:12px;color:var(--steel);margin-top:2px}
+.wl__where{font-family:var(--font-body);font-size:12px;color:var(--steel);margin-top:2px}
 .wl__where b{color:var(--green);font-weight:600}
 .wl__time{font-family:var(--font-mono);font-size:12px;color:var(--steel)}
 .wl__del{
-  font-family:var(--font-mono);font-size:12px;color:var(--steel);
+  font-family:var(--font-body);font-size:12px;color:var(--steel);
   padding:6px 10px;border-radius:4px;
   transition:color .2s, background .2s;
 }
 .wl__del:hover{color:var(--red);background:rgba(201,74,58,.1)}
 .wl__hint{
   margin-top:16px;font-size:13.5px;color:var(--steel);
-  font-family:var(--font-mono);
+  font-family:var(--font-body);
+}
+/* Вочлист сейчас без входа через Telegram (2026-07-28) — данные ниже
+   фиктивные, для показа механики. Без явной пометки это выглядело бы как
+   чей-то настоящий список слежки — прямое нарушение "не приукрашивать". */
+.demo-notice{
+  display:flex;align-items:center;gap:8px;
+  font-family:var(--font-body);font-size:12.5px;color:var(--yellow);
+  border:1px solid rgba(217,165,63,.35);background:rgba(217,165,63,.08);
+  border-radius:5px;padding:8px 12px;margin-bottom:14px;
 }
 
 /* ---------- RUST+ ---------- */
@@ -516,11 +581,11 @@ input{font-family:inherit;color:inherit}
 }
 .rp__connect .dot{width:9px;height:9px;border-radius:50%;background:var(--green);box-shadow:0 0 8px rgba(111,174,92,.6)}
 .rp__connect b{font-weight:600}
-.rp__connect span{font-family:var(--font-mono);font-size:12.5px;color:var(--steel)}
+.rp__connect span{font-family:var(--font-body);font-size:12.5px;color:var(--steel)}
 .toggle{
   margin-left:auto;
   display:flex;align-items:center;gap:10px;
-  font-family:var(--font-mono);font-size:12.5px;color:var(--steel);
+  font-family:var(--font-body);font-size:12.5px;color:var(--steel);
 }
 .toggle__sw{
   width:40px;height:22px;border-radius:20px;
@@ -558,7 +623,7 @@ input{font-family:inherit;color:inherit}
 }
 .alert__text{font-size:14px}
 .alert__text b{font-weight:600}
-.alert__srv{font-family:var(--font-mono);font-size:11.5px;color:var(--steel);margin-top:2px}
+.alert__srv{font-family:var(--font-body);font-size:11.5px;color:var(--steel);margin-top:2px}
 .alert__time{font-family:var(--font-mono);font-size:12px;color:var(--steel)}
 
 @media(max-width:680px){
@@ -600,10 +665,19 @@ input{font-family:inherit;color:inherit}
 
   <!-- ================= СЕРВЕРЫ ================= -->
   <section class="panel is-active" id="panel-servers">
-    <div class="panel__cap">Найду сервер и скажу <b>правду про вайп</b> — по циклам онлайна, не по словам админа</div>
+    <div class="srv-heading">
+      <h2 class="srv-heading__title">Куда заходить сегодня</h2>
+      <p class="srv-heading__sub">Вайп-календарь по циклам онлайна — не по словам админа в названии</p>
+    </div>
     <div class="search">
       <input class="search__input" id="srvSearch" type="text" placeholder="Название сервера — найду и скажу правду про вайп…">
       <button class="search__btn">Найти</button>
+    </div>
+    <div class="caltabs" id="srvCalendar">
+      <button class="caltab" data-calendar="today">Вайпнулись сегодня <span class="caltab__n" id="calN-today">—</span></button>
+      <button class="caltab" data-calendar="tomorrow">Завтра <span class="caltab__n" id="calN-tomorrow">—</span></button>
+      <button class="caltab" data-calendar="week">На неделе <span class="caltab__n" id="calN-week">—</span></button>
+      <button class="caltab is-on" data-calendar="all">Все <span class="caltab__n" id="calN-all">—</span></button>
     </div>
     <div class="srvpanel">
       <div class="chips" id="srvChips">
@@ -620,6 +694,9 @@ input{font-family:inherit;color:inherit}
     </div>
     <div class="srvcount" id="srvCount"></div>
     <div id="srvDetail"></div>
+    <div class="srvlisthead" id="srvListHead">
+      <span></span><span>Сервер</span><span>Онлайн</span><span>Вайп</span><span>Следующий</span>
+    </div>
     <div class="srvlist" id="srvList"></div>
     <div class="loadmorewrap" id="srvLoadMoreWrap" style="display:none">
       <button class="loadmore" id="srvLoadMore">Показать ещё 50</button>
@@ -662,6 +739,7 @@ input{font-family:inherit;color:inherit}
   <!-- ================= ВОЧЛИСТ ================= -->
   <section class="panel" id="panel-watchlist">
     <div class="panel__cap">Твои цели под наблюдением <b>24/7</b>. Зашёл на сервер — ты узнал первым</div>
+    <div class="demo-notice">🔒 Пример на демо-данных — вход через Telegram появится скоро, свой список сможешь вести после него</div>
     <div class="search">
       <input class="search__input" type="text" placeholder="Добавить цель: ник или SteamID64…">
       <button class="search__btn">Следить</button>
@@ -741,6 +819,7 @@ input{font-family:inherit;color:inherit}
   /* ---------- СЕРВЕРЫ: список со спарклайнами + карточка с графиком (живой API) ---------- */
   var curFilter = 'all';
   var curSort = 'online';
+  var curCalendar = 'all';
   var curOffset = 0;
   var curTotal = 0;
   var srvShown = 0;
@@ -752,6 +831,8 @@ input{font-family:inherit;color:inherit}
   var srvCount = document.getElementById('srvCount');
   var srvLoadMoreWrap = document.getElementById('srvLoadMoreWrap');
   var srvLoadMoreBtn = document.getElementById('srvLoadMore');
+  var srvCalendar = document.getElementById('srvCalendar');
+  var srvListHead = document.getElementById('srvListHead');
 
   var WEEKDAYS_SHORT = ['вс','пн','вт','ср','чт','пт','сб']; // Date.getDay(): 0=воскресенье
   var WEEKDAYS_FULL = ['понедельник','вторник','среда','четверг','пятница','суббота','воскресенье']; // backend weekday(): 0=понедельник
@@ -779,65 +860,80 @@ input{font-family:inherit;color:inherit}
     return 'серверов';
   }
 
-  /* ---------- СПИСОК: спарклайн, строка сервера, пагинация ---------- */
-  function dotCls(s){
-    if(s.wipe_state==='fresh') return 'srvrow__dot--fresh';
-    if(s.wipe_state==='soon') return 'srvrow__dot--soon';
-    return 'srvrow__dot--normal';
+  /* ---------- СПИСОК: строка сервера, вайп-календарь, пагинация ---------- */
+  function pluralHours(n){
+    var m10=n%10, m100=n%100;
+    if(m10===1 && m100!==11) return 'час';
+    if(m10>=2 && m10<=4 && (m100<10||m100>=20)) return 'часа';
+    return 'часов';
+  }
+  function pluralDays(n){
+    var m10=n%10, m100=n%100;
+    if(m10===1 && m100!==11) return 'день';
+    if(m10>=2 && m10<=4 && (m100<10||m100>=20)) return 'дня';
+    return 'дней';
   }
 
-  function buildMetaLine(s){
-    var wipeDatePart = s.wipe_label ? s.wipe_label.split(' ')[0] : '—';
-    var cyclePart = s.cycle ? (s.cycle+' дн') : '—';
-    var nextDt = parseSqlDateTime(s.next_wipe_estimate);
-    var nextPart = nextDt ? ('~'+pad2(nextDt.getDate())+'.'+pad2(nextDt.getMonth()+1)) : '—';
-    return 'вайп '+wipeDatePart+' · цикл '+cyclePart+' · след. вайп '+nextPart;
+  // activity_status словами (2026-07-28, API compute_activity_status_batch) —
+  // null означает "мало/неоднозначно данных", ярлык просто не показываем,
+  // а не гадаем на пустом месте.
+  function activityLabel(status){
+    if(status==='filling') return 'заполняется';
+    if(status==='near_full') return 'почти полный';
+    if(status==='draining') return 'пустеет';
+    if(status==='stable') return 'стабильный';
+    return null;
   }
 
-  // values — ~28 точек (6ч-бакеты за 7 суток), могут содержать null (нет
-  // данных за бакет); wipeLabel — "DD.MM HH:MM" последнего вайпа, если
-  // попадает в окно спарклайна — рисуем точку на нём.
-  function renderSparkline(values, wipeLabel){
-    var w=150, h=34, pad=2;
-    values = values || [];
-    var nums = values.filter(function(v){ return v!=null; });
-    if(!nums.length){
-      return '<svg class="spark" width="'+w+'" height="'+h+'" viewBox="0 0 '+w+' '+h+'"></svg>';
-    }
-    var max = Math.max.apply(null, nums);
-    if(max<=0) max=1;
-    var n = values.length;
-    var stepX = n>1 ? (w-pad*2)/(n-1) : 0;
-    var pts=[]; var last=0;
-    for(var i=0;i<n;i++){
-      var v = values[i];
-      if(v==null) v=last; else last=v;
-      var x = pad + i*stepX;
-      var y = h-pad - (v/max)*(h-pad*2);
-      pts.push({x:x, y:y});
-    }
-    var lineStr = pts.map(function(p){ return p.x.toFixed(1)+','+p.y.toFixed(1); }).join(' ');
-    var areaStr = pts[0].x.toFixed(1)+','+(h-pad)+' '+lineStr+' '+pts[n-1].x.toFixed(1)+','+(h-pad);
+  function buildTagsLine(s){
+    var bits = [s.type==='vanilla'?'Vanilla':'Mod'];
+    if(s.rate) bits.push(s.rate);
+    var status = activityLabel(s.activity_status);
+    var line = escapeHtml(bits.join(' · '));
+    if(status) line += ' · <span class="status">'+escapeHtml(status)+'</span>';
+    return line;
+  }
 
-    var dotSvg = '';
-    var wipeMatch = /^(\d{2})\.(\d{2})\s+(\d{2}):(\d{2})$/.exec(wipeLabel||'');
-    if(wipeMatch){
-      var now = new Date();
-      var wd = new Date(now.getFullYear(), +wipeMatch[2]-1, +wipeMatch[1], +wipeMatch[3], +wipeMatch[4]);
-      if(wd > now) wd.setFullYear(wd.getFullYear()-1);
-      var hoursAgo = (now.getTime()-wd.getTime())/3600000;
-      var bucketFromEnd = Math.floor(hoursAgo/6);
-      var idx = n-1-bucketFromEnd;
-      if(idx>=0 && idx<n){
-        dotSvg = '<circle cx="'+pts[idx].x.toFixed(1)+'" cy="'+pts[idx].y.toFixed(1)+'" r="2.4" fill="var(--rust-hot)"></circle>';
-      }
+  // wipe_label — "DD.MM HH:MM" без года (последний ПОДТВЕРЖДЁННЫЙ вайп из
+  // wipe_history). Год угадываем как текущий, если получилась дата в
+  // будущем — значит вайп был в прошлом году, откатываем на год назад.
+  function formatRelativeWipe(wipeLabel){
+    var m = /^(\d{2})\.(\d{2})\s+(\d{2}):(\d{2})$/.exec(wipeLabel||'');
+    if(!m) return '—';
+    var now = new Date();
+    var wd = new Date(now.getFullYear(), +m[2]-1, +m[1], +m[3], +m[4]);
+    if(wd > now) wd.setFullYear(wd.getFullYear()-1);
+    var hoursAgo = (now.getTime()-wd.getTime())/3600000;
+    if(hoursAgo < 1) return 'меньше часа назад';
+    if(hoursAgo < 24){
+      var h = Math.round(hoursAgo);
+      return h+' '+pluralHours(h)+' назад';
     }
+    var d = Math.round(hoursAgo/24);
+    return d+' '+pluralDays(d)+' назад';
+  }
 
-    return '<svg class="spark" width="'+w+'" height="'+h+'" viewBox="0 0 '+w+' '+h+'">'+
-      '<polygon points="'+areaStr+'" fill="var(--rust-hot)" opacity="0.08"></polygon>'+
-      '<polyline points="'+lineStr+'" fill="none" stroke="var(--rust-hot)" stroke-width="1.5"></polyline>'+
-      dotSvg+
-    '</svg>';
+  // next_wipe_estimate — null, если цикл не определён (не гадаем число,
+  // см. правило проекта "лучше прочерк, чем уверенное вранье").
+  function formatNextWipe(nextWipeEstimate){
+    var dt = parseSqlDateTime(nextWipeEstimate);
+    if(!dt) return {text:'цикл не ясен', cls:'is-unknown'};
+    var now = new Date();
+    var diffH = (dt.getTime()-now.getTime())/3600000;
+    if(diffH <= 24) return {text: diffH<=0 ? 'со дня на день' : 'через '+Math.round(diffH)+' ч', cls:'is-soon'};
+    var days = Math.round(diffH/24);
+    if(days===1) return {text:'завтра', cls:'is-soon'};
+    return {text:'через '+days+' '+pluralDays(days), cls:''};
+  }
+
+  function onlineBarHtml(s){
+    var max = s.max || 0;
+    var ratio = max>0 ? Math.min(1, s.online/max) : 0;
+    var isFull = max>0 && (s.online/max) >= 0.9;
+    return '<span class="srvrow__online">'+
+      '<span class="srvrow__onlinebar"><span class="srvrow__onlinebar-fill'+(isFull?' is-full':'')+'" style="width:'+Math.round(ratio*100)+'%"></span></span>'+
+      '<b>'+s.online+'/'+s.max+'</b>'+
+    '</span>';
   }
 
   // дебаунс: не долбим API на каждый символ, ждём паузу в наборе
@@ -852,7 +948,8 @@ input{font-family:inherit;color:inherit}
 
   function buildSearchUrl(offset){
     var url = API_BASE + '/api/servers/search?filter=' + encodeURIComponent(curFilter) +
-      '&limit=' + LIMIT + '&offset=' + offset + '&sort=' + encodeURIComponent(curSort);
+      '&limit=' + LIMIT + '&offset=' + offset + '&sort=' + encodeURIComponent(curSort) +
+      '&calendar=' + encodeURIComponent(curCalendar);
     var q = srvSearch.value.trim();
     if(q) url += '&q=' + encodeURIComponent(q);
     return url;
@@ -914,17 +1011,24 @@ input{font-family:inherit;color:inherit}
     return chip.textContent.replace(/^[^\wа-яё]+/i, '').trim();
   }
 
-  function renderLocalRow(s){
-    return '<button class="srvrow" data-id="'+s.id+'">'+
+  // Приглушаем "умирающие/пустые" (2026-07-28, вайп-календарь) — пустой
+  // сервер (online===0) или устойчиво пустеющий (activity_status='draining')
+  // сразу видно взглядом, без новых цветов, только opacity.
+  function isDimmed(s){
+    return (s.online||0) <= 0 || s.activity_status === 'draining';
+  }
+
+  function renderLocalRow(s, rank){
+    var next = formatNextWipe(s.next_wipe_estimate);
+    return '<button class="srvrow'+(isDimmed(s)?' srvrow--dim':'')+'" data-id="'+s.id+'">'+
+      '<span class="srvrow__rank'+(rank===1?' srvrow__rank--first':'')+'">'+rank+'</span>'+
       '<span class="srvrow__main">'+
         '<span class="srvrow__name">'+escapeHtml(s.name)+'</span>'+
-        '<span class="srvrow__meta">'+buildMetaLine(s)+'</span>'+
+        '<span class="srvrow__meta">'+buildTagsLine(s)+'</span>'+
       '</span>'+
-      '<span class="srvrow__spark">'+renderSparkline(s.sparkline, s.wipe_label)+'</span>'+
-      '<span class="srvrow__right">'+
-        '<span class="srvrow__online">👥 <b>'+s.online+'</b>/'+s.max+'</span>'+
-        '<span class="srvrow__dot '+dotCls(s)+'"></span>'+
-      '</span>'+
+      onlineBarHtml(s)+
+      '<span class="srvrow__wipe">'+escapeHtml(formatRelativeWipe(s.wipe_label))+'</span>'+
+      '<span class="srvrow__next '+next.cls+'">'+escapeHtml(next.text)+'</span>'+
     '</button>';
   }
 
@@ -933,14 +1037,14 @@ input{font-family:inherit;color:inherit}
   // открыть нельзя (id===null), поэтому это <div>, а не кликабельная <button>
   function renderBmRow(s){
     return '<div class="srvrow srvrow--bm">'+
+      '<span class="srvrow__rank">—</span>'+
       '<span class="srvrow__main">'+
         '<span class="srvrow__name">'+escapeHtml(s.name)+'</span>'+
         '<span class="srvrow__meta">нет истории — найден в BattleMetrics</span>'+
       '</span>'+
-      '<span class="srvrow__spark">'+renderSparkline([], null)+'</span>'+
-      '<span class="srvrow__right">'+
-        '<span class="srvrow__online">👥 <b>'+s.online+'</b>/'+s.max+'</span>'+
-      '</span>'+
+      onlineBarHtml(s)+
+      '<span class="srvrow__wipe">—</span>'+
+      '<span class="srvrow__next is-unknown">цикл не ясен</span>'+
     '</div>';
   }
 
@@ -951,6 +1055,8 @@ input{font-family:inherit;color:inherit}
     var bmItems = items.filter(function(s){ return s.source === 'battlemetrics_live'; });
 
     if(!append) srvShown = 0;
+
+    updateCalendarCounts(data.calendar_counts);
 
     if(!items.length && !append){
       srvCount.textContent = '';
@@ -974,7 +1080,10 @@ input{font-family:inherit;color:inherit}
     if(oldBmHead) oldBmHead.parentNode.removeChild(oldBmHead);
     srvList.querySelectorAll('.srvrow--bm').forEach(function(el){ el.parentNode.removeChild(el); });
 
-    var localHtml = localItems.map(renderLocalRow).join('');
+    // ранг — позиция в отфильтрованном+отсортированном списке (не заявка на
+    // "глобальный рейтинг"), продолжается через "показать ещё"
+    var rankBase = srvShown;
+    var localHtml = localItems.map(function(s, i){ return renderLocalRow(s, rankBase+i+1); }).join('');
     if(append) srvList.insertAdjacentHTML('beforeend', localHtml);
     else srvList.innerHTML = localHtml;
 
@@ -996,7 +1105,7 @@ input{font-family:inherit;color:inherit}
   }
 
   function showList(){
-    srvDetail.innerHTML=''; srvList.style.display='';
+    srvDetail.innerHTML=''; srvList.style.display=''; srvListHead.style.display='';
   }
 
   function bindBackButton(){
@@ -1033,6 +1142,7 @@ input{font-family:inherit;color:inherit}
     curCycleOffset = 0;
     srvDetail.innerHTML = '<div class="srv-loading">Загружаю карточку…</div>';
     srvList.style.display='none';
+    srvListHead.style.display='none';
     srvLoadMoreWrap.style.display='none';
     window.scrollTo({top:0, behavior: reduced?'auto':'smooth'});
 
@@ -1110,7 +1220,7 @@ input{font-family:inherit;color:inherit}
 
   function renderServerPanel(s){
     var rows = [];
-    if(s.ip && s.port) rows.push(['Адрес', escapeHtml(s.ip)+':'+s.port]);
+    if(s.ip && s.port) rows.push(['Адрес', '<span class="mono">'+escapeHtml(s.ip)+':'+s.port+'</span>']);
     rows.push(['Карта', (s.map_size||'—')+' · '+(s.type==='vanilla'?'Vanilla':'Mod')]);
     rows.push(['Рейт', s.rate]);
     if(s.team_limit) rows.push(['Лимит команды', escapeHtml(s.team_limit)]);
@@ -1131,17 +1241,43 @@ input{font-family:inherit;color:inherit}
     if(el) el.innerHTML = html;
   }
 
+  // Строка-вердикт (2026-07-28) — одна фраза человеческим языком над всеми
+  // плитками/графиками, собирается из тех же данных, что и остальная
+  // карточка (formatRelativeWipe/activityLabel/formatNextWipe — общие с
+  // списком серверов). Если статус активности не посчитался — просто не
+  // упоминаем его, а не пишем заглушку; если цикл не определён — говорим
+  // прямо, а не подставляем случайную дату.
+  function buildVerdictLine(s){
+    var bits = [];
+
+    var wipeRel = formatRelativeWipe(s.wipe);
+    bits.push(wipeRel === '—' ? 'Вайп не подтверждён' : ('Вайпнулся '+wipeRel));
+
+    var statusLabel = activityLabel(s.activity_status);
+    bits.push((statusLabel ? statusLabel+', ' : '') + s.online+' из '+s.max);
+
+    if(s.cycle && s.next_wipe_estimate){
+      bits.push('следующий примерно '+formatNextWipe(s.next_wipe_estimate).text);
+    } else {
+      bits.push('следующий неизвестен, цикл нестабилен');
+    }
+
+    return escapeHtml(bits.join(' · '));
+  }
+
   function renderDetailShell(s){
     // Защита от гонки (пред-существующая, не связана с этой задачей): на
     // холодной загрузке по прямой ссылке #server-N runSearch() и openDetail()
     // стартуют параллельно — если ответ списка приходит позже, он снова
     // показывает srvList/"показать ещё", перекрывая уже открытую карточку.
     srvList.style.display='none';
+    srvListHead.style.display='none';
     srvLoadMoreWrap.style.display='none';
 
     srvDetail.innerHTML =
       '<div class="dpage">'+
         '<div class="dpage__crumbs">'+buildCrumbs(s)+'</div>'+
+        '<div class="dverdict">'+buildVerdictLine(s)+'</div>'+
         '<div class="dpage__head">'+
           '<div>'+
             '<div class="dpage__title">'+escapeHtml(s.name)+'</div>'+
@@ -1353,26 +1489,53 @@ input{font-family:inherit;color:inherit}
         '<polyline points="'+linePts+'" fill="none" stroke="var(--rust-hot)" stroke-width="2"></polyline>'+
         wipeMarkersSvg+
         '<rect x="0" y="0" width="'+W+'" height="'+H+'" fill="transparent" id="chartHoverArea"></rect>'+
+        '<line class="chart__hoverline" id="chartHoverLine" x1="0" y1="0" x2="0" y2="'+(padT+innerH)+'"></line>'+
+        '<circle class="chart__hoverdot" id="chartHoverDot" r="4.5" cx="0" cy="0"></circle>'+
       '</svg>'+
       '<div class="chart__tooltip" id="chartTooltip"></div>';
 
     var svgEl = document.getElementById('chartSvg');
     var hoverArea = document.getElementById('chartHoverArea');
+    var hoverLine = document.getElementById('chartHoverLine');
+    var hoverDot = document.getElementById('chartHoverDot');
     var tooltip = document.getElementById('chartTooltip');
 
-    hoverArea.addEventListener('mousemove', function(e){
+    function showChartHoverAt(clientX, clientY){
       var rect = svgEl.getBoundingClientRect();
-      var relX = (e.clientX - rect.left) / rect.width * W;
+      var relX = (clientX - rect.left) / rect.width * W;
       var idx = stepX ? Math.round((relX - padL) / stepX) : 0;
       idx = Math.max(0, Math.min(n-1, idx));
       var p = points[idx];
       var val = p.avg!=null ? p.avg : p.max;
+      var x = xAt(idx), y = yAt(val!=null?val:0);
+
       tooltip.innerHTML = '<span class="tt__day">'+formatTooltipDate(p.ts, granularity)+'</span><br>онлайн: <b>'+(val!=null?val:'—')+'</b>';
       tooltip.classList.add('is-visible');
-      tooltip.style.left = Math.max(0, Math.min(e.clientX - rect.left + 12, rect.width - 150)) + 'px';
-      tooltip.style.top = Math.max(0, e.clientY - rect.top - 44) + 'px';
+      tooltip.style.left = Math.max(0, Math.min((clientX - rect.left) + 12, rect.width - 150)) + 'px';
+      tooltip.style.top = Math.max(0, (clientY!=null ? clientY - rect.top : (y/H)*rect.height) - 44) + 'px';
+
+      hoverDot.setAttribute('cx', x);
+      hoverDot.setAttribute('cy', y);
+      hoverDot.classList.add('is-visible');
+      hoverLine.setAttribute('x1', x);
+      hoverLine.setAttribute('x2', x);
+      hoverLine.setAttribute('y1', y);
+      hoverLine.classList.add('is-visible');
+    }
+    function hideChartHover(){
+      tooltip.classList.remove('is-visible');
+      hoverDot.classList.remove('is-visible');
+      hoverLine.classList.remove('is-visible');
+    }
+    hoverArea.addEventListener('mousemove', function(e){ showChartHoverAt(e.clientX, e.clientY); });
+    hoverArea.addEventListener('mouseleave', hideChartHover);
+    hoverArea.addEventListener('touchstart', function(e){
+      e.preventDefault();
+      if(e.touches && e.touches[0]) showChartHoverAt(e.touches[0].clientX, e.touches[0].clientY);
+    }, {passive:false});
+    document.addEventListener('touchstart', function(e){
+      if(!svgEl.contains(e.target)) hideChartHover();
     });
-    hoverArea.addEventListener('mouseleave', function(){ tooltip.classList.remove('is-visible'); });
   }
 
   function renderWipeHistList(wipes){
@@ -1443,6 +1606,26 @@ input{font-family:inherit;color:inherit}
       .then(function(data){ renderWipeHistList(data.wipes); })
       .catch(function(){ var el=document.getElementById('wipeHist'); if(el) el.innerHTML=''; });
   }
+
+  // Счётчики вкладок-календаря (2026-07-28) — приходят в КАЖДОМ ответе
+  // /api/servers/search (data.calendar_counts), независимо от того, какая
+  // вкладка сейчас активна, чтобы все 4 числа были видны разом.
+  function updateCalendarCounts(counts){
+    if(!counts) return;
+    ['today','tomorrow','week','all'].forEach(function(key){
+      var el = document.getElementById('calN-'+key);
+      if(el) el.textContent = counts[key]!=null ? counts[key] : '—';
+    });
+  }
+
+  srvCalendar.addEventListener('click', function(e){
+    var tab = e.target.closest('.caltab'); if(!tab) return;
+    document.querySelectorAll('#srvCalendar .caltab').forEach(function(t){t.classList.remove('is-on')});
+    tab.classList.add('is-on');
+    curCalendar = tab.dataset.calendar;
+    showList();
+    runSearch();
+  });
 
   document.getElementById('srvChips').addEventListener('click', function(e){
     var chip = e.target.closest('.chip'); if(!chip) return;

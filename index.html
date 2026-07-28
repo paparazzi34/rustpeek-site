@@ -176,16 +176,16 @@ button{font-family:inherit;color:inherit;background:none;border:none;cursor:poin
 .hero.is-in .hero__quick{
   animation:heroLine .5s cubic-bezier(.2,.7,.2,1) forwards;animation-delay:400ms;
 }
-.hero__quick-label{font-family:var(--font-mono);font-size:12.5px;color:var(--steel)}
+.hero__quick-label{font-family:var(--font-body);font-size:12.5px;color:var(--steel)}
 .hero__chip{
-  font-family:var(--font-mono);font-size:12.5px;color:var(--steel);
+  font-family:var(--font-body);font-size:12.5px;color:var(--steel);
   border:1px solid var(--line);border-radius:16px;padding:5px 13px;
   transition:all .18s;
 }
 .hero__chip:hover{border-color:var(--rust);color:var(--rust-hot)}
 .hero__player-link{
   margin-left:auto;
-  font-family:var(--font-mono);font-size:13px;color:var(--steel);
+  font-family:var(--font-body);font-size:13px;color:var(--steel);
   text-decoration:none;border-bottom:1px dashed var(--line);
   transition:color .2s, border-color .2s;
 }
@@ -205,7 +205,7 @@ button{font-family:inherit;color:inherit;background:none;border:none;cursor:poin
   color:var(--bone);font-variant-numeric:tabular-nums;
 }
 .counterbar__item span{
-  font-family:var(--font-mono);font-size:11.5px;color:var(--steel);
+  font-family:var(--font-body);font-size:11.5px;color:var(--steel);
   text-transform:uppercase;letter-spacing:.06em;
 }
 .counterbar__item.is-accent b, .counterbar__item.is-accent span{color:var(--green)}
@@ -315,7 +315,7 @@ button{font-family:inherit;color:inherit;background:none;border:none;cursor:poin
   font-family:var(--font-display);font-weight:700;font-size:16px;
   max-width:calc(100% - 96px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
 }
-.atlas__meta{font-family:var(--font-mono);font-size:12px;color:var(--steel);margin:4px 0 18px}
+.atlas__meta{font-family:var(--font-body);font-size:12px;color:var(--steel);margin:4px 0 18px}
 .atlas__chart-wrap{position:relative}
 .atlas__chart-wrap svg{display:block;width:100%;height:auto;overflow:visible}
 .atlas__area{fill:url(#atlasGrad);stroke:none}
@@ -331,6 +331,16 @@ button{font-family:inherit;color:inherit;background:none;border:none;cursor:poin
   70%{r:12;opacity:0}
   100%{r:4;opacity:1}
 }
+.atlas__hoverline{
+  stroke:var(--line);stroke-width:1;opacity:0;pointer-events:none;
+  transition:opacity .12s, x1 .06s linear, x2 .06s linear, y1 .06s linear;
+}
+.atlas__hoverline.is-visible{opacity:1}
+.atlas__hoverdot{
+  fill:var(--rust-hot);stroke:var(--bg);stroke-width:2;opacity:0;pointer-events:none;
+  transition:opacity .12s, cx .06s linear, cy .06s linear;
+}
+.atlas__hoverdot.is-visible{opacity:1}
 .atlas__tooltip{
   position:absolute;pointer-events:none;top:0;left:0;
   background:var(--surface);border:1px solid var(--rust);border-radius:5px;
@@ -343,11 +353,11 @@ button{font-family:inherit;color:inherit;background:none;border:none;cursor:poin
 .atlas__wipelabel{font-family:var(--font-mono);font-size:9.5px;fill:var(--rust-hot);font-weight:600}
 .atlas__stats{
   margin-top:16px;display:grid;grid-template-columns:repeat(4,1fr);gap:10px;
-  font-family:var(--font-mono);
+  font-family:var(--font-body);
 }
 .atlas__stats div{display:flex;flex-direction:column;gap:2px}
 .atlas__stats span{font-size:10.5px;color:var(--steel);text-transform:uppercase;letter-spacing:.06em}
-.atlas__stats b{font-size:15px;color:var(--bone);font-variant-numeric:tabular-nums}
+.atlas__stats b{font-family:var(--font-mono);font-size:15px;color:var(--bone);font-variant-numeric:tabular-nums}
 .atlas__foot{
   margin-top:16px;padding-top:14px;border-top:1px dashed var(--line);
   font-family:var(--font-mono);font-size:12px;color:var(--steel);
@@ -421,14 +431,14 @@ button{font-family:inherit;color:inherit;background:none;border:none;cursor:poin
   transition:stroke-dashoffset 1.1s cubic-bezier(.2,.7,.2,1)}
 .tring__num{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:var(--font-mono)}
 .tring__num b{font-size:22px;color:var(--green)}
-.tring__num span{font-size:9.5px;color:var(--steel);text-transform:uppercase;letter-spacing:.08em}
+.tring__num span{font-family:var(--font-body);font-size:9.5px;color:var(--steel);text-transform:uppercase;letter-spacing:.08em}
 .demo-trust__t{font-size:14px;color:var(--steel);max-width:34ch}
 .demo-trust__t b{color:var(--bone)}
 .demo-trust__t .mono{font-family:var(--font-mono);font-size:11.5px;display:block;margin-top:8px;color:var(--patina)}
 /* demo: watchlist */
 .demo-wl{background:var(--surface);border:1px solid var(--line);border-radius:5px;padding:13px 16px;
   display:grid;grid-template-columns:12px 1fr auto;gap:12px;align-items:center;font-size:14px;margin-bottom:8px}
-.demo-wl .m{font-family:var(--font-mono);font-size:11.5px;color:var(--steel);display:block;margin-top:2px}
+.demo-wl .m{font-family:var(--font-body);font-size:11.5px;color:var(--steel);display:block;margin-top:2px}
 .demo-wl .t{font-family:var(--font-mono);font-size:11.5px;color:var(--steel)}
 .demo-wl .t i{color:var(--green);font-style:normal}
 /* demo: alerts */
@@ -462,7 +472,7 @@ button{font-family:inherit;color:inherit;background:none;border:none;cursor:poin
 .webv p b{color:var(--bone);font-weight:600}
 .webv__side{display:flex;flex-direction:column;gap:12px;align-items:flex-start;position:relative;z-index:1}
 .webv__tabs{
-  font-family:var(--font-mono);font-size:12px;color:var(--steel);
+  font-family:var(--font-body);font-size:12px;color:var(--steel);
   display:flex;gap:8px;flex-wrap:wrap;
 }
 .webv__tabs span{border:1px solid var(--line);padding:5px 12px;border-radius:16px}
@@ -510,7 +520,7 @@ button{font-family:inherit;color:inherit;background:none;border:none;cursor:poin
   max-width:1160px;margin:0 auto;
   padding:26px 28px;
   display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:14px;
-  font-family:var(--font-mono);font-size:13px;color:var(--steel);
+  font-family:var(--font-body);font-size:13px;color:var(--steel);
 }
 .footer__links{display:flex;gap:22px;flex-wrap:wrap}
 .footer a{color:var(--steel);text-decoration:none;transition:color .2s}
@@ -646,6 +656,8 @@ button{font-family:inherit;color:inherit;background:none;border:none;cursor:poin
           <circle class="atlas__wipedot" id="atlasWipeDot" r="4" cx="0" cy="0"></circle>
           <g id="atlasAxis"></g>
           <rect id="atlasHoverArea" x="0" y="0" width="520" height="190" fill="transparent"></rect>
+          <line class="atlas__hoverline" id="atlasHoverLine" x1="0" y1="0" x2="0" y2="170"></line>
+          <circle class="atlas__hoverdot" id="atlasHoverDot" r="4.5" cx="0" cy="0"></circle>
         </svg>
         <div class="atlas__tooltip" id="atlasTooltip"></div>
       </div>
@@ -935,6 +947,8 @@ button{font-family:inherit;color:inherit;background:none;border:none;cursor:poin
   var atlasLine = document.getElementById('atlasLine');
   var atlasWipeDot = document.getElementById('atlasWipeDot');
   var atlasHoverArea = document.getElementById('atlasHoverArea');
+  var atlasHoverLine = document.getElementById('atlasHoverLine');
+  var atlasHoverDot = document.getElementById('atlasHoverDot');
   var atlasTooltip = document.getElementById('atlasTooltip');
   var atlasCardEl = document.getElementById('atlasCard');
   var atlasData = null;
@@ -1049,22 +1063,45 @@ button{font-family:inherit;color:inherit;background:none;border:none;cursor:poin
     },{threshold:.25}).observe(atlasCardEl);
   } else revealPaper();
 
-  /* hover-тултип по точкам графика */
-  atlasHoverArea.addEventListener('mousemove', function(e){
+  /* hover/tap-маркер + тултип по ближайшей точке графика */
+  function atlasShowAt(clientX){
     if(!atlasData) return;
     var rect = atlasSvg.getBoundingClientRect();
-    var relX = (e.clientX - rect.left) / rect.width * 520;
+    var relX = (clientX - rect.left) / rect.width * 520;
     var stepX = atlasData.n>1 ? 520/(atlasData.n-1) : 0;
     var idx = stepX ? Math.round(relX/stepX) : 0;
     idx = Math.max(0, Math.min(atlasData.n-1, idx));
     var p = atlasData.points[idx];
     var v = p.avg;
+    var x = atlasData.X(idx), y = atlasData.Y(v);
+
     atlasTooltip.innerHTML = '<span class="tt__day">'+escapeHtml(formatAtlasDT(p.ts))+'</span><br>онлайн: <b>'+Math.round(v)+'</b>';
     atlasTooltip.classList.add('is-visible');
-    atlasTooltip.style.left = ((atlasData.X(idx)/520)*rect.width) + 'px';
-    atlasTooltip.style.top = ((atlasData.Y(v)/190)*rect.height) + 'px';
+    atlasTooltip.style.left = ((x/520)*rect.width) + 'px';
+    atlasTooltip.style.top = ((y/190)*rect.height) + 'px';
+
+    atlasHoverDot.setAttribute('cx', x);
+    atlasHoverDot.setAttribute('cy', y);
+    atlasHoverDot.classList.add('is-visible');
+    atlasHoverLine.setAttribute('x1', x);
+    atlasHoverLine.setAttribute('x2', x);
+    atlasHoverLine.setAttribute('y1', y);
+    atlasHoverLine.classList.add('is-visible');
+  }
+  function atlasHideHover(){
+    atlasTooltip.classList.remove('is-visible');
+    atlasHoverDot.classList.remove('is-visible');
+    atlasHoverLine.classList.remove('is-visible');
+  }
+  atlasHoverArea.addEventListener('mousemove', function(e){ atlasShowAt(e.clientX); });
+  atlasHoverArea.addEventListener('mouseleave', atlasHideHover);
+  atlasHoverArea.addEventListener('touchstart', function(e){
+    e.preventDefault();
+    if(e.touches && e.touches[0]) atlasShowAt(e.touches[0].clientX);
+  }, {passive:false});
+  document.addEventListener('touchstart', function(e){
+    if(!atlasCardEl.contains(e.target)) atlasHideHover();
   });
-  atlasHoverArea.addEventListener('mouseleave', function(){ atlasTooltip.classList.remove('is-visible'); });
 
   /* ---------- trust ring ---------- */
   var ring=document.getElementById('trustRing');
