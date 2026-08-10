@@ -532,6 +532,92 @@ input{font-family:inherit;color:inherit}
 .phist__when{font-family:var(--font-mono);font-size:12.5px;color:var(--steel)}
 .phist__row.is-now{border-color:rgba(111,174,92,.4)}
 .phist__row.is-now .phist__when{color:var(--green)}
+.phist__cap{
+  font-family:var(--font-body);font-size:12px;color:var(--steel);
+  margin-bottom:10px;
+}
+.phist__empty{
+  font-family:var(--font-body);font-size:13.5px;color:var(--steel);
+  padding:16px 0;
+}
+.phist__note{
+  margin-top:10px;font-size:12px;color:var(--steel);
+  font-family:var(--font-body);
+}
+
+/* поиск игрока — подсказка + сворачиваемая инструкция */
+.psearch__hint{
+  font-family:var(--font-body);font-size:12.5px;color:var(--steel);
+  margin:-8px 0 20px;
+}
+.psearch__help{
+  color:var(--rust-hot);text-decoration:underline;text-underline-offset:2px;
+  font-size:12.5px;
+}
+.psearch__help:hover{color:var(--bone)}
+.psearch__help-body{
+  display:none;
+  font-family:var(--font-body);font-size:13px;color:var(--steel);
+  background:var(--surface-2);border:1px solid var(--line);border-radius:5px;
+  padding:12px 14px;margin:-10px 0 20px;max-width:56ch;
+}
+.psearch__help-body.is-open{display:block}
+
+/* карточка игрока — теги (баны/часы) */
+.pcard__tags{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.pcard__tag{
+  font-family:var(--font-mono);font-size:11.5px;color:var(--steel);
+  border:1px solid var(--line);border-radius:20px;padding:4px 10px;
+}
+.pcard__tag--ok{color:var(--green);border-color:rgba(111,174,92,.35)}
+.pcard__tag--warn{color:var(--red);border-color:rgba(201,74,58,.4)}
+
+/* разбивка Trust Score по факторам */
+.pfactors{margin-bottom:24px}
+.pfactors__title{
+  font-family:var(--font-body);font-size:12px;color:var(--steel);
+  text-transform:uppercase;letter-spacing:.1em;margin-bottom:12px;
+}
+.pfactors__row{
+  display:grid;grid-template-columns:150px 1fr 46px;gap:12px;
+  align-items:center;padding:6px 0;
+}
+.pfactors__row.is-zero{opacity:.5}
+.pfactors__label{font-size:13px;color:var(--bone)}
+.pfactors__bar{
+  height:6px;border-radius:3px;background:var(--line);overflow:hidden;
+}
+.pfactors__bar-fill{display:block;height:100%;border-radius:3px;background:var(--green);transition:width .6s cubic-bezier(.2,.7,.2,1)}
+.pfactors__bar-fill.is-neg{background:var(--red)}
+.pfactors__points{
+  font-family:var(--font-mono);font-size:13px;text-align:right;color:var(--green);
+}
+.pfactors__points.is-neg{color:var(--red)}
+.pfactors__foot{
+  margin-top:10px;font-size:12px;color:var(--steel);font-family:var(--font-body);
+}
+@media(max-width:560px){
+  .pfactors__row{grid-template-columns:104px 1fr 40px;gap:8px}
+}
+
+/* состояния поиска игрока — скелетон, не найдено, Steam недоступен */
+.p-skeleton{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:24px}
+.p-skeleton__head{display:flex;gap:18px;align-items:center;margin-bottom:22px}
+.p-skeleton__ava{width:64px;height:64px;border-radius:6px;flex:none}
+.p-skeleton__lines{flex:1;display:flex;flex-direction:column;gap:8px}
+.p-sk-bar{
+  height:12px;border-radius:3px;
+  background:linear-gradient(90deg,var(--surface-2) 25%,var(--line) 50%,var(--surface-2) 75%);
+  background-size:200% 100%;
+  animation:p-shimmer 1.4s ease-in-out infinite;
+}
+@keyframes p-shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+@media(prefers-reduced-motion:reduce){.p-sk-bar{animation:none}}
+.p-state{
+  font-family:var(--font-body);font-size:13.5px;color:var(--steel);
+  padding:30px 0;text-align:center;
+}
+.p-state--warn{color:var(--yellow)}
 
 /* ---------- WATCHLIST ---------- */
 .wl{display:flex;flex-direction:column;gap:8px}
@@ -708,35 +794,21 @@ input{font-family:inherit;color:inherit}
 
   <!-- ================= ИГРОКИ ================= -->
   <section class="panel" id="panel-players">
-    <div class="panel__cap">Досье на любого: <b>Trust Score</b>, часы, история серверов. Закрытый профиль — не преграда</div>
+    <div class="srv-heading">
+      <h2 class="srv-heading__title">Досье на игрока</h2>
+      <p class="srv-heading__sub">Trust Score без инвентаря, репутация, история серверов — по SteamID64</p>
+    </div>
     <div class="search">
-      <input class="search__input" type="text" placeholder="Ник или SteamID64 — пробью даже закрытый профиль…" value="ShadowKiller_228">
-      <button class="search__btn">Пробить</button>
+      <input class="search__input" id="playerSearch" type="text" placeholder="76561198012345678 или ссылка на профиль Steam">
+      <button class="search__btn" id="playerSearchBtn">Пробить</button>
     </div>
-    <div class="pcard">
-      <div class="pcard__head">
-        <div class="pcard__ava">S</div>
-        <div>
-          <div class="pcard__nick">ShadowKiller_228</div>
-          <div class="pcard__id">7656119801234567 · профиль закрыт · вижу через A2S</div>
-        </div>
-        <div class="pcard__status on"><span class="dot"></span>онлайн сейчас</div>
-      </div>
-      <div class="trust">
-        <div class="trust__ring">
-          <svg width="96" height="96"><circle class="bgc" cx="48" cy="48" r="42"/><circle class="fgc" id="trustRing" cx="48" cy="48" r="42"/></svg>
-          <div class="trust__num"><b>74</b><span>trust</span></div>
-        </div>
-        <p class="trust__desc"><b>Скорее чист.</b> 1 240 часов в Rust, аккаунту 4 года, банов не вижу. Играет волнами — по 6–8 часов на вайпе, потом пропадает. Классический вайп-энджоер, не читер-однодневка.</p>
-      </div>
-      <div class="phist__title">История серверов</div>
-      <div class="phist">
-        <div class="phist__row is-now"><span class="phist__srv">Hustle Rust - [2X, VANILLA]</span><span class="phist__hours">14ч за цикл</span><span class="phist__when">сейчас</span></div>
-        <div class="phist__row"><span class="phist__srv">Magic Rust #4 [MAX 3]</span><span class="phist__hours">31ч</span><span class="phist__when">12–18.07</span></div>
-        <div class="phist__row"><span class="phist__srv">WARBANDITS X2</span><span class="phist__hours">22ч</span><span class="phist__when">04–09.07</span></div>
-        <div class="phist__row"><span class="phist__srv">Vital Rust - EU Monthly</span><span class="phist__hours">58ч</span><span class="phist__when">июнь</span></div>
-      </div>
+    <p class="psearch__hint">Ищу по SteamID64 или ссылке · <button class="psearch__help" id="psearchHelpBtn" type="button">Где взять SteamID?</button></p>
+    <div class="psearch__help-body" id="psearchHelpBody">
+      Открой профиль в Steam → адресная строка браузера. Если там ник, а не
+      цифры — вставь саму ссылку, разберусь сам. Или найди SteamID64 через
+      сторонний сервис вроде steamid.io.
     </div>
+    <div id="playerResult"></div>
   </section>
 
   <!-- ================= ВОЧЛИСТ ================= -->
@@ -813,9 +885,6 @@ input{font-family:inherit;color:inherit}
       document.querySelectorAll('.panel').forEach(function(x){x.classList.remove('is-active')});
       t.classList.add('is-active');
       document.getElementById('panel-'+t.dataset.tab).classList.add('is-active');
-      if(t.dataset.tab==='players' && !reduced){
-        setTimeout(function(){ document.getElementById('trustRing').style.strokeDashoffset = 264 - 264*0.74; }, 80);
-      }
     });
   });
 
@@ -1672,6 +1741,197 @@ input{font-family:inherit;color:inherit}
   if(location.hash === '#players'){
     var playersTabBtn = document.querySelector('.tab[data-tab="players"]');
     if(playersTabBtn) playersTabBtn.click();
+  }
+
+  /* ---------- ИГРОКИ: досье (живой API) ---------- */
+  var playerSearch = document.getElementById('playerSearch');
+  var playerSearchBtn = document.getElementById('playerSearchBtn');
+  var playerResult = document.getElementById('playerResult');
+  var psearchHelpBtn = document.getElementById('psearchHelpBtn');
+  var psearchHelpBody = document.getElementById('psearchHelpBody');
+
+  psearchHelpBtn.addEventListener('click', function(){
+    psearchHelpBody.classList.toggle('is-open');
+  });
+
+  var TRUST_COLOR = function(score){
+    if(score>=80) return 'var(--green)';
+    if(score>=50) return 'var(--yellow)';
+    if(score>=25) return 'var(--rust-hot)';
+    return 'var(--red)';
+  };
+  var FACTOR_MAX = {age:38, hours:45, profile:12, reputation:40, reports:25};
+
+  function formatHoursShort(minutes){
+    if(minutes==null) return null;
+    var h = Math.round(minutes/60);
+    return h + ' ч';
+  }
+
+  function formatPeriod(row){
+    if(row.is_current) return 'сейчас';
+    var start = parseSqlDateTime(row.first_seen_at);
+    var end = parseSqlDateTime(row.left_at || row.last_seen_at);
+    if(!start) return '—';
+    var s = pad2(start.getDate())+'.'+pad2(start.getMonth()+1);
+    if(!end) return s;
+    var e = pad2(end.getDate())+'.'+pad2(end.getMonth()+1);
+    return s===e ? s : (s+'–'+e);
+  }
+
+  function renderFactorRow(f){
+    var isNeg = f.points < 0;
+    var max = FACTOR_MAX[f.key] || 40;
+    var pct = Math.min(100, Math.round(Math.abs(f.points) / max * 100));
+    var pointsText = f.points > 0 ? ('+'+f.points) : String(f.points);
+    return '<div class="pfactors__row'+(f.points===0?' is-zero':'')+'">'+
+      '<span class="pfactors__label">'+escapeHtml(f.label)+'</span>'+
+      '<span class="pfactors__bar"><span class="pfactors__bar-fill'+(isNeg?' is-neg':'')+'" style="width:'+pct+'%"></span></span>'+
+      '<span class="pfactors__points'+(isNeg?' is-neg':'')+'">'+pointsText+'</span>'+
+    '</div>';
+  }
+
+  function renderPlayerCard(p){
+    var avaHtml = p.avatar_url
+      ? '<img src="'+escapeHtml(p.avatar_url)+'" alt="" width="64" height="64" style="border-radius:6px;object-fit:cover">'
+      : escapeHtml((p.name||'?').charAt(0).toUpperCase());
+
+    var isOnline = p.status_text && p.status_text!=='не в сети' && p.status_text!=='неизвестно';
+    var statusHtml = '<div class="pcard__status '+(isOnline?'on':'off')+'"><span class="dot"></span>'+escapeHtml(p.status_text||'неизвестно')+'</div>';
+
+    var year = p.account_created_at ? p.account_created_at.slice(0,4) : null;
+    var privacyText = p.profile_public===true ? 'профиль открыт' : (p.profile_public===false ? 'профиль закрыт' : 'приватность неизвестна');
+    var idLine = escapeHtml(p.steam_id)+' · '+privacyText+(year?(' · с '+year+' года'):'');
+
+    var tags = [];
+    if(p.bans){
+      var banCount = (p.bans.vac_ban_count||0) + (p.bans.game_ban_count||0);
+      tags.push(banCount>0
+        ? '<span class="pcard__tag pcard__tag--warn">'+banCount+' '+(banCount===1?'бан':'банов')+'</span>'
+        : '<span class="pcard__tag pcard__tag--ok">банов нет</span>');
+    }
+    var hoursTag = formatHoursShort(p.rust_playtime_minutes);
+    if(hoursTag) tags.push('<span class="pcard__tag">'+hoursTag+' в Rust</span>');
+    var hours2wTag = formatHoursShort(p.rust_playtime_2weeks_minutes);
+    if(hours2wTag) tags.push('<span class="pcard__tag">'+hours2wTag+' за 2 недели</span>');
+
+    var trustColor = TRUST_COLOR(p.trust.score);
+    var ringHtml =
+      '<div class="trust__ring">'+
+        '<svg width="96" height="96"><circle class="bgc" cx="48" cy="48" r="42"/>'+
+        '<circle class="fgc" cx="48" cy="48" r="42" style="stroke:'+trustColor+';stroke-dashoffset:'+(264-264*(p.trust.score/100))+'"/></svg>'+
+        '<div class="trust__num"><b style="color:'+trustColor+'">'+p.trust.score+'</b><span>trust</span></div>'+
+      '</div>'+
+      '<div class="pcard__trust-label">'+escapeHtml(p.trust.label)+'</div>';
+
+    var factorsHtml = (p.trust.factors||[]).map(renderFactorRow).join('');
+
+    var historyHtml;
+    if(!p.server_history || p.server_history.length===0){
+      historyHtml = '<div class="phist__empty">Наблюдение за этим игроком начато — история появится по мере игры.</div>';
+    } else {
+      historyHtml = '<div class="phist">'+p.server_history.map(function(row){
+        var hours = formatHoursShort(row.duration_minutes);
+        return '<div class="phist__row'+(row.is_current?' is-now':'')+'">'+
+          '<span class="phist__srv">'+escapeHtml(row.server_name||'неизвестный сервер')+'</span>'+
+          '<span class="phist__hours">'+(hours||'—')+'</span>'+
+          '<span class="phist__when">'+escapeHtml(formatPeriod(row))+'</span>'+
+        '</div>';
+      }).join('')+'</div>'+
+      (p.server_history.length<3 ? '<p class="phist__note">История пока короткая — прирастает по мере наблюдения.</p>' : '');
+    }
+
+    playerResult.innerHTML =
+      '<div class="pcard">'+
+        '<div class="pcard__head">'+
+          '<div class="pcard__ava">'+avaHtml+'</div>'+
+          '<div>'+
+            '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">'+
+              '<div class="pcard__nick">'+escapeHtml(p.name||'без ника')+'</div>'+statusHtml+
+            '</div>'+
+            '<div class="pcard__id">'+idLine+'</div>'+
+            '<div class="pcard__tags">'+tags.join('')+'</div>'+
+          '</div>'+
+          '<div style="margin-left:auto;text-align:center">'+ringHtml+'</div>'+
+        '</div>'+
+        '<div class="pfactors">'+
+          '<div class="pfactors__title">Из чего складывается оценка</div>'+
+          factorsHtml+
+          '<p class="pfactors__foot">Инвентарь в оценку не входит. Его стоимость и содержимое — в боте.</p>'+
+        '</div>'+
+        '<div class="phist__title">Где играл</div>'+
+        '<div class="phist__cap">по данным наблюдения RustPeek</div>'+
+        historyHtml+
+      '</div>';
+
+    if(!reduced){
+      requestAnimationFrame(function(){
+        setTimeout(function(){
+          var fgc = playerResult.querySelector('.trust__ring .fgc');
+          if(fgc) fgc.style.strokeDashoffset = 264 - 264*(p.trust.score/100);
+        }, 60);
+      });
+    }
+  }
+
+  function renderPlayerSkeleton(){
+    playerResult.innerHTML =
+      '<div class="p-skeleton">'+
+        '<div class="p-skeleton__head">'+
+          '<div class="p-sk-bar p-skeleton__ava"></div>'+
+          '<div class="p-skeleton__lines">'+
+            '<div class="p-sk-bar" style="width:40%;height:18px"></div>'+
+            '<div class="p-sk-bar" style="width:60%"></div>'+
+            '<div class="p-sk-bar" style="width:30%"></div>'+
+          '</div>'+
+        '</div>'+
+        '<div class="p-sk-bar" style="width:100%;margin-bottom:8px"></div>'+
+        '<div class="p-sk-bar" style="width:100%;margin-bottom:8px"></div>'+
+        '<div class="p-sk-bar" style="width:100%"></div>'+
+      '</div>';
+  }
+
+  function renderPlayerState(text, warn){
+    playerResult.innerHTML = '<div class="p-state'+(warn?' p-state--warn':'')+'">'+escapeHtml(text)+'</div>';
+  }
+
+  var playerSearchBusy = false;
+  function runPlayerSearch(){
+    var q = playerSearch.value.trim();
+    if(!q || playerSearchBusy) return;
+    playerSearchBusy = true;
+    renderPlayerSkeleton();
+    fetch(API_BASE + '/api/player/' + encodeURIComponent(q))
+      .then(function(r){
+        if(r.status===404) throw {kind:'not_found'};
+        if(r.status===503) throw {kind:'steam_unavailable'};
+        if(!r.ok) throw {kind:'steam_unavailable'};
+        return r.json();
+      })
+      .then(function(data){
+        renderPlayerCard(data);
+      })
+      .catch(function(err){
+        if(err && err.kind==='not_found'){
+          renderPlayerState('Профиль не найден — проверь SteamID.', false);
+        } else {
+          renderPlayerState('Steam не отвечает, попробуй позже.', true);
+        }
+      })
+      .finally(function(){
+        playerSearchBusy = false;
+      });
+  }
+  playerSearchBtn.addEventListener('click', runPlayerSearch);
+  playerSearch.addEventListener('keydown', function(e){
+    if(e.key==='Enter') runPlayerSearch();
+  });
+
+  // deep link: ?pq=... — поиск игрока с лендинга (аналог ?q= для серверов)
+  var initialPq = new URLSearchParams(location.search).get('pq');
+  if(initialPq){
+    playerSearch.value = initialPq;
+    if(location.hash === '#players') runPlayerSearch();
   }
 
   /* ---------- ВОЧЛИСТ ---------- */
