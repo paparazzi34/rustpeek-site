@@ -1,0 +1,1210 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RustPeek — я помню каждый вайп</title>
+<meta name="description" content="Telegram-бот для игроков Rust: настоящие даты вайпов по анализу циклов онлайна, досье на игроков, вочлист 24/7 и рейд-алерты Rust+.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<!-- display=optional (не swap) — держит фолбэк, если шрифт не успел закэшироваться,
+     вместо позднего FOUT-подмена, который двигает layout и бьёт CLS (см. отчёт 2026-07-26) -->
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=optional" rel="stylesheet">
+<style>
+:root{
+  --bg:#100d0b;
+  --void:#0a0806;       /* чуть темнее --bg — слоган-полоса */
+  --surface:#1a1512;
+  --surface-2:#221b16;
+  --rust:#c9501e;
+  --rust-hot:#e86a2f;
+  --patina:#7a8450;
+  --green:#6fae5c;
+  --yellow:#d9a53f;
+  --paper:#e5dccb;      /* бумага досье */
+  --paper-2:#dbd1bd;
+  --ink:#221c15;        /* чернила на бумаге */
+  --bone:#e8e0d2;
+  --steel:#8a8078;
+  --line:#2c241d;
+  --line-paper:#c4b89f;
+  --font-display:'Unbounded', system-ui, sans-serif;
+  --font-body:'IBM Plex Sans', system-ui, sans-serif;
+  --font-mono:'JetBrains Mono', ui-monospace, monospace;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  background:var(--bg);
+  color:var(--bone);
+  font-family:var(--font-body);
+  font-size:17px;
+  line-height:1.62;
+  overflow-x:hidden;
+}
+body::before{
+  content:'';position:fixed;inset:0;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='0.05'/%3E%3C/svg%3E");
+  pointer-events:none;z-index:1000;mix-blend-mode:overlay;
+}
+::selection{background:var(--rust);color:var(--bg)}
+a{color:inherit}
+button{font-family:inherit;color:inherit;background:none;border:none;cursor:pointer}
+
+.wrap{max-width:1160px;margin:0 auto;padding-left:28px;padding-right:28px}
+
+/* ---------- NAV ---------- */
+.nav{
+  position:fixed;top:0;left:0;right:0;z-index:100;
+  background:rgba(16,13,11,.88);
+  backdrop-filter:blur(6px);
+  border-bottom:1px solid var(--line);
+}
+.nav__in{
+  max-width:1160px;margin:0 auto;
+  display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:16px;
+  padding:14px 28px;
+}
+.nav__logo{
+  font-family:var(--font-display);font-weight:700;font-size:18px;
+  text-decoration:none;display:flex;align-items:center;gap:0;
+  justify-self:start;
+}
+.nav__logo b{color:var(--rust-hot);font-weight:800}
+.nav__dot{width:8px;height:8px;border-radius:50%;margin-right:10px;background:var(--rust-hot);
+  box-shadow:0 0 12px var(--rust-hot);animation:pulse 2.4s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+/* центр — якорные ссылки строчными, разделены точкой (2026-07-26,
+   переделка первого экрана); CTA один, справа, см. .nav__cta */
+.nav__center{display:flex;gap:0;align-items:center;font-size:14px;justify-self:center;white-space:nowrap}
+.nav__a{text-decoration:none;color:var(--steel);transition:color .2s;font-weight:500}
+.nav__a:hover{color:var(--bone)}
+.nav__center .sep{color:var(--line);margin:0 12px}
+.nav__cta{justify-self:end}
+.btn{
+  display:inline-flex;align-items:center;gap:10px;
+  font-weight:600;font-size:15px;text-decoration:none;
+  padding:11px 20px;border-radius:3px;
+  transition:background .2s, border-color .2s, color .2s, transform .2s;
+}
+.btn:hover{transform:translateY(-2px)}
+.btn:active{transform:translateY(0)}
+.btn--solid{background:var(--rust);color:#fff;border:1px solid var(--rust)}
+.btn--solid:hover{background:var(--rust-hot);border-color:var(--rust-hot)}
+.btn--ghost{border:1px solid var(--line);color:var(--bone)}
+.btn--ghost:hover{border-color:var(--steel)}
+.btn--ink{background:var(--ink);color:var(--paper);border:1px solid var(--ink)}
+.btn--ink:hover{background:#3a2f22}
+
+/* ---------- ТИКЕР ---------- */
+.ticker{
+  margin-top:78px;
+  border-bottom:1px solid var(--line);
+  overflow:hidden;
+  font-family:var(--font-mono);font-size:12.5px;
+  color:var(--steel);
+  background:var(--surface);
+}
+.ticker__track{
+  display:inline-flex;gap:0;white-space:nowrap;
+  padding:9px 0;
+  animation:ticker 46s linear infinite;
+}
+.ticker:hover .ticker__track{animation-play-state:paused}
+.ticker__track span{padding:0 28px;border-right:1px solid var(--line)}
+.ticker__track b{color:var(--rust-hot);font-weight:600}
+.ticker__track i{color:var(--green);font-style:normal}
+.ticker__type{font-weight:600}
+.ticker__type--wipe{color:var(--green)}
+.ticker__type--cycle{color:var(--yellow)}
+.ticker__type--status{color:var(--steel)}
+@keyframes ticker{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+
+/* ---------- HERO (переделка первого экрана, 2026-07-26) ---------- */
+.hero{padding:60px 0 52px}
+.hero h1{
+  font-family:var(--font-display);font-weight:800;
+  font-size:clamp(28px, 4.1vw, 46px);
+  line-height:1.24;letter-spacing:-.01em;
+  max-width:19ch;
+}
+.hero h1 .line{display:block;opacity:0;transform:translateY(14px)}
+.hero h1 .hot{color:var(--rust-hot)}
+.hero.is-in h1 .line{
+  animation:heroLine .6s cubic-bezier(.2,.7,.2,1) forwards;
+}
+.hero.is-in h1 .line:nth-child(1){animation-delay:0ms}
+.hero.is-in h1 .line:nth-child(2){animation-delay:80ms}
+@keyframes heroLine{to{opacity:1;transform:translateY(0)}}
+
+.hero__meta{
+  margin-top:14px;font-family:var(--font-mono);font-size:13px;color:var(--steel);
+  opacity:0;transform:translateY(10px);
+}
+.hero.is-in .hero__meta{
+  animation:heroLine .5s cubic-bezier(.2,.7,.2,1) forwards;animation-delay:170ms;
+}
+.hero__meta b{color:var(--bone);font-weight:600}
+
+.hero__search{
+  margin-top:30px;display:flex;max-width:620px;height:54px;
+  border:1px solid var(--line);border-radius:6px;overflow:hidden;
+  background:var(--surface);transition:border-color .2s;
+  opacity:0;transform:translateY(10px);
+}
+.hero__search:focus-within{border-color:var(--rust)}
+.hero.is-in .hero__search{
+  animation:heroLine .6s cubic-bezier(.2,.7,.2,1) forwards;
+  animation-delay:280ms;
+}
+.hero__search-input{
+  flex:1;min-width:0;border:none;background:transparent;
+  padding:0 18px;color:var(--bone);font-size:15.5px;font-family:inherit;
+}
+.hero__search-input::placeholder{color:var(--steel)}
+.hero__search-input:focus{outline:none}
+.hero__search-btn{
+  background:var(--rust);color:#fff;font-weight:600;font-size:15px;
+  padding:0 26px;white-space:nowrap;border-radius:0;transition:background .2s;
+}
+.hero__search-btn:hover{background:var(--rust-hot)}
+
+.hero__quick{
+  margin-top:18px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  opacity:0;transform:translateY(8px);
+}
+.hero.is-in .hero__quick{
+  animation:heroLine .5s cubic-bezier(.2,.7,.2,1) forwards;animation-delay:400ms;
+}
+.hero__quick-label{font-family:var(--font-body);font-size:12.5px;color:var(--steel)}
+.hero__chip{
+  font-family:var(--font-body);font-size:12.5px;color:var(--steel);
+  border:1px solid var(--line);border-radius:16px;padding:5px 13px;
+  transition:all .18s;
+}
+.hero__chip:hover{border-color:var(--rust);color:var(--rust-hot)}
+.hero__player-link{
+  margin-left:auto;
+  font-family:var(--font-body);font-size:13px;color:var(--steel);
+  text-decoration:none;border-bottom:1px dashed var(--line);
+  transition:color .2s, border-color .2s;
+}
+.hero__player-link:hover{color:var(--rust-hot);border-color:var(--rust-hot)}
+
+/* ---------- ПОЛОСА СЧЁТЧИКОВ (отдельная секция под хиро) ---------- */
+.counterbar{
+  border-top:1px solid var(--line);border-bottom:1px solid var(--line);
+  display:flex;flex-wrap:wrap;
+}
+.counterbar__item{
+  flex:1 1 0;min-width:150px;padding:22px 24px;border-left:1px solid var(--line);
+}
+.counterbar__item:first-child{border-left:none}
+.counterbar__item b{
+  display:block;font-family:var(--font-mono);font-size:clamp(20px,2.3vw,28px);
+  color:var(--bone);font-variant-numeric:tabular-nums;
+}
+.counterbar__item span{
+  font-family:var(--font-body);font-size:11.5px;color:var(--steel);
+  text-transform:uppercase;letter-spacing:.06em;
+}
+.counterbar__item.is-accent b, .counterbar__item.is-accent span{color:var(--green)}
+
+/* ---------- СЛОГАН-ПОЛОСА (тёмный фон, без счётчиков) ---------- */
+.slogan-strip{background:var(--void);padding:52px 0}
+.slogan-strip .slogan__line{
+  font-family:var(--font-display);font-weight:700;
+  font-size:clamp(21px,2.9vw,32px);line-height:1.3;
+}
+.slogan-strip .slogan__line .dim{color:var(--steel);font-weight:700}
+.slogan-strip .slogan__line .hot{color:var(--rust-hot)}
+.slogan-strip__note{
+  margin-top:14px;font-family:var(--font-mono);font-size:13.5px;color:var(--steel);
+  max-width:56ch;
+}
+
+/* ---------- СЛОГАН + ЖИВЫЕ СЧЁТЧИКИ ---------- */
+/* ---------- СЕКЦИИ ОБЩЕЕ ---------- */
+.sec-head{
+  display:flex;align-items:baseline;gap:22px;flex-wrap:wrap;
+  padding-top:104px;
+}
+.sec-head__no{
+  font-family:var(--font-mono);font-size:13px;color:var(--rust);
+  letter-spacing:.12em;
+}
+.sec-head h2{
+  font-family:var(--font-display);font-weight:700;
+  font-size:clamp(26px,3.4vw,40px);line-height:1.15;
+}
+
+/* ---------- ДОСЬЕ (бумага) ---------- */
+.paper{
+  background:var(--paper);
+  color:var(--ink);
+  margin-top:100px;
+  position:relative;
+}
+.paper::before,.paper::after{
+  content:'';position:absolute;left:0;right:0;height:10px;
+  background-image:linear-gradient(45deg, var(--bg) 25%, transparent 25%), linear-gradient(-45deg, var(--bg) 25%, transparent 25%);
+  background-size:14px 14px;
+}
+.paper::before{top:-1px}
+.paper::after{bottom:-1px;transform:scaleY(-1)}
+.paper__in{
+  max-width:1160px;margin:0 auto;
+  padding:84px 28px 90px;
+  display:grid;grid-template-columns:1fr 1fr;gap:64px;
+}
+/* min-width:0 на грид-айтемах — без него replaced-элемент (SVG-график в
+   .atlas с intrinsic width=520) диктует min-content всей 1fr-колонке и
+   раздувает грид шире вьюпорта на мобиле (классический CSS Grid blowout) */
+.paper__in > *{min-width:0}
+.paper__text{
+  opacity:0;transform:translateX(-16px);
+  transition:transform .7s cubic-bezier(.2,.7,.2,1), opacity .7s ease;
+}
+.paper__text.is-in{opacity:1;transform:translateX(0)}
+.paper__eyebrow{
+  font-family:var(--font-mono);font-size:12.5px;
+  letter-spacing:.14em;text-transform:uppercase;
+  color:#8a7a5e;margin-bottom:16px;
+}
+.paper h2{
+  font-family:var(--font-display);font-weight:700;
+  font-size:clamp(26px,3.2vw,38px);line-height:1.14;
+  max-width:16ch;
+}
+.paper p{margin-top:18px;color:#4c4232;font-size:16.5px;max-width:52ch}
+.paper p b{color:var(--ink);font-weight:600}
+.paper__pattern{
+  margin-top:30px;
+  font-family:var(--font-mono);font-size:13.5px;
+  border:1px solid var(--line-paper);
+  background:var(--paper-2);
+  padding:18px 20px;
+  color:#4c4232;
+}
+.paper__pattern b{color:var(--rust);font-weight:600}
+.atlas{
+  background:var(--bg);
+  color:var(--bone);
+  border:1px solid #b3a789;
+  box-shadow:6px 6px 0 rgba(34,28,21,.18);
+  padding:26px 26px 22px;
+  position:relative;
+  align-self:start;
+  transform:rotate(2deg) translateX(18px);
+  opacity:0;
+  transition:transform .7s cubic-bezier(.2,.7,.2,1), opacity .7s ease;
+}
+.atlas.is-in{transform:rotate(.6deg) translateX(0);opacity:1}
+.atlas__stamp{
+  position:absolute;top:14px;right:-14px;
+  transform:rotate(7deg);
+  font-family:var(--font-mono);font-weight:600;font-size:12px;
+  letter-spacing:.1em;text-transform:uppercase;
+  color:var(--green);
+  border:2px solid var(--green);
+  padding:6px 12px;
+  background:rgba(16,13,11,.92);
+  box-shadow:0 0 0 3px rgba(16,13,11,.92);
+}
+.atlas__title{
+  font-family:var(--font-display);font-weight:700;font-size:16px;
+  max-width:calc(100% - 96px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.atlas__meta{font-family:var(--font-body);font-size:12px;color:var(--steel);margin:4px 0 18px}
+.atlas__chart-wrap{position:relative}
+.atlas__chart-wrap svg{display:block;width:100%;height:auto;overflow:visible}
+.atlas__area{fill:url(#atlasGrad);stroke:none}
+.atlas__line{
+  fill:none;stroke:var(--rust-hot);stroke-width:2;
+  stroke-linecap:round;stroke-linejoin:round;
+  filter:drop-shadow(0 0 5px rgba(232,106,47,.5));
+}
+.atlas__wipedot{fill:var(--rust-hot)}
+.atlas__wipedot.is-pulse{animation:atlasPulse 1.1s ease-out 1}
+@keyframes atlasPulse{
+  0%{r:4;opacity:1}
+  70%{r:12;opacity:0}
+  100%{r:4;opacity:1}
+}
+.atlas__hoverline{
+  stroke:var(--line);stroke-width:1;opacity:0;pointer-events:none;
+  transition:opacity .12s, x1 .06s linear, x2 .06s linear, y1 .06s linear;
+}
+.atlas__hoverline.is-visible{opacity:1}
+.atlas__hoverdot{
+  fill:var(--rust-hot);stroke:var(--bg);stroke-width:2;opacity:0;pointer-events:none;
+  transition:opacity .12s, cx .06s linear, cy .06s linear;
+}
+.atlas__hoverdot.is-visible{opacity:1}
+.atlas__tooltip{
+  position:absolute;pointer-events:none;top:0;left:0;
+  background:var(--surface);border:1px solid var(--rust);border-radius:5px;
+  padding:7px 10px;font-family:var(--font-mono);font-size:11.5px;color:var(--bone);
+  white-space:nowrap;opacity:0;transition:opacity .12s;transform:translate(-50%,-125%);
+}
+.atlas__tooltip.is-visible{opacity:1}
+.atlas__tooltip .tt__day{color:var(--steel)}
+.atlas__axistext{font-family:var(--font-mono);font-size:9px;fill:var(--steel)}
+.atlas__wipelabel{font-family:var(--font-mono);font-size:9.5px;fill:var(--rust-hot);font-weight:600}
+.atlas__stats{
+  margin-top:16px;display:grid;grid-template-columns:repeat(4,1fr);gap:10px;
+  font-family:var(--font-body);
+}
+.atlas__stats div{display:flex;flex-direction:column;gap:2px}
+.atlas__stats span{font-size:10.5px;color:var(--steel);text-transform:uppercase;letter-spacing:.06em}
+.atlas__stats b{font-family:var(--font-mono);font-size:15px;color:var(--bone);font-variant-numeric:tabular-nums}
+.atlas__foot{
+  margin-top:16px;padding-top:14px;border-top:1px dashed var(--line);
+  font-family:var(--font-mono);font-size:12px;color:var(--steel);
+}
+.atlas__foot b{color:var(--rust-hot)}
+
+/* ---------- ЧТО УМЕЮ (редакционные ряды) ---------- */
+.rows{margin-top:44px;border-top:1px solid var(--line)}
+.row{
+  display:grid;grid-template-columns:1fr 1fr;gap:56px;
+  padding:56px 0;
+  border-bottom:1px solid var(--line);
+  align-items:center;
+}
+.row > *{min-width:0}
+.row:nth-child(even){grid-template-columns:1fr 1fr}
+.row:nth-child(even) .row__demo{order:-1}
+.row h3{
+  font-family:var(--font-display);font-weight:700;
+  font-size:clamp(21px,2.4vw,28px);line-height:1.2;
+}
+.row__body{max-width:52ch}
+.row__body p{margin-top:14px;color:var(--steel);font-size:16px}
+.row__body p b{color:var(--bone);font-weight:600}
+.row__note{
+  margin-top:16px;
+  font-family:var(--font-mono);font-size:12.5px;color:var(--patina);
+}
+.row__demo{min-width:0}
+
+/* stagger элементов ВНУТРИ строки при входе в вьюпорт — не всей секции разом,
+   каждая .row наблюдается своим IntersectionObserver (см. скрипт внизу) */
+.row__body > *, .row__demo > *{
+  opacity:0;transform:translateY(16px);
+  transition:opacity .5s ease, transform .5s cubic-bezier(.2,.7,.2,1);
+}
+.row.is-in .row__body > *, .row.is-in .row__demo > *{opacity:1;transform:translateY(0)}
+.row__body > *:nth-child(1){transition-delay:0ms}
+.row__body > *:nth-child(2){transition-delay:70ms}
+.row__body > *:nth-child(3){transition-delay:140ms}
+.row__body > *:nth-child(4){transition-delay:210ms}
+.row__demo > *:nth-child(1){transition-delay:120ms}
+.row__demo > *:nth-child(2){transition-delay:190ms}
+.row__demo > *:nth-child(3){transition-delay:260ms}
+
+/* demo: server rows */
+.demo-srv{
+  background:var(--surface);border:1px solid var(--line);border-radius:5px;
+  padding:13px 16px;
+  display:grid;grid-template-columns:12px 1fr auto;gap:12px;align-items:center;
+  font-size:14px;margin-bottom:8px;
+}
+.demo-srv .dot{width:9px;height:9px;border-radius:50%;justify-self:center}
+.dot--g{background:var(--green);box-shadow:0 0 8px rgba(111,174,92,.6)}
+.dot--r{background:#c94a3a;box-shadow:0 0 8px rgba(201,74,58,.5)}
+.dot--y{background:#d9a53f;box-shadow:0 0 8px rgba(217,165,63,.55)}
+.demo-srv b{font-weight:600}
+.demo-srv .m{font-family:var(--font-mono);font-size:11.5px;color:var(--steel);display:block;margin-top:2px}
+.demo-srv .w{font-family:var(--font-mono);font-size:12px;text-align:right;color:var(--bone)}
+.demo-srv .w small{display:block;color:var(--steel)}
+/* demo: trust */
+.demo-trust{
+  background:var(--surface);border:1px solid var(--line);border-radius:5px;
+  padding:20px;display:flex;gap:20px;align-items:center;flex-wrap:wrap;
+}
+.tring{position:relative;width:92px;height:92px;flex:none}
+.tring svg{transform:rotate(-90deg)}
+.tring circle{fill:none;stroke-width:8}
+.tring .bgc{stroke:var(--line)}
+.tring .fgc{stroke:var(--green);stroke-linecap:round;stroke-dasharray:251;stroke-dashoffset:251;
+  transition:stroke-dashoffset 1.1s cubic-bezier(.2,.7,.2,1)}
+.tring__num{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:var(--font-mono)}
+.tring__num b{font-size:22px;color:var(--green)}
+.tring__num span{font-family:var(--font-body);font-size:9.5px;color:var(--steel);text-transform:uppercase;letter-spacing:.08em}
+.demo-trust__t{font-size:14px;color:var(--steel);max-width:34ch}
+.demo-trust__t b{color:var(--bone)}
+.demo-trust__t .mono{font-family:var(--font-mono);font-size:11.5px;display:block;margin-top:8px;color:var(--patina)}
+/* demo: watchlist */
+.demo-wl{background:var(--surface);border:1px solid var(--line);border-radius:5px;padding:13px 16px;
+  display:grid;grid-template-columns:12px 1fr auto;gap:12px;align-items:center;font-size:14px;margin-bottom:8px}
+.demo-wl .m{font-family:var(--font-body);font-size:11.5px;color:var(--steel);display:block;margin-top:2px}
+.demo-wl .t{font-family:var(--font-mono);font-size:11.5px;color:var(--steel)}
+.demo-wl .t i{color:var(--green);font-style:normal}
+/* demo: alerts */
+.demo-al{
+  background:var(--surface);border:1px solid var(--line);border-left:3px solid #c94a3a;border-radius:5px;
+  padding:12px 15px;font-size:14px;margin-bottom:8px;
+  display:flex;gap:12px;align-items:center;
+}
+.demo-al.a2{border-left-color:#d9a53f}
+.demo-al.a3{border-left-color:var(--steel)}
+.demo-al .tm{margin-left:auto;font-family:var(--font-mono);font-size:11.5px;color:var(--steel);flex:none}
+.demo-al > span:not(.tm){min-width:0}
+
+/* ---------- ВЕБ-ВЕРСИЯ ---------- */
+.webv{
+  margin-top:100px;
+  border:1px solid var(--line);
+  background:linear-gradient(120deg, var(--surface) 0%, var(--surface-2) 100%);
+  border-radius:6px;
+  padding:44px 40px;
+  display:grid;grid-template-columns:1.3fr .7fr;gap:40px;align-items:center;
+  position:relative;overflow:hidden;
+}
+.webv > *{min-width:0}
+.webv::after{
+  content:'';position:absolute;right:-60px;top:-60px;width:260px;height:260px;
+  border:1px solid rgba(201,80,30,.25);border-radius:50%;
+}
+.webv h2{font-family:var(--font-display);font-weight:700;font-size:clamp(22px,2.8vw,32px);line-height:1.18}
+.webv p{margin-top:14px;color:var(--steel);max-width:50ch}
+.webv p b{color:var(--bone);font-weight:600}
+.webv__side{display:flex;flex-direction:column;gap:12px;align-items:flex-start;position:relative;z-index:1}
+.webv__tabs{
+  font-family:var(--font-body);font-size:12px;color:var(--steel);
+  display:flex;gap:8px;flex-wrap:wrap;
+}
+.webv__tabs span{border:1px solid var(--line);padding:5px 12px;border-radius:16px}
+.webv__tabs span.on{border-color:var(--rust);color:var(--rust-hot)}
+
+/* ---------- FAQ ---------- */
+.faq{margin-top:44px;border-top:1px solid var(--line)}
+.faq details{border-bottom:1px solid var(--line)}
+.faq summary{
+  cursor:pointer;list-style:none;
+  padding:22px 0;
+  font-weight:600;font-size:17px;
+  display:flex;justify-content:space-between;align-items:center;gap:20px;
+  transition:color .2s;
+}
+.faq summary:hover{color:var(--rust-hot)}
+.faq summary::-webkit-details-marker{display:none}
+.faq summary::after{
+  content:'+';font-family:var(--font-mono);font-size:20px;color:var(--steel);
+  transition:transform .2s;
+}
+.faq details[open] summary::after{transform:rotate(45deg);color:var(--rust-hot)}
+.faq .a{padding:0 0 24px;color:var(--steel);max-width:64ch;font-size:16px}
+.faq .a b{color:var(--bone);font-weight:600}
+
+/* ---------- FINAL ---------- */
+.final{padding-top:120px;padding-bottom:90px;text-align:left}
+.final h2{
+  font-family:var(--font-display);font-weight:800;
+  font-size:clamp(30px,5vw,58px);line-height:1.08;max-width:16ch;
+}
+.final h2 .hot{color:var(--rust-hot)}
+.final p{margin-top:18px;color:var(--steel);font-size:17px;max-width:50ch}
+.final__cta{margin-top:32px;display:flex;gap:14px;flex-wrap:wrap}
+.final__meta{
+  margin-top:30px;
+  font-family:var(--font-mono);font-size:13px;color:var(--steel);
+  display:flex;gap:26px;flex-wrap:wrap;
+}
+.final__meta b{color:var(--bone)}
+
+/* ---------- FOOTER ---------- */
+.footer{border-top:1px solid var(--line)}
+.footer__in{
+  max-width:1160px;margin:0 auto;
+  padding:26px 28px;
+  display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:14px;
+  font-family:var(--font-body);font-size:13px;color:var(--steel);
+}
+.footer__links{display:flex;gap:22px;flex-wrap:wrap}
+.footer a{color:var(--steel);text-decoration:none;transition:color .2s}
+.footer a:hover{color:var(--rust-hot)}
+
+/* ---------- RESPONSIVE ---------- */
+@media(max-width:900px){
+  .paper__in,.row,.webv{grid-template-columns:1fr;gap:32px}
+  .row:nth-child(even){grid-template-columns:1fr}
+  .row:nth-child(even) .row__demo{order:0}
+  /* нав переполнял вьюпорт по горизонтали на мобиле (логотип + 4 ссылки/кнопки
+     не помещались в 390px) — баг был уже в проде, не только в редизайне,
+     чиню заодно (2026-07-26, мобильный QA-проход). Оставляю логотип и
+     главный CTA, остальное прячу — как и было с текстовыми nav__a. */
+  .nav__in{padding:14px 16px;grid-template-columns:auto 1fr auto}
+  .nav__center{display:none}
+  .nav__cta{padding:9px 14px;font-size:13.5px}
+  .counterbar__item{flex:1 1 50%;padding:16px 18px}
+
+  /* мобила (≤900px, ТЗ редизайна 2026-07-26): сдержанный режим — только
+     fade+translate ≤300мс, без stagger/наклонов/hover-эффектов. Докрутка
+     счётчиков и отрисовка графика Atlas остаются (дешёвые, не scroll-linked). */
+  .hero h1 .line,.hero__meta,.hero__search,.hero__quick{transition:none;animation:none!important;opacity:1;transform:none}
+  .atlas{transform:none;transition-duration:.3s}
+  .atlas.is-in{transform:none}
+  .paper__text{transition-duration:.3s}
+  .row__body > *, .row__demo > *{transition-duration:.3s!important;transition-delay:0ms!important}
+}
+@media(prefers-reduced-motion:reduce){
+  *{animation:none!important;transition:none!important}
+  .ticker__track{animation:none!important}
+  .hero h1 .line,.hero__meta,.hero__search,.hero__quick{opacity:1!important;transform:none!important}
+  .paper__text,.atlas{opacity:1!important;transform:none!important}
+  .row__body > *, .row__demo > *{opacity:1!important;transform:none!important}
+  .atlas__line{stroke-dashoffset:0!important}
+}
+:focus-visible{outline:2px solid var(--rust-hot);outline-offset:3px}
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="nav__in">
+    <a class="nav__logo" href="#"><span class="nav__dot"></span><span class="nav__logo-text">Rust<b>Peek</b></span></a>
+    <div class="nav__center">
+      <a class="nav__a" href="#how">как работает</a><span class="sep">·</span>
+      <a class="nav__a" href="#features">что умею</a><span class="sep">·</span>
+      <a class="nav__a" href="#faq">вопросы</a>
+    </div>
+    <a class="btn btn--solid nav__cta" href="https://t.me/RustPeek_Bot" target="_blank" rel="noopener">Открыть бота</a>
+  </div>
+</nav>
+
+<!-- живой лог мониторинга: подтянется из /api/events/recent, см. скрипт внизу.
+     Эти строки — фолбэк без таймстампов, на случай если API молчит. -->
+<div class="ticker" aria-hidden="true">
+  <div class="ticker__track" id="tickerTrack">
+    <span>слежу за онлайном серверов круглосуточно</span>
+    <span>вайп подтверждаю по форме кривой — пик → провал → рост, а не по словам админа</span>
+    <span>Trust Score считаю по часам, возрасту аккаунта и банам</span>
+    <span>историю сервера не обнуляю — помню циклы месяцами</span>
+    <span>дубли и ложные срабатывания отсекаю прежде, чем показать тебе дату</span>
+  </div>
+</div>
+
+<header class="hero" id="hero">
+  <div class="wrap">
+    <h1>
+      <span class="line">Настоящие даты вайпов —</span>
+      <span class="line">по циклам онлайна, <span class="hot">не по словам админа</span>.</span>
+    </h1>
+    <p class="hero__meta"><b data-stat="servers_tracked">1 098</b> серверов под наблюдением · история пишется круглосуточно с мая</p>
+    <form class="hero__search" id="heroSearchForm" action="rustpeek_app.html" method="get">
+      <input class="hero__search-input" id="heroSearchInput" type="text" name="q" placeholder="Rustafied, Atlas, Magic Rust…" autocomplete="off">
+      <button class="hero__search-btn" type="submit">Найти</button>
+    </form>
+    <div class="hero__quick" id="heroQuick">
+      <span class="hero__quick-label">часто ищут:</span>
+      <button class="hero__chip" type="button" data-q="Rustafied">Rustafied</button>
+      <button class="hero__chip" type="button" data-q="Atlas">Atlas</button>
+      <button class="hero__chip" type="button" data-q="Bestrust">Bestrust</button>
+      <button class="hero__chip" type="button" data-q="Magic Rust">Magic Rust</button>
+      <a class="hero__player-link" href="rustpeek_app.html#players">или пробей игрока →</a>
+    </div>
+  </div>
+</header>
+
+<!-- ================= ПОЛОСА СЧЁТЧИКОВ ================= -->
+<div class="counterbar">
+  <div class="counterbar__item"><b data-stat="online_measurements">1 980 611</b><span>замеров онлайна</span></div>
+  <div class="counterbar__item"><b data-stat="wipes">9 676</b><span>вайпов в памяти</span></div>
+  <div class="counterbar__item"><b data-stat="servers_total">2 479</b><span>серверов в базе</span></div>
+  <div class="counterbar__item is-accent"><b>топ-500</b><span>прямой A2S-скан</span></div>
+</div>
+
+<!-- ================= СЛОГАН-ПОЛОСА ================= -->
+<div class="slogan-strip">
+  <div class="wrap">
+    <p class="slogan__line"><span class="dim">BattleMetrics — снапшот.</span> Я — <span class="hot">память</span>.</p>
+    <p class="slogan-strip__note">Снапшот покажет число в моменте. Я покажу, что за этим числом стоит — и что будет дальше.</p>
+  </div>
+</div>
+
+<!-- ================= КАК Я ЛОВЛЮ ВАЙПЫ (живая карточка Atlas, server_id=299) ================= -->
+<section class="paper" id="how">
+  <div class="paper__in">
+    <div class="paper__text" id="paperText">
+      <div class="paper__eyebrow">Дело № 1 · метод</div>
+      <h2>Почему я знаю больше</h2>
+      <p>Поле «дата вайпа» на мониторингах заполняет <b>админ сервера</b>. Захотел — обновил, забыл — висит прошлогоднее. А «JUST WIPED» в названии — это маркетинг: у половины серверов оно стоит там <b>вечно</b>, как неоновая вывеска.</p>
+      <p>Я словам не верю. Я смотрю на <b>форму онлайна</b>. У настоящего вайпа есть подпись, которую нельзя подделать:</p>
+      <div class="paper__pattern">
+        <b>пик</b> — сервер жил, народ фармил
+        <br><b>провал</b> — рестарт, карта стёрта, все вылетели
+        <br><b>рост</b> — толпа врывается на свежую землю
+      </div>
+      <p>Нет подписи — нет вайпа, что бы ни писал админ. Есть подпись — я фиксирую дату с точностью до минуты, считаю цикл сервера и говорю тебе, <b>когда будет следующий</b> — если цикл вообще устойчив. Не устойчив — так и скажу: «не определён», а не нарисую число.</p>
+    </div>
+    <div class="atlas" id="atlasCard">
+      <div class="atlas__stamp">вайп подтверждён ✓</div>
+      <div class="atlas__title" id="atlasTitle">Atlas - EU 2X Monthly | Vanilla+ | No BP Wipes</div>
+      <div class="atlas__meta">реальный сервер · текущий цикл · server_id 299</div>
+      <div class="atlas__chart-wrap">
+        <svg viewBox="0 0 520 190" width="520" height="190" id="atlasSvg" preserveAspectRatio="none">
+          <defs>
+            <linearGradient id="atlasGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#c9501e" stop-opacity=".28"/>
+              <stop offset="100%" stop-color="#c9501e" stop-opacity="0"/>
+            </linearGradient>
+          </defs>
+          <polygon class="atlas__area" id="atlasArea" points=""></polygon>
+          <polyline class="atlas__line" id="atlasLine" points=""></polyline>
+          <circle class="atlas__wipedot" id="atlasWipeDot" r="4" cx="0" cy="0"></circle>
+          <g id="atlasAxis"></g>
+          <rect id="atlasHoverArea" x="0" y="0" width="520" height="190" fill="transparent"></rect>
+          <line class="atlas__hoverline" id="atlasHoverLine" x1="0" y1="0" x2="0" y2="170"></line>
+          <circle class="atlas__hoverdot" id="atlasHoverDot" r="4.5" cx="0" cy="0"></circle>
+        </svg>
+        <div class="atlas__tooltip" id="atlasTooltip"></div>
+      </div>
+      <div class="atlas__stats">
+        <div><span>цикл</span><b id="atlasCycle">7 дней</b></div>
+        <div><span>след. вайп</span><b id="atlasNext">~30.07</b></div>
+        <div><span>прайм</span><b id="atlasPrime">17:00–21:00</b></div>
+        <div><span>пик цикла</span><b id="atlasPeak">1 495</b></div>
+      </div>
+      <div class="atlas__foot">Веду историю этого сервера уже <b id="atlasHistoryDays">2 месяца</b></div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= ЧТО УМЕЮ ================= -->
+<div class="wrap" id="features">
+  <div class="sec-head">
+    <span class="sec-head__no">Дело № 2</span>
+    <h2>Что умею</h2>
+  </div>
+
+  <div class="rows">
+
+    <div class="row">
+      <div class="row__body">
+        <h3>Поиск серверов — с правдой о вайпе</h3>
+        <p>Ищи по названию или собирай подбор фильтрами: тип, рейт, цикл, стадия, размер команды, онлайн. Каждый сервер в выдаче получает честную метку: <b>🟢 Свежий вайп</b> — меньше 24 часов, <b>🟡 вайп скоро</b> — успей собрать команду. Цикл посчитан не всегда — если интервалы между вайпами гуляют, честно пишу «не определён», а не рисую дату.</p>
+        <p>Сортировка «Свежий вайп» поднимает сервера, которые вайпнулись <b>по-настоящему</b>, а не переименовались в JUST WIPED третий месяц подряд.</p>
+        <div class="row__note">даты валидируются по циклам онлайна, не по полю last_wipe</div>
+      </div>
+      <div class="row__demo">
+        <div class="demo-srv"><span class="dot dot--g"></span><span><b>EU RENEGADE 2x Monthly Medium</b><span class="m">👥 106/150 · 🗺 4250 · x2</span></span><span class="w">🟢 Свежий вайп 25.07<small>след. вайп ~01.08</small></span></div>
+        <div class="demo-srv"><span class="dot dot--g"></span><span><b>[EU] RustValley 10x PVE #2</b><span class="m">👥 28/100 · 🗺 4500 · x10</span></span><span class="w">🟢 Свежий вайп 25.07<small>след. вайп ~28.07</small></span></div>
+        <div class="demo-srv"><span class="dot dot--g"></span><span><b>Rustoria.co - EU East Medium</b><span class="m">👥 209/225 · 🗺 4250 · x1</span></span><span class="w">🟢 Свежий вайп 25.07<small>цикл не определён</small></span></div>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="row__body">
+        <h3>Досье на игрока</h3>
+        <p>SteamID или ссылка на профиль — и я собираю картину: <b>Trust Score</b>, часы в игре, возраст аккаунта, баны, на каких серверах играл и когда. Убил тебя подозрительно меткий парень? Пробей — и решай, читер это или просто у тебя был плохой день.</p>
+        <p>Профиль закрыт? Для меня это не стена: я <b>сканирую топ-500 серверов напрямую через A2S</b> и вижу игроков, которых не видит Steam.</p>
+        <div class="row__note">закрытый профиль = «неизвестно», а не фейковый ноль — я не выдумываю</div>
+      </div>
+      <div class="row__demo">
+        <div class="demo-trust">
+          <div class="tring">
+            <svg width="92" height="92"><circle class="bgc" cx="46" cy="46" r="40"/><circle class="fgc" id="trustRing" cx="46" cy="46" r="40"/></svg>
+            <div class="tring__num"><b>73</b><span>trust</span></div>
+          </div>
+          <div class="demo-trust__t"><b>paparazzi34</b> <span style="color:var(--green)">● в сети</span> — RustPeek в целом доверяет, но проверь сам.
+            <span class="mono">ветеран 5+ лет · Rust 1611ч (1000ч+) · аккаунт с 2021 · профиль открыт · банов нет</span>
+            <span class="mono">наблюдение RustPeek: ведётся</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="row__body">
+        <h3>Вочлист — слежу, пока ты спишь</h3>
+        <p>Добавь врагов, соседей или старых тиммейтов — я буду смотреть за ними <b>круглосуточно</b> и пришлю пуш в ту же секунду, как цель зайдёт на сервер. Соседи проснулись в 4 утра? Ты узнаешь об этом раньше, чем они докопаются до твоего лута.</p>
+        <p>В списке всё по-взрослому: кто онлайн, где именно, когда зашёл. Онлайн — сверху, офлайн — снизу, ничего не ищется глазами.</p>
+        <div class="row__note">пуш приходит в Telegram — туда, где ты и так сидишь</div>
+      </div>
+      <div class="row__demo">
+        <div class="demo-wl"><span class="dot dot--g"></span><span><b>xX_Raider_Xx</b><span class="m">на Magic Rust #4</span></span><span class="t"><i>зашёл 2ч назад</i></span></div>
+        <div class="demo-wl"><span class="dot dot--y"></span><span><b>НагибаторВаня</b><span class="m">профиль скрыт · вижу через A2S</span></span><span class="t"><i>зашёл 15 мин назад</i></span></div>
+        <div class="demo-wl"><span class="dot" style="background:var(--steel);opacity:.5"></span><span><b>sleepy_bob</b><span class="m">офлайн</span></span><span class="t">был вчера 23:10</span></div>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="row__body">
+        <h3>Rust+ на стероидах</h3>
+        <p>Подключи пару Rust+ — и я стану твоим дежурным: <b>рейды, Smart Alarm, смерти, события карты</b> прилетают в Telegram мгновенно. Официальное приложение опять отвалилось? У меня свой канал — FCM-пуши напрямую.</p>
+        <p>Для рейдов есть <b>громкий режим</b>: серия алертов подряд, чтобы телефон разбудил тебя даже ночью. Проспать рейд — больно. Со мной — не проспишь.</p>
+        <div class="row__note">рейд в 4 утра — это не вопрос «если», это вопрос «когда»</div>
+      </div>
+      <div class="row__demo">
+        <div class="demo-al">🚨 <span><b>РЕЙД!</b> Взрыв у базы — Smart Alarm «Главная дверь»</span><span class="tm">14:32</span></div>
+        <div class="demo-al a2">📟 <span>Smart Alarm <b>«Ловушка в гараже»</b> — движение</span><span class="tm">11:07</span></div>
+        <div class="demo-al a3">💀 <span>Ты умер. <b>ShadowKiller_228</b> — AK-47, 87м</span><span class="tm">23:48</span></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ================= ВЕБ-ВЕРСИЯ ================= -->
+<div class="wrap">
+  <div class="webv">
+    <div>
+      <h2>Всё то же — на большом экране</h2>
+      <p>История по дням, циклы, досье игроков и вочлист — <b>в браузере</b>, когда телефон лень доставать. Тот же аккаунт, те же данные, ноль настройки.</p>
+    </div>
+    <div class="webv__side">
+      <div class="webv__tabs"><span class="on">Серверы</span><span>Игроки</span><span>Вочлист</span><span>Rust+</span></div>
+      <a class="btn btn--solid" href="rustpeek_app.html">Открыть веб-версию</a>
+    </div>
+  </div>
+</div>
+
+<!-- ================= FAQ ================= -->
+<div class="wrap" id="faq">
+  <div class="sec-head">
+    <span class="sec-head__no">Дело № 3</span>
+    <h2>Вопросы, которые задают все</h2>
+  </div>
+  <div class="faq">
+    <details>
+      <summary>Откуда у тебя данные?</summary>
+      <div class="a">Три источника: публичная статистика мониторингов, <b>прямой A2S-опрос серверов</b> (тот же протокол, которым пользуется сама игра) и моя собственная база истории, которую я пишу круглосуточно уже не первый месяц. Снапшот любой может показать — <b>историю</b> надо было начать собирать вовремя. Я начал.</div>
+    </details>
+    <details>
+      <summary>Почему нельзя просто верить дате вайпа на мониторинге?</summary>
+      <div class="a">Потому что её заполняет админ сервера — руками. Кто-то честно обновляет, кто-то забывает месяцами, а кто-то <b>врёт специально</b>, чтобы сервер выглядел свежим и собирал онлайн. Я валидирую каждую дату по форме онлайна: пик → провал → рост. Эту подпись подделать нельзя.</div>
+    </details>
+    <details>
+      <summary>Профиль игрока закрыт — что ты вообще увидишь?</summary>
+      <div class="a">Больше, чем ты думаешь. Закрытый профиль прячет статистику Steam, но <b>не прячет самого игрока на сервере</b>: я сканирую топ-500 серверов напрямую и вижу, кто где играет — по факту присутствия. А чего не вижу — честно пишу «неизвестно», а не рисую нолики.</div>
+    </details>
+    <details>
+      <summary>Это бесплатно?</summary>
+      <div class="a">Да, база — бесплатно: поиск, вайпы, досье. Продвинутым штукам вроде слежки за пачкой целей и громких рейд-алертов со временем появится подписка — но <b>сначала я должен быть полезен</b>, потом уже просить денег. Не наоборот.</div>
+    </details>
+    <details>
+      <summary>А если сервер маленький и его нет в твоей базе?</summary>
+      <div class="a">Найду через поиск и <b>возьму под наблюдение</b> — с этого момента история начнёт писаться. Чем раньше добавишь свой сервер, тем длиннее будет его память к следующему циклу.</div>
+    </details>
+  </div>
+</div>
+
+<!-- ================= FINAL ================= -->
+<div class="wrap final">
+  <h2>Хватит играть <span class="hot">вслепую</span>.</h2>
+  <p>Тридцать секунд в Telegram — и у тебя память лучше, чем у любого мониторинга. Вайпы, игроки, слежка, рейд-алерты. Всё в одном боте.</p>
+  <div class="final__cta">
+    <a class="btn btn--solid" href="https://t.me/RustPeek_Bot" target="_blank" rel="noopener">Открыть @RustPeek_Bot</a>
+    <a class="btn btn--ghost" href="rustpeek_app.html">Веб-версия</a>
+  </div>
+  <div class="final__meta">
+    <span><b data-stat="online_measurements_short">~2 млн</b> замеров онлайна</span>
+    <span><b data-stat="wipes">9 676</b> подтверждённых вайпов</span>
+    <span><b>24/7</b> мониторинг</span>
+  </div>
+</div>
+
+<footer class="footer">
+  <div class="footer__in">
+    <span>© 2026 RustPeek</span>
+    <div class="footer__links">
+      <a href="rustpeek_app.html">Веб-версия</a>
+      <a href="https://t.me/RustPeek_Bot" target="_blank" rel="noopener">@RustPeek_Bot</a>
+      <a href="#how">Как это работает</a>
+    </div>
+  </div>
+</footer>
+
+<script>
+(function(){
+  var reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  /* тот же бэкенд, что и веб-версия (rustpeek_app.html) */
+  var API_BASE = 'https://api.rustpeek.ru';
+
+  function escapeHtml(str){
+    return String(str==null ? '' : str).replace(/[&<>"']/g, function(c){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+    });
+  }
+
+  /* ---------- тикер: живой /api/events/recent, дублируем ленту для бесшовного цикла ---------- */
+  var track = document.getElementById('tickerTrack');
+  function duplicateTrack(){ track.innerHTML = track.innerHTML + track.innerHTML; }
+  duplicateTrack();
+
+  function formatEventTime(sqlDt){
+    var m = /(\d{2}):(\d{2})/.exec(sqlDt || '');
+    return m ? (m[1]+':'+m[2]) : '';
+  }
+  // «HH:MM · тип события · деталь» — тип отдельным цветным сегментом
+  // (2026-07-26): backend уже кладёт тип первым сегментом текста
+  // ("вайп подтверждён · Сервер · время" / "замер онлайна · N в очереди"),
+  // здесь просто режем по первому " · " и раскрашиваем. "цикл пересчитан"
+  // как тип событий пока не эмитится бэком — класс заведён на будущее,
+  // не выдумываю сам факт события.
+  function splitEventText(text){
+    var idx = text.indexOf(' · ');
+    if(idx === -1) return {type: text, detail: ''};
+    return {type: text.slice(0, idx), detail: text.slice(idx+3)};
+  }
+  function eventTypeClass(type){
+    if(type.indexOf('вайп подтверждён') === 0) return 'ticker__type--wipe';
+    if(type.indexOf('цикл пересчитан') === 0) return 'ticker__type--cycle';
+    return 'ticker__type--status';
+  }
+  function loadTicker(){
+    fetch(API_BASE + '/api/events/recent', { cache: 'no-store' })
+      .then(function(res){ if(!res.ok) throw new Error('bad status'); return res.json(); })
+      .then(function(data){
+        var events = (data && data.events) || [];
+        if(!events.length) return; // молчит — оставляем статичный фолбэк из разметки
+        track.innerHTML = events.map(function(e){
+          var t = formatEventTime(e.time);
+          var parts = splitEventText(e.text || '');
+          var cls = eventTypeClass(parts.type);
+          return '<span>' + (t ? t + ' · ' : '') +
+            '<span class="ticker__type ' + cls + '">' + escapeHtml(parts.type) + '</span>' +
+            (parts.detail ? ' · ' + escapeHtml(parts.detail) : '') +
+            '</span>';
+        }).join('');
+        duplicateTrack();
+      })
+      .catch(function(){ /* тихий фолбэк — статичные строки без таймстампов остаются */ });
+  }
+  loadTicker();
+  setInterval(loadTicker, 60000);
+
+  /* тикер не должен уезжать под фиксированную шапку */
+  var navEl = document.querySelector('.nav');
+  var tickerEl = document.querySelector('.ticker');
+  function padTicker(){ tickerEl.style.marginTop = navEl.offsetHeight + 'px'; }
+  padTicker();
+  window.addEventListener('resize', padTicker);
+
+  /* ---------- хиро: реплики заголовка/поиска видны сразу (above the fold,
+     не нужен IntersectionObserver — просто включаем анимацию на старте) ---------- */
+  document.getElementById('hero').classList.add('is-in');
+
+  /* чипы быстрого поиска — тот же редирект в веб-версию с ?q=, что и сама
+     форма (2026-07-26), просто подставляют значение и сабмитят */
+  var heroSearchInput = document.getElementById('heroSearchInput');
+  var heroSearchForm = document.getElementById('heroSearchForm');
+  document.getElementById('heroQuick').addEventListener('click', function(e){
+    var chip = e.target.closest('.hero__chip'); if(!chip) return;
+    heroSearchInput.value = chip.dataset.q;
+    heroSearchForm.submit();
+  });
+
+  /* ---------- Atlas-299: живая карточка "Почему я знаю больше" ----------
+     Слепок ниже — реальный ответ API на момент вёрстки (2026-07-25),
+     рендерится сразу синхронно (без ожидания сети). Один fetch молча
+     освежает данные, если API доступен; если нет — слепок так и остаётся. */
+  var ATLAS_ID = 299;
+  // points — {ts, avg} парами, не просто числа: без ts не построить ось дат
+  // и тултип с датой (фикс, отложенный с прошлого захода). Слепок — тот же
+  // реальный ответ /history?period=cycle на момент вёрстки (2026-07-25).
+  var atlasFallback = {
+    title: 'Atlas - EU 2X Monthly | Vanilla+ | No BP Wipes',
+    cycle: '7 дней',
+    nextWipeEstimate: '2026-07-30 06:01:52',
+    prime: '17:00–21:00',
+    peak: 1495,
+    historyDays: '2 месяца',
+    points: [
+      {ts:'2026-07-23 07:00:00',avg:50.0},{ts:'2026-07-23 08:00:00',avg:61.3},{ts:'2026-07-23 09:00:00',avg:87.0},
+      {ts:'2026-07-23 10:00:00',avg:104.7},{ts:'2026-07-23 11:00:00',avg:116.5},{ts:'2026-07-23 12:00:00',avg:122.0},
+      {ts:'2026-07-23 13:00:00',avg:126.0},{ts:'2026-07-23 14:00:00',avg:160.8},{ts:'2026-07-23 15:00:00',avg:270.5},
+      {ts:'2026-07-23 16:00:00',avg:1221.3},{ts:'2026-07-23 17:00:00',avg:1492.0},{ts:'2026-07-23 18:00:00',avg:1485.0},
+      {ts:'2026-07-23 19:00:00',avg:1404.5},{ts:'2026-07-23 20:00:00',avg:1207.7},{ts:'2026-07-23 21:00:00',avg:1184.0},
+      {ts:'2026-07-23 22:00:00',avg:1123.5},{ts:'2026-07-23 23:00:00',avg:1075.5},{ts:'2026-07-24 00:00:00',avg:928.7},
+      {ts:'2026-07-24 01:00:00',avg:778.5},{ts:'2026-07-24 02:00:00',avg:697.5},{ts:'2026-07-24 03:00:00',avg:676.0},
+      {ts:'2026-07-24 04:00:00',avg:672.3},{ts:'2026-07-24 05:00:00',avg:645.0},{ts:'2026-07-24 06:00:00',avg:695.5},
+      {ts:'2026-07-24 07:00:00',avg:758.7},{ts:'2026-07-24 08:00:00',avg:890.0},{ts:'2026-07-24 09:00:00',avg:889.0},
+      {ts:'2026-07-24 10:00:00',avg:891.5},{ts:'2026-07-24 11:00:00',avg:890.3},{ts:'2026-07-24 12:00:00',avg:890.0},
+      {ts:'2026-07-24 13:00:00',avg:893.0},{ts:'2026-07-24 14:00:00',avg:890.0},{ts:'2026-07-24 15:00:00',avg:889.0},
+      {ts:'2026-07-24 16:00:00',avg:891.5},{ts:'2026-07-24 19:00:00',avg:901.0},{ts:'2026-07-24 20:00:00',avg:891.0},
+      {ts:'2026-07-24 21:00:00',avg:881.0},{ts:'2026-07-24 22:00:00',avg:893.0},{ts:'2026-07-24 23:00:00',avg:846.5},
+      {ts:'2026-07-25 00:00:00',avg:791.0},{ts:'2026-07-25 01:00:00',avg:711.0},{ts:'2026-07-25 02:00:00',avg:615.0},
+      {ts:'2026-07-25 03:00:00',avg:600.5},{ts:'2026-07-25 04:00:00',avg:587.0},{ts:'2026-07-25 05:00:00',avg:503.0},
+      {ts:'2026-07-25 06:00:00',avg:588.0},{ts:'2026-07-25 07:00:00',avg:689.7},{ts:'2026-07-25 08:00:00',avg:692.0}
+    ]
+  };
+
+  function formatShortDate(sqlDt){
+    var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(sqlDt || '');
+    return m ? (m[3]+'.'+m[2]) : '';
+  }
+  function formatAtlasDT(sqlDt){
+    var m = /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/.exec(sqlDt || '');
+    return m ? (m[3]+'.'+m[2]+' '+m[4]+':'+m[5]) : '';
+  }
+
+  var atlasSvg = document.getElementById('atlasSvg');
+  var atlasArea = document.getElementById('atlasArea');
+  var atlasLine = document.getElementById('atlasLine');
+  var atlasWipeDot = document.getElementById('atlasWipeDot');
+  var atlasHoverArea = document.getElementById('atlasHoverArea');
+  var atlasHoverLine = document.getElementById('atlasHoverLine');
+  var atlasHoverDot = document.getElementById('atlasHoverDot');
+  var atlasTooltip = document.getElementById('atlasTooltip');
+  var atlasCardEl = document.getElementById('atlasCard');
+  var atlasData = null;
+  var atlasAnimated = false;
+
+  function renderAtlas(model){
+    document.getElementById('atlasTitle').textContent = model.title;
+    document.getElementById('atlasCycle').textContent = model.cycle || 'не определён';
+    document.getElementById('atlasNext').textContent = model.nextWipeEstimate ? ('~'+formatShortDate(model.nextWipeEstimate)) : '—';
+    document.getElementById('atlasPrime').textContent = model.prime || '—';
+    document.getElementById('atlasPeak').textContent = (model.peak!=null ? Math.round(model.peak).toLocaleString('ru-RU') : '—');
+    document.getElementById('atlasHistoryDays').textContent = model.historyDays || '—';
+
+    // padB увеличен под подписи оси дат (фикс, отложенный с прошлого
+    // захода) — без этого подписи налезали бы на нижний край карточки.
+    // padTLine (не padT) — верх области, где рисуется сама линия: пик
+    // графика почти всегда рядом со вайпом, то есть в том же левом верхнем
+    // углу, где живёт метка «вайп · дата» — если линия и метка делят один
+    // Y-диапазон, пик всегда упирается в текст. padTLine резервирует под
+    // метку чистую полосу, которую линия не занимает независимо от данных.
+    var W=520,H=190,padT=8,padTLine=24,padB=20;
+    var points = model.points;
+    var avgs = points.map(function(p){return p.avg});
+    var maxV = Math.max.apply(null, avgs.concat([1]));
+    var n = points.length;
+    var stepX = n>1 ? (W/(n-1)) : 0;
+    function X(i){return i*stepX}
+    function Y(v){return padTLine + (1-v/maxV)*(H-padB-padTLine)}
+
+    var linePts = avgs.map(function(v,i){return X(i).toFixed(1)+','+Y(v).toFixed(1)}).join(' ');
+    var areaPts = '0,'+(H-padB)+' '+linePts+' '+X(n-1).toFixed(1)+','+(H-padB);
+    atlasLine.setAttribute('points', linePts);
+    atlasArea.setAttribute('points', areaPts);
+
+    // вайп — первая точка цикла (period=cycle начинается сразу после вайпа)
+    atlasWipeDot.setAttribute('cx', X(0));
+    atlasWipeDot.setAttribute('cy', Y(avgs[0]));
+
+    // ось дат — 3 равномерные подписи (начало/середина/конец), плюс
+    // метка вайпа рядом с первой точкой (та самая точка, что пульсирует)
+    var axisEl = document.getElementById('atlasAxis');
+    if(axisEl){
+      var ticksSvg = '';
+      [0, Math.round((n-1)/2), n-1].forEach(function(i, ti){
+        var anchor = ti===0 ? 'start' : (ti===2 ? 'end' : 'middle');
+        ticksSvg += '<text class="atlas__axistext" x="'+X(i).toFixed(1)+'" y="'+(H-4)+'" text-anchor="'+anchor+'">'+escapeHtml(formatAtlasDT(points[i].ts).split(' ')[0])+'</text>';
+      });
+      // метка закреплена у верхнего левого края графика (не у самой точки —
+      // вайп почти всегда начинается с низкого онлайна, и метка у точки
+      // упирается в саму линию на её раннем подъёме, см. отчёт 2026-07-26)
+      ticksSvg += '<text class="atlas__wipelabel" x="6" y="'+(padT+10)+'">вайп · '+escapeHtml(formatAtlasDT(points[0].ts))+'</text>';
+      axisEl.innerHTML = ticksSvg;
+    }
+
+    atlasData = {points: points, X: X, Y: Y, n: n};
+
+    var alreadyRevealed = atlasCardEl.classList.contains('is-in');
+    var len = atlasLine.getTotalLength();
+    atlasLine.style.transition = 'none';
+    atlasLine.style.strokeDasharray = len;
+    atlasLine.style.strokeDashoffset = (reduced || alreadyRevealed) ? 0 : len;
+    atlasLine.getBoundingClientRect(); // форсируем reflow перед следующей transition
+    atlasLine.style.transition = '';
+  }
+
+  function playAtlasDraw(){
+    if(atlasAnimated) return;
+    atlasAnimated = true;
+    if(reduced){ atlasLine.style.strokeDashoffset = 0; return; }
+    atlasLine.style.transition = 'stroke-dashoffset 1.2s cubic-bezier(.2,.7,.2,1)';
+    requestAnimationFrame(function(){
+      requestAnimationFrame(function(){ atlasLine.style.strokeDashoffset = 0; });
+    });
+    setTimeout(function(){ atlasWipeDot.classList.add('is-pulse'); }, 1250);
+  }
+
+  renderAtlas(atlasFallback);
+
+  fetch(API_BASE + '/api/servers/' + ATLAS_ID)
+    .then(function(res){ if(!res.ok) throw new Error('bad status'); return res.json(); })
+    .then(function(detail){
+      return fetch(API_BASE + '/api/servers/' + ATLAS_ID + '/history?period=cycle')
+        .then(function(res){ if(!res.ok) throw new Error('bad status'); return res.json(); })
+        .then(function(hist){
+          var points = (hist.points || [])
+            .map(function(p){ return {ts: p.ts, avg: (p.avg!=null ? p.avg : p.max)}; })
+            .filter(function(p){ return p.avg!=null; });
+          if(points.length < 2) return; // мало точек — оставляем слепок
+          renderAtlas({
+            title: detail.name || atlasFallback.title,
+            cycle: detail.cycle,
+            nextWipeEstimate: detail.next_wipe_estimate,
+            prime: detail.prime_time,
+            peak: detail.peak,
+            historyDays: detail.history_days,
+            points: points
+          });
+        });
+    })
+    .catch(function(){ /* тихий фолбэк — слепок остаётся как есть */ });
+
+  /* скролл-хореография: текст слева + карточка справа при входе в вьюпорт */
+  var paperText = document.getElementById('paperText');
+  function revealPaper(){
+    paperText.classList.add('is-in');
+    atlasCardEl.classList.add('is-in');
+    playAtlasDraw();
+  }
+  if('IntersectionObserver' in window){
+    new IntersectionObserver(function(es,obs){
+      es.forEach(function(e){ if(e.isIntersecting){ revealPaper(); obs.disconnect(); } });
+    },{threshold:.25}).observe(atlasCardEl);
+  } else revealPaper();
+
+  /* hover/tap-маркер + тултип по ближайшей точке графика */
+  function atlasShowAt(clientX){
+    if(!atlasData) return;
+    var rect = atlasSvg.getBoundingClientRect();
+    var relX = (clientX - rect.left) / rect.width * 520;
+    var stepX = atlasData.n>1 ? 520/(atlasData.n-1) : 0;
+    var idx = stepX ? Math.round(relX/stepX) : 0;
+    idx = Math.max(0, Math.min(atlasData.n-1, idx));
+    var p = atlasData.points[idx];
+    var v = p.avg;
+    var x = atlasData.X(idx), y = atlasData.Y(v);
+
+    atlasTooltip.innerHTML = '<span class="tt__day">'+escapeHtml(formatAtlasDT(p.ts))+'</span><br>онлайн: <b>'+Math.round(v)+'</b>';
+    atlasTooltip.classList.add('is-visible');
+    atlasTooltip.style.left = ((x/520)*rect.width) + 'px';
+    atlasTooltip.style.top = ((y/190)*rect.height) + 'px';
+
+    atlasHoverDot.setAttribute('cx', x);
+    atlasHoverDot.setAttribute('cy', y);
+    atlasHoverDot.classList.add('is-visible');
+    atlasHoverLine.setAttribute('x1', x);
+    atlasHoverLine.setAttribute('x2', x);
+    atlasHoverLine.setAttribute('y1', y);
+    atlasHoverLine.classList.add('is-visible');
+  }
+  function atlasHideHover(){
+    atlasTooltip.classList.remove('is-visible');
+    atlasHoverDot.classList.remove('is-visible');
+    atlasHoverLine.classList.remove('is-visible');
+  }
+  atlasHoverArea.addEventListener('mousemove', function(e){ atlasShowAt(e.clientX); });
+  atlasHoverArea.addEventListener('mouseleave', atlasHideHover);
+  atlasHoverArea.addEventListener('touchstart', function(e){
+    e.preventDefault();
+    if(e.touches && e.touches[0]) atlasShowAt(e.touches[0].clientX);
+  }, {passive:false});
+  document.addEventListener('touchstart', function(e){
+    if(!atlasCardEl.contains(e.target)) atlasHideHover();
+  });
+
+  /* ---------- trust ring ---------- */
+  var ring=document.getElementById('trustRing');
+  if('IntersectionObserver' in window && !reduced){
+    new IntersectionObserver(function(es,obs){
+      es.forEach(function(e){
+        if(e.isIntersecting){
+          setTimeout(function(){ring.style.strokeDashoffset=251-251*0.73;},120);
+          obs.disconnect();
+        }
+      });
+    },{threshold:.4}).observe(ring);
+  } else {
+    ring.style.strokeDashoffset=251-251*0.73;
+  }
+
+  /* ---------- "Что умею": stagger внутри каждой строки отдельно, не всей
+     секции разом — своя IntersectionObserver-запись на каждый .row ---------- */
+  var rows = document.querySelectorAll('.row');
+  if('IntersectionObserver' in window){
+    var rowObserver = new IntersectionObserver(function(es){
+      es.forEach(function(e){
+        if(e.isIntersecting){
+          e.target.classList.add('is-in');
+          rowObserver.unobserve(e.target);
+        }
+      });
+    },{threshold:.2});
+    rows.forEach(function(r){ rowObserver.observe(r); });
+  } else {
+    rows.forEach(function(r){ r.classList.add('is-in'); });
+  }
+})();
+</script><script>
+(function () {
+  function parseNum(text) {
+    var digits = (text || '').replace(/[^\d]/g, '');
+    return digits ? parseInt(digits, 10) : 0;
+  }
+
+  function formatThousands(n) {
+    return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+  }
+
+  function animateValue(el, from, to, formatFn, duration) {
+    duration = duration || 700;
+    if (from === to) {
+      el.textContent = formatFn(to);
+      return;
+    }
+    var start = null;
+    function step(timestamp) {
+      if (start === null) start = timestamp;
+      var progress = Math.min((timestamp - start) / duration, 1);
+      var eased = 1 - Math.pow(1 - progress, 3);
+      var current = Math.round(from + (to - from) * eased);
+      el.textContent = formatFn(current);
+      if (progress < 1) requestAnimationFrame(step);
+    }
+    requestAnimationFrame(step);
+  }
+
+  function updateStat(selector, value, formatFn) {
+    document.querySelectorAll(selector).forEach(function (el) {
+      animateValue(el, parseNum(el.textContent), value, formatFn);
+    });
+  }
+
+  function applyStats(stats) {
+    if (!stats) return;
+    if (typeof stats.online_measurements === 'number') {
+      updateStat('[data-stat="online_measurements"]', stats.online_measurements, formatThousands);
+      var millions = Math.round(stats.online_measurements / 1e6);
+      updateStat('[data-stat="online_measurements_short"]', millions, function (n) {
+        return '~' + n + ' млн';
+      });
+    }
+    if (typeof stats.wipes === 'number') {
+      updateStat('[data-stat="wipes"]', stats.wipes, formatThousands);
+    }
+    if (typeof stats.servers_total === 'number') {
+      updateStat('[data-stat="servers_total"]', stats.servers_total, formatThousands);
+    }
+    if (typeof stats.servers_tracked === 'number') {
+      updateStat('[data-stat="servers_tracked"]', stats.servers_tracked, formatThousands);
+    }
+  }
+
+  function loadStats() {
+    fetch('/api/stats', { cache: 'no-store' })
+      .then(function (res) {
+        if (!res.ok) throw new Error('bad status');
+        return res.json();
+      })
+      .then(applyStats)
+      .catch(function () {
+        // тихий fallback: оставляем захардкоженные цифры из HTML как есть
+      });
+  }
+
+  loadStats();
+  setInterval(loadStats, 2 * 60 * 1000);
+})();
+</script>
+</body>
+</html>

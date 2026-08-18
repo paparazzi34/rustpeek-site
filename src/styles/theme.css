@@ -1,0 +1,173 @@
+@import 'tailwindcss';
+
+/* =============================================================
+   RustPeek — дизайн-система, v2
+   Тёмный дата-дашборд. Правила:
+   1. Один акцент (ржавый). Он означает «внимание/действие», не «данные вообще».
+   2. Статусные цвета — только зелёный (подтверждено/свежо), ржавый (скоро/горячо),
+      серый (нет данных). Красный оставлен исключительно под ошибки и баны и
+      никогда не стоит рядом с ржавым в одном списке — иначе пара
+      оранжевый/красный неразличима при дальтонизме (проверено валидатором:
+      ΔE 4.4 при дейтеранопии, это провал).
+   3. Цвет никогда не единственный носитель смысла — рядом всегда текст.
+   Пара #E2622B / #2FA26E на поверхности #141519 проверена:
+   CVD ΔE 9.2, обычное зрение ΔE 26.0, контраст ≥3:1 — проходит всё.
+   ============================================================= */
+
+@theme {
+  /* --- поверхности --- */
+  --color-bg: #0c0d10;
+  --color-surface: #141519;
+  --color-surface-2: #1a1c21;
+  --color-surface-3: #212429;
+  --color-line: #262a31;
+  --color-line-strong: #343a44;
+
+  /* --- текст --- */
+  --color-ink: #edeff2;
+  --color-ink-2: #9aa0aa;
+  --color-ink-3: #6b727d;
+
+  /* --- акцент --- */
+  --color-rust: #e2622b;
+  --color-rust-hot: #f0703a;
+  --color-rust-deep: #7d3617;
+
+  /* --- статусы --- */
+  --color-good: #2fa26e;
+  --color-good-deep: #17553a;
+  --color-danger: #d6453e;
+
+  /* --- типографика --- */
+  --font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', monospace;
+
+  /* --- радиусы: строгие, почти без скруглений --- */
+  --radius-xs: 3px;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 10px;
+}
+
+@layer base {
+  * {
+    border-color: var(--color-line);
+  }
+
+  html {
+    background: var(--color-bg);
+    color-scheme: dark;
+  }
+
+  body {
+    margin: 0;
+    background: var(--color-bg);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-size: 14px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  ::selection {
+    background: var(--color-rust);
+    color: #fff;
+  }
+
+  /* Фокус виден всегда — клавиатурная навигация не роскошь */
+  :focus-visible {
+    outline: 2px solid var(--color-rust);
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+
+  /* Цифры в колонках должны выстраиваться друг под другом */
+  .tnum {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Тонкий скроллбар, чтобы не спорил с плотной вёрсткой */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-line-strong) transparent;
+  }
+}
+
+@layer utilities {
+  /* Единственная анимация в проекте, которая что-то значит: «данные живые».
+     Всё остальное — переходы состояний на 120–160мс, без парадов. */
+  @keyframes rp-pulse {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.35;
+    }
+  }
+  .animate-live {
+    animation: rp-pulse 2.4s ease-in-out infinite;
+  }
+
+  @keyframes rp-shimmer {
+    from {
+      background-position: -200% 0;
+    }
+    to {
+      background-position: 200% 0;
+    }
+  }
+  .skeleton {
+    background: linear-gradient(
+      90deg,
+      var(--color-surface-2) 25%,
+      var(--color-surface-3) 50%,
+      var(--color-surface-2) 75%
+    );
+    background-size: 200% 100%;
+    animation: rp-shimmer 1.4s linear infinite;
+  }
+
+  @keyframes rp-fade-up {
+    from {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+  .fade-up {
+    animation: rp-fade-up 0.22s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  }
+
+  /* Бегущая лента событий. Единственное «движение ради движения» на сайте,
+     и оно оправдано: строки реально приходят из живого мониторинга.
+     Останавливается по наведению и полностью выключается, если человек
+     попросил меньше анимаций. */
+  @keyframes rp-marquee {
+    from {
+      transform: translateX(0);
+    }
+    to {
+      transform: translateX(-50%);
+    }
+  }
+  .marquee {
+    animation: rp-marquee 64s linear infinite;
+  }
+  .marquee-host:hover .marquee {
+    animation-play-state: paused;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .animate-live,
+    .skeleton,
+    .fade-up,
+    .marquee {
+      animation: none !important;
+    }
+  }
+}
