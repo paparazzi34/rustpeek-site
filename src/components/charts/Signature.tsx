@@ -119,17 +119,20 @@ export function Sparkline({
   height = 20,
   active,
 }: {
-  values: number[]
+  /** Живой API кладёт сюда null там, где замера не было — это нормальный
+      случай, а не сбой, и он не должен ломать арифметику. */
+  values: (number | null)[] | null | undefined
   width?: number
   height?: number
   active?: boolean
 }) {
-  if (!values || values.length < 2) {
+  const points = (values ?? []).filter((v): v is number => typeof v === 'number' && isFinite(v))
+  if (points.length < 2) {
     return <span className="inline-block" style={{ width, height }} />
   }
-  const max = Math.max(1, ...values)
-  const stepX = width / (values.length - 1)
-  const d = values
+  const max = Math.max(1, ...points)
+  const stepX = width / (points.length - 1)
+  const d = points
     .map(
       (v, i) =>
         `${i ? 'L' : 'M'}${(i * stepX).toFixed(1)} ${(height - (v / max) * (height - 3) - 1.5).toFixed(1)}`,

@@ -29,6 +29,14 @@ import type { CalendarKey, FilterKey, SearchResponse, ServerListItem, SortKey } 
 
 const LIMIT = 40
 
+/* Сетка списка объявлена в одном месте: заголовки колонок и строки обязаны
+   совпадать по ширинам, иначе таблица «поедет». Колонка спарклайна
+   появляется только когда бэкенд отдаёт кривые. */
+const COLS_SPARK = 'grid-cols-[30px_1fr_120px_70px_150px_180px]'
+const COLS_PLAIN = 'grid-cols-[30px_1fr_120px_150px_180px]'
+const COLS_SPARK_LG = 'lg:grid-cols-[30px_1fr_120px_70px_150px_180px]'
+const COLS_PLAIN_LG = 'lg:grid-cols-[30px_1fr_120px_150px_180px]'
+
 const CALENDAR: Array<{ value: CalendarKey; label: string }> = [
   { value: 'today', label: 'Сегодня' },
   { value: 'tomorrow', label: 'Завтра' },
@@ -104,6 +112,14 @@ export function ServersPage() {
   const servers = data?.servers ?? []
   const total = data?.total ?? servers.length
 
+  // Колонка «48 ч» существует, только если бэкенд реально отдал кривые.
+  // Столбец из шестнадцати прочерков — это шум, а не честность: честность
+  // здесь в том, чтобы не занимать место под данные, которых нет.
+  const showSpark = useMemo(
+    () => servers.some((s) => s.sparkline?.some((v) => v != null)),
+    [servers],
+  )
+
   const withoutFreshWipe = useMemo(
     () => servers.length === 0 && (data?.local_count_before_filter ?? 0) > 0,
     [servers.length, data],
@@ -177,11 +193,11 @@ export function ServersPage() {
 
       {/* ---- Заголовки колонок ---- */}
       <div className="bleed hidden border-b border-rule py-2 lg:block">
-        <div className="grid grid-cols-[30px_1fr_120px_70px_150px_180px] items-center gap-x-5">
+        <div className={cx('grid items-center gap-x-5', showSpark ? COLS_SPARK : COLS_PLAIN)}>
           <span className="eyebrow">#</span>
           <span className="eyebrow">сервер</span>
           <span className="eyebrow">онлайн</span>
-          <span className="eyebrow">48 ч</span>
+          {showSpark && <span className="eyebrow">48 ч</span>}
           <span className="eyebrow">последний вайп</span>
           <span className="eyebrow">фаза цикла</span>
         </div>
@@ -230,7 +246,7 @@ export function ServersPage() {
         <>
           <ul className="bleed">
             {servers.map((s, i) => (
-              <ServerRow key={s.id} s={s} rank={offset > 0 ? i + 1 : i + 1} />
+              <ServerRow key={s.id} s={s} rank={i + 1} showSpark={showSpark} />
             ))}
           </ul>
 
@@ -253,7 +269,15 @@ export function ServersPage() {
 
 /* ------------------------------------------------------------------ Строка */
 
-function ServerRow({ s, rank }: { s: ServerListItem; rank: number }) {
+function ServerRow({
+  s,
+  rank,
+  showSpark,
+}: {
+  s: ServerListItem
+  rank: number
+  showSpark: boolean
+}) {
   const since = wipeAgeHours(s.wipe_label)
   const next = nextWipe(s.next_wipe_estimate)
   const fresh = since != null && since < 24
@@ -269,7 +293,10 @@ function ServerRow({ s, rank }: { s: ServerListItem; rank: number }) {
     >
       <Link
         to={`/servers/${s.id}`}
-        className="grid grid-cols-[30px_1fr] items-center gap-x-5 gap-y-2 py-3 pl-3 lg:grid-cols-[30px_1fr_120px_70px_150px_180px]"
+        className={cx(
+          'grid grid-cols-[30px_1fr] items-center gap-x-5 gap-y-2 py-3 pl-3',
+          showSpark ? COLS_SPARK_LG : COLS_PLAIN_LG,
+        )}
       >
         {/* ранг */}
         <span className="num self-start pt-0.5 text-[12px] text-ink-3 lg:self-center lg:pt-0">
@@ -337,14 +364,12 @@ function ServerRow({ s, rank }: { s: ServerListItem; rank: number }) {
           )}
         </span>
 
-        {/* форма кривой за двое суток */}
-        <span className="hidden lg:block">
-          {s.sparkline?.length ? (
-            <Sparkline values={s.sparkline.filter((v): v is number => v !== null)} active={fresh} />
-          ) : (
-            <span className="num text-[12px] text-ink-3">—</span>
-          )}
-        </span>
+        {/* форма кривой за двое суток — колонки нет, если данных нет */}
+        {showSpark && (
+          <span className="hidden lg:block">
+            <Sparkline values={s.sparkline} active={fresh} />
+          </span>
+        )}
 
         {/* последний вайп */}
         <span className="hidden lg:block">
