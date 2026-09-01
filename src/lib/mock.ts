@@ -91,7 +91,7 @@ export function mockServers(): ServerListItem[] {
       wipe_label: wipeLabelFor(sinceWipe),
       next_wipe_estimate: known ? sqlDT(cycleDays * 24 - sinceWipe) : null,
       country: ['DE', 'RU', 'US', 'NL'][i % 4],
-      spark: onlineSeries(48, n[4], seeded(i * 31 + 5), [(i * 7) % 40]),
+      sparkline: onlineSeries(48, n[4], seeded(i * 31 + 5), [(i * 7) % 40]),
     }
   })
 }
