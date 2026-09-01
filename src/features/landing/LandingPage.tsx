@@ -1,565 +1,425 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { getStats } from '../../lib/api'
-import type { SiteStats } from '../../lib/types'
-import { compact, thousands } from '../../lib/format'
-import { Card, CardHeader, Meter, SearchField, StatusPill, cx } from '../../components/ui'
-import { IconCheck, IconTelegram } from '../../components/icons'
+import { Signature } from '../../components/charts/Signature'
+import { CycleTrack } from '../../components/CycleTrack'
+import { IconTelegram } from '../../components/icons'
+import { Button, Meter, SearchField, Tag } from '../../components/ui'
+import { searchServers } from '../../lib/api'
+import {
+  nextWipe,
+  relativeWipe,
+  serverTypeLabel,
+  thousands,
+  wipeAgeHours,
+} from '../../lib/format'
+import type { ServerListItem } from '../../lib/types'
 import { Ticker } from './Ticker'
-import { MethodChart } from './MethodChart'
-import { HeroLive } from './HeroLive'
 
-/* Главная. Задача одна: за десять секунд объяснить, чем это отличается от
-   любого другого мониторинга, и доказать это данными, а не прилагательными.
-   Поэтому здесь минимум «продающих» слов и максимум настоящих чисел,
-   настоящего графика и настоящих кусков интерфейса. */
-
-const QUICK = ['Rustafied', 'Atlas', 'Bestrust', 'Magic Rust']
-
-/* Числа-фолбэки — последние известные значения. Если /api/stats ответит,
-   они заменятся живыми; если нет — на экране останутся честные «примерно
-   столько», а не нули. */
-const FALLBACK: Required<SiteStats> = {
-  servers_tracked: 1098,
-  servers_total: 2479,
-  wipes: 9676,
-  online_measurements: 1_980_611,
-}
+const HINTS = ['Rustafied', 'Atlas', 'Magic Rust', 'Bestrust', 'Rustoria']
 
 export function LandingPage() {
   const navigate = useNavigate()
-  const [query, setQuery] = useState('')
-  const [stats, setStats] = useState<SiteStats | null>(null)
+  const [q, setQ] = useState('')
+
+  return (
+    <>
+      <Hero q={q} setQ={setQ} onSubmit={() => navigate('/servers?q=' + encodeURIComponent(q.trim()))} />
+      <Ticker />
+      <FreshToday />
+      <Method />
+      <WhatICan />
+      <Faq />
+      <Cta />
+    </>
+  )
+}
+
+/* ------------------------------------------------------------------- Герой
+   Не «крупное число + подпись + градиент». Экран открывает утверждение и
+   сразу под ним — предмет разговора: настоящая форма кривой с подписанным
+   моментом вайпа. Метод объяснён раньше, чем про него спросили. */
+
+function Hero({
+  q,
+  setQ,
+  onSubmit,
+}: {
+  q: string
+  setQ: (v: string) => void
+  onSubmit: () => void
+}) {
+  return (
+    <section className="bleed border-b border-rule pt-8 pb-7 sm:pt-11">
+      <h1
+        className="stencil font-semibold text-ink"
+        style={{ fontSize: 'clamp(27px, 4.3vw, 58px)', lineHeight: 0.98, letterSpacing: '0.01em' }}
+      >
+        Вайп видно по кривой.
+        <br />
+        <span className="text-ink-3">Не по названию сервера.</span>
+      </h1>
+
+      <p className="mt-4 max-w-2xl text-[15px] leading-relaxed text-ink-2">
+        На всех мониторингах дату вайпа вписывает админ сервера — руками, когда вспомнит.
+        Я её не спрашиваю: круглосуточно замеряю онлайн и вижу вайп по форме кривой.
+        Эту подпись подделать нельзя.
+      </p>
+
+      <div className="mt-8 max-w-2xl">
+        <SearchField
+          value={q}
+          onChange={setQ}
+          onSubmit={onSubmit}
+          size="lg"
+          placeholder="Название сервера"
+          action={
+            <Button variant="solid" onClick={onSubmit} className="h-9 shrink-0">
+              Найти
+            </Button>
+          }
+        />
+        <div className="mt-3 flex flex-wrap items-baseline gap-x-4 gap-y-1.5 text-[12.5px]">
+          <span className="text-ink-3">часто ищут</span>
+          {HINTS.map((h) => (
+            <button
+              key={h}
+              onClick={() => {
+                setQ(h)
+                setTimeout(onSubmit, 0)
+              }}
+              className="text-ink-2 underline decoration-rule-2 underline-offset-4 transition-colors hover:text-rust-hot hover:decoration-rust"
+            >
+              {h}
+            </button>
+          ))}
+          <Link
+            to="/players"
+            className="ml-auto text-ink-3 transition-colors hover:text-ink"
+          >
+            или пробить игрока по SteamID →
+          </Link>
+        </div>
+      </div>
+
+      <div className="mt-10">
+        <div className="mb-2 flex items-baseline justify-between border-b border-rule pb-1.5">
+          <span className="eyebrow">подпись вайпа · так это выглядит в данных</span>
+          <span className="num hidden text-[11px] text-ink-3 sm:inline">
+            онлайн, 14 суток
+          </span>
+        </div>
+        <Signature />
+      </div>
+    </section>
+  )
+}
+
+/* ------------------------------------------------ Свежие вайпы, живой срез
+   Продукт лучше показать, чем описать. Это те же строки, что в списке
+   серверов, только пять штук. Если подтверждённых вайпов за сутки нет —
+   так и написано, с причиной. */
+
+function FreshToday() {
+  const [rows, setRows] = useState<ServerListItem[] | null>(null)
+  const [failed, setFailed] = useState(false)
 
   useEffect(() => {
     let alive = true
-    void getStats().then((s) => alive && s && setStats(s))
+    searchServers({ filter: 'all', sort: 'wipe_fresh', calendar: 'today', limit: 5, offset: 0 })
+      .then((r) => {
+        if (!alive) return
+        // Заголовок обещает «за последние сутки» — значит и показать надо
+        // ровно это. Отсекаем сами, а не надеемся на параметр запроса:
+        // подпись и содержимое обязаны совпадать.
+        const fresh = (r.servers ?? []).filter((s) => {
+          const h = wipeAgeHours(s.wipe_label)
+          return h != null && h < 24
+        })
+        setRows(fresh.slice(0, 5))
+      })
+      .catch(() => alive && setFailed(true))
     return () => {
       alive = false
     }
   }, [])
 
-  const value = (key: keyof SiteStats) => stats?.[key] ?? FALLBACK[key]
-  const go = (q: string) => navigate(q ? `/servers?q=${encodeURIComponent(q)}` : '/servers')
+  if (failed) return null
 
   return (
-    <>
-      {/* ============================================================ HERO */}
-      <section className="mx-auto grid max-w-[1240px] items-start gap-10 px-5 pt-14 pb-10 sm:pt-20 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]">
+    <section className="bleed py-10">
+      <div className="flex flex-wrap items-end justify-between gap-4 border-b border-rule pb-2.5">
         <div>
-          <StatusPill tone="hot" dot>
-            наблюдение идёт прямо сейчас
-          </StatusPill>
-          <h1 className="mt-4 text-[34px] leading-[1.12] font-bold tracking-tight text-balance sm:text-[46px]">
-            Мониторинг Rust, который{' '}
-            <span className="text-rust-hot">помнит</span>.
-          </h1>
-          <p className="mt-4 max-w-2xl text-[15.5px] leading-relaxed text-ink-2">
-            Дату вайпа на других сайтах заполняет админ сервера — руками, когда вспомнит. Я её не
-            спрашиваю: вайп видно по форме кривой онлайна — пик, провал, рост. Эту подпись
-            подделать нельзя.
-          </p>
-
-          <div className="mt-7 max-w-xl">
-            <SearchField
-              value={query}
-              onChange={setQuery}
-              onSubmit={() => go(query.trim())}
-              placeholder="Rustafied, Atlas, Magic Rust…"
-              right={
-                <button
-                  type="submit"
-                  className="-mr-2 h-8 shrink-0 rounded-[4px] bg-rust px-4 text-[13px] font-medium text-white transition-colors hover:bg-rust-hot"
-                >
-                  Найти
-                </button>
-              }
-            />
-            <div className="mt-3 flex flex-wrap items-center gap-2 text-[12.5px]">
-              <span className="text-ink-3">часто ищут:</span>
-              {QUICK.map((q) => (
-                <button
-                  key={q}
-                  onClick={() => go(q)}
-                  className="rounded-full border border-line px-3 py-1 text-ink-2 transition-colors hover:border-rust/60 hover:text-rust-hot"
-                >
-                  {q}
-                </button>
-              ))}
-              <Link
-                to="/players"
-                className="ml-auto text-ink-3 underline decoration-dotted underline-offset-4 transition-colors hover:text-ink-2"
-              >
-                или пробей игрока →
-              </Link>
-            </div>
-          </div>
+          <div className="eyebrow">вайпнулись за последние сутки</div>
+          <h2 className="mt-2 text-[19px] font-semibold text-ink">Куда заходить сегодня</h2>
         </div>
-
-        <div className="lg:pt-10">
-          <HeroLive />
-        </div>
-      </section>
-
-      {/* ====================================================== СЧЁТЧИКИ */}
-      <div className="border-y border-line bg-surface/40">
-        <div className="mx-auto grid max-w-[1240px] grid-cols-2 divide-x divide-y divide-line px-0 sm:grid-cols-4 sm:divide-y-0">
-          <Counter value={thousands(value('servers_tracked'))} label="серверов под наблюдением" />
-          <Counter value={compact(value('online_measurements'))} label="замеров онлайна" />
-          <Counter value={thousands(value('wipes'))} label="подтверждённых вайпов" />
-          <Counter value="топ-500" label="сканирую напрямую через A2S" accent />
-        </div>
+        <Link to="/servers?calendar=today" className="btn h-8">
+          Весь вайп-календарь
+        </Link>
       </div>
 
-      <Ticker />
-
-      {/* ========================================================= МЕТОД */}
-      <section id="method" className="mx-auto max-w-[1240px] scroll-mt-16 px-5 py-16">
-        <SectionHead
-          eyebrow="Метод"
-          title="Почему я знаю больше"
-          sub="Всё держится на одной идее: словам не верить, смотреть на данные."
-        />
-
-        <div className="mt-8 grid items-start gap-8 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
-          <div className="space-y-4 text-[14.5px] leading-relaxed text-ink-2">
-            <p>
-              Поле «дата вайпа» на мониторингах — это <b className="text-ink">ручной ввод</b>. Кто-то
-              обновляет честно, кто-то забывает на месяцы, кто-то врёт специально, чтобы сервер
-              выглядел свежим и собирал онлайн. А «JUST WIPED» в названии у половины серверов висит
-              вечно, как неоновая вывеска.
-            </p>
-            <p>Я смотрю на форму онлайна. У настоящего вайпа есть подпись из трёх частей:</p>
-
-            <ol className="space-y-3 border-l border-line pl-4">
-              {[
-                ['Пик', 'сервер жил, народ фармил, онлайн шёл суточной волной'],
-                ['Провал', 'рестарт: карта стёрта, всех выкинуло, онлайн почти в ноль'],
-                ['Рост', 'толпа врывается на свежую землю — подъём выше обычного'],
-              ].map(([k, v], i) => (
-                <li key={k} className="relative">
-                  <span className="absolute -left-[21px] top-1 flex size-[13px] items-center justify-center rounded-full bg-rust text-[9px] font-bold text-white">
-                    {i + 1}
-                  </span>
-                  <b className="text-ink">{k}</b> — {v}
-                </li>
-              ))}
-            </ol>
-
-            <p>
-              Нет всех трёх — вайпа не было, что бы ни писал админ. Есть — фиксирую время с точностью
-              до минуты, считаю цикл и говорю, когда будет следующий.{' '}
-              <b className="text-ink">Если цикл вообще устойчив.</b> Не устойчив — так и напишу «не
-              определён», а не нарисую случайное число.
-            </p>
-          </div>
-
-          <MethodChart />
-        </div>
-      </section>
-
-      {/* ==================================================== СРАВНЕНИЕ */}
-      <section className="border-y border-line bg-surface/40">
-        <div className="mx-auto max-w-[1240px] px-5 py-14">
-          <SectionHead
-            eyebrow="Разница"
-            title="Снапшот против памяти"
-            sub="Обычный мониторинг показывает число в моменте. Я показываю, что за этим числом стоит — и что будет дальше."
-          />
-          <Card className="mt-7 overflow-hidden">
-            <table className="w-full text-left text-[13.5px]">
-              <thead className="bg-surface-2/60 text-[12px] text-ink-3">
-                <tr>
-                  <th className="px-4 py-2.5 font-medium">Вопрос игрока</th>
-                  <th className="px-4 py-2.5 font-medium">Мониторинг-снапшот</th>
-                  <th className="px-4 py-2.5 font-medium text-rust-hot">RustPeek</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-line/70">
-                {[
-                  [
-                    'Когда тут был вайп?',
-                    'то, что вписал админ',
-                    'время из кривой онлайна, с точностью до минуты',
-                  ],
-                  ['Когда будет следующий?', 'нет ответа', 'прогноз по циклу — или честное «не определён»'],
-                  ['Сервер живой или умирает?', 'онлайн прямо сейчас', 'тренд по неделям: набирает, стабилен, пустеет'],
-                  ['Во сколько тут людно?', 'нет ответа', 'профиль по 24 часам за 30 дней'],
-                  [
-                    'Что за игрок меня убил?',
-                    'зависит от открытости профиля',
-                    'Trust Score + история серверов, в том числе через A2S',
-                  ],
-                ].map(([q, a, b]) => (
-                  <tr key={q}>
-                    <td className="px-4 py-2.5 text-ink">{q}</td>
-                    <td className="px-4 py-2.5 text-ink-3">{a}</td>
-                    <td className="px-4 py-2.5 text-ink-2">
-                      <span className="flex items-start gap-2">
-                        <IconCheck size={14} className="mt-0.5 shrink-0 text-good" />
-                        {b}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </Card>
-          <p className="mt-3 text-[12px] text-ink-3">
-            Снапшот любой может показать. Историю надо было начать собирать вовремя — я начал в мае.
-          </p>
-        </div>
-      </section>
-
-      {/* ===================================================== ЧТО УМЕЮ */}
-      <section id="features" className="mx-auto max-w-[1240px] scroll-mt-16 px-5 py-16">
-        <SectionHead eyebrow="Возможности" title="Что умею" />
-
-        <div className="mt-8 space-y-6">
-          <Feature
-            title="Поиск серверов — с правдой про вайп"
-            text="Ищи по названию или собирай подбор фильтрами: тип, рейт, цикл, стадия, онлайн. Каждый сервер получает честную метку: вайпнулся только что, вайп на днях, цикл не определён. Сортировка «Свежий вайп» поднимает тех, кто вайпнулся по-настоящему, а не переименовался в JUST WIPED третий месяц подряд."
-            note="даты валидируются по циклам онлайна, а не по полю last_wipe"
-            preview={<ServersPreview />}
-          />
-          <Feature
-            reverse
-            title="Досье на игрока"
-            text="SteamID или ссылка на профиль — и я собираю картину: Trust Score, часы в игре, возраст аккаунта, баны, где играл и когда. Убил тебя подозрительно меткий парень? Пробей и решай сам, читер это или у тебя был плохой день. Профиль закрыт — не стена: топ-500 серверов я сканирую напрямую через A2S и вижу игроков, которых не видит Steam."
-            note="чего не вижу — пишу «неизвестно», а не рисую нолики"
-            preview={<PlayerPreview />}
-          />
-          <Feature
-            title="Вочлист — слежу, пока ты спишь"
-            text="Добавь врагов, соседей или старых тиммейтов — я смотрю за ними круглосуточно и пришлю пуш в ту же секунду, как цель зайдёт на сервер. Соседи проснулись в четыре утра? Ты узнаешь об этом раньше, чем они докопаются до твоего лута."
-            note="пуш приходит в Telegram — туда, где ты и так сидишь"
-            preview={<WatchlistPreview />}
-          />
-          <Feature
-            reverse
-            title="Rust+ без официального приложения"
-            text="Подключи пару Rust+ — рейды, Smart Alarm, смерти и события карты прилетают в Telegram мгновенно, даже когда официальное приложение лежит. У меня свой канал пушей. Для рейдов есть громкий режим: серия алертов подряд, чтобы телефон разбудил тебя ночью."
-            note="рейд в четыре утра — вопрос не «если», а «когда»"
-            preview={<RustPlusPreview />}
-          />
-        </div>
-      </section>
-
-      {/* ======================================================= ВЕБ-ВЕРСИЯ */}
-      <section className="border-y border-line bg-surface/40">
-        <div className="mx-auto flex max-w-[1240px] flex-wrap items-center justify-between gap-6 px-5 py-12">
-          <div className="max-w-xl">
-            <h2 className="text-[22px] font-semibold tracking-tight">Всё то же — на большом экране</h2>
-            <p className="mt-2 text-[14px] text-ink-2">
-              История по дням, циклы, прайм-тайм, досье игроков и вочлист — в браузере, когда телефон
-              лень доставать. Тот же аккаунт, те же данные, ноль настройки.
-            </p>
-          </div>
-          <Link
-            to="/servers"
-            className="inline-flex h-10 items-center rounded-[5px] bg-rust px-5 text-[14px] font-medium text-white transition-colors hover:bg-rust-hot"
-          >
-            Открыть веб-версию
-          </Link>
-        </div>
-      </section>
-
-      {/* ============================================================ FAQ */}
-      <section id="faq" className="mx-auto max-w-[820px] scroll-mt-16 px-5 py-16">
-        <SectionHead eyebrow="Вопросы" title="Что спрашивают чаще всего" />
-        <div className="mt-7 divide-y divide-line border-y border-line">
-          {FAQ.map((item) => (
-            <details key={item.q} className="group">
-              <summary className="flex cursor-pointer items-center justify-between gap-4 py-4 text-[14.5px] font-medium text-ink marker:content-['']">
-                {item.q}
-                <span className="shrink-0 text-ink-3 transition-transform duration-150 group-open:rotate-45">
-                  +
-                </span>
-              </summary>
-              <p className="pb-4 text-[13.5px] leading-relaxed text-ink-2">{item.a}</p>
-            </details>
+      {rows == null ? (
+        <div className="space-y-px pt-2">
+          {[0, 1, 2, 3, 4].map((i) => (
+            <div key={i} className="skeleton h-[52px]" />
           ))}
         </div>
-      </section>
-
-      {/* ==================================================== ФИНАЛЬНЫЙ CTA */}
-      <section className="mx-auto max-w-[1240px] px-5 pb-20">
-        <Card className="px-6 py-12 text-center">
-          <h2 className="text-[28px] leading-tight font-bold tracking-tight">
-            Хватит играть <span className="text-rust-hot">вслепую</span>
-          </h2>
-          <p className="mx-auto mt-3 max-w-xl text-[14.5px] text-ink-2">
-            Тридцать секунд в Telegram — и у тебя память лучше, чем у любого мониторинга. Вайпы,
-            игроки, слежка, рейд-алерты. Всё в одном боте.
-          </p>
-          <div className="mt-6 flex flex-wrap justify-center gap-3">
-            <a
-              href="https://t.me/RustPeek_Bot"
-              target="_blank"
-              rel="noopener"
-              className="inline-flex h-10 items-center gap-2 rounded-[5px] bg-rust px-5 text-[14px] font-medium text-white transition-colors hover:bg-rust-hot"
-            >
-              <IconTelegram size={15} />
-              Открыть @RustPeek_Bot
-            </a>
-            <Link
-              to="/servers"
-              className="inline-flex h-10 items-center rounded-[5px] border border-line px-5 text-[14px] font-medium text-ink transition-colors hover:border-line-strong hover:bg-surface-2"
-            >
-              Сначала посмотреть данные
-            </Link>
-          </div>
-          <div className="tnum mt-7 flex flex-wrap justify-center gap-x-6 gap-y-2 text-[12.5px] text-ink-3">
-            <span>
-              <b className="text-ink-2">{compact(value('online_measurements'))}</b> замеров онлайна
-            </span>
-            <span>
-              <b className="text-ink-2">{thousands(value('wipes'))}</b> подтверждённых вайпов
-            </span>
-            <span>
-              <b className="text-ink-2">{thousands(value('servers_total'))}</b> серверов в базе
-            </span>
-            <span>
-              <b className="text-ink-2">24/7</b> мониторинг
-            </span>
-          </div>
-        </Card>
-      </section>
-    </>
+      ) : rows.length === 0 ? (
+        <p className="max-w-2xl py-8 text-[13.5px] text-ink-2">
+          За последние 24 часа ни на одном сервере не было подтверждённого вайпа. Это не сбой —
+          просто сегодня тихо.{' '}
+          <Link to="/servers?calendar=tomorrow" className="text-rust-hot underline underline-offset-4">
+            Посмотри, кто вайпается завтра
+          </Link>
+          .
+        </p>
+      ) : (
+        <ul className="pt-1">
+          {rows.map((s, i) => (
+            <FreshRow key={s.id} s={s} rank={i + 1} />
+          ))}
+        </ul>
+      )}
+    </section>
   )
 }
 
-/* ------------------------------------------------------------ строительные */
-
-function Counter({ value, label, accent }: { value: ReactNode; label: string; accent?: boolean }) {
+function FreshRow({ s, rank }: { s: ServerListItem; rank: number }) {
+  const since = wipeAgeHours(s.wipe_label)
+  const next = nextWipe(s.next_wipe_estimate)
   return (
-    <div className="px-5 py-5">
-      <div
-        className={cx(
-          'text-[22px] leading-none font-semibold tracking-tight',
-          accent ? 'text-rust-hot' : 'text-ink',
-        )}
+    <li className="row border-b border-rule" data-flag={since != null && since < 24 ? 'fresh' : undefined}>
+      <Link
+        to={`/servers/${s.id}`}
+        className="grid grid-cols-[26px_1fr_auto] items-center gap-x-4 py-3 pl-3 sm:grid-cols-[26px_1fr_150px_180px]"
       >
-        {value}
-      </div>
-      <div className="mt-1.5 text-[12px] text-ink-3">{label}</div>
-    </div>
+        <span className="num text-[12px] text-ink-3">{rank}</span>
+        <span className="min-w-0">
+          <span className="block truncate text-[14px] font-medium text-ink">{s.name}</span>
+          <span className="mt-0.5 block text-[11.5px] text-ink-3">
+            {serverTypeLabel(s.type)}
+            {s.rate && ` · ${s.rate}`} · вайп {relativeWipe(s.wipe_label)}
+          </span>
+        </span>
+        <span className="hidden sm:block">
+          <span className="num block text-[13px] text-ink">
+            {thousands(s.online)}
+            <span className="text-ink-3"> / {thousands(s.max)}</span>
+          </span>
+          <span className="mt-1 block">
+            <Meter value={s.online} max={s.max} />
+          </span>
+        </span>
+        <span className="hidden sm:block">
+          <CycleTrack sinceHours={since} untilHours={next.hours} height={16} />
+          <span className="mt-1 block text-right text-[11.5px] text-ink-3">{next.text}</span>
+        </span>
+      </Link>
+    </li>
   )
 }
 
-function SectionHead({ eyebrow, title, sub }: { eyebrow: string; title: string; sub?: string }) {
-  return (
-    <div className="max-w-2xl">
-      <div className="text-[11.5px] font-medium tracking-[0.14em] text-rust-hot uppercase">
-        {eyebrow}
-      </div>
-      <h2 className="mt-2 text-[26px] leading-tight font-semibold tracking-tight">{title}</h2>
-      {sub && <p className="mt-2 text-[14px] text-ink-2">{sub}</p>}
-    </div>
-  )
-}
+/* -------------------------------------------------------------------- Метод
+   Метод объясняется противопоставлением, а не нумерованным списком:
+   у продукта ровно один конкурентный тезис, и он про разницу между тем,
+   что написано, и тем, что измерено. */
 
-function Feature({
-  title,
-  text,
-  note,
-  preview,
-  reverse,
-}: {
-  title: string
-  text: string
-  note: string
-  preview: ReactNode
-  reverse?: boolean
-}) {
-  return (
-    <div className="grid items-center gap-6 lg:grid-cols-2">
-      <div className={cx(reverse && 'lg:order-2')}>
-        <h3 className="text-[18px] font-semibold tracking-tight">{title}</h3>
-        <p className="mt-2.5 text-[14px] leading-relaxed text-ink-2">{text}</p>
-        <p className="mt-3 border-l-2 border-line pl-3 text-[12.5px] text-ink-3">{note}</p>
-      </div>
-      <div className={cx(reverse && 'lg:order-1')}>{preview}</div>
-    </div>
-  )
-}
+const CONTRAST: Array<[string, string]> = [
+  ['Поле «последний вайп»', 'Форма кривой онлайна'],
+  ['Заполняет админ сервера руками', 'Считается автоматически, круглосуточно'],
+  ['«JUST WIPED» в названии висит месяцами', 'Провал до нуля виден один раз и в конкретный час'],
+  ['Прогноза нет — только последняя дата', 'Интервалы между вайпами дают следующий'],
+  ['Врать выгодно: свежесть притягивает онлайн', 'Врать нечем: кривую рисуют сами игроки'],
+]
 
-/* Превью — настоящие компоненты интерфейса, не картинки. Данные в них
-   демонстрационные и подписаны как пример. */
-
-function ServersPreview() {
-  const rows = [
-    { name: 'EU RENEGADE 2x Monthly Medium', meta: 'Mod · x2 · набирает', on: 106, max: 150, wipe: 'вайп 9 часов назад', fresh: true, next: 'через 2 дня', soon: false },
-    { name: '[EU] RustValley 10x PVE #2', meta: 'Mod · x10 · стабилен', on: 28, max: 100, wipe: 'вайп 21 час назад', fresh: true, next: 'завтра', soon: true },
-    { name: 'Rustoria.co - EU East Medium', meta: 'Vanilla · x1', on: 209, max: 225, wipe: 'вайп 4 дня назад', fresh: false, next: 'цикл не определён', soon: false },
-  ]
+function Method() {
   return (
-    <Card className="overflow-hidden">
-      <CardHeader title="Выдача поиска" sub="пример" />
-      <div className="divide-y divide-line/70">
-        {rows.map((r) => (
-          <div key={r.name} className="flex items-center gap-3 px-4 py-2.5">
-            <div className="min-w-0 flex-1">
-              <div className="truncate text-[13px] font-medium text-ink">{r.name}</div>
-              <div className="mt-0.5 text-[11.5px] text-ink-3">{r.meta}</div>
-              <div className="mt-1.5 flex items-center gap-2">
-                <span className="tnum text-[11.5px] text-ink-2">
-                  {r.on}
-                  <span className="text-ink-3">/{r.max}</span>
-                </span>
-                <span className="w-14">
-                  <Meter value={r.on} max={r.max} />
-                </span>
-                <span className={cx('text-[11.5px]', r.fresh ? 'text-good' : 'text-ink-3')}>
-                  {r.wipe}
-                </span>
-              </div>
+    <section id="method" className="border-y border-rule bg-panel">
+      <div className="bleed py-12">
+        <div className="eyebrow">метод</div>
+        <h2 className="mt-3 max-w-3xl text-[26px] leading-tight font-semibold text-ink sm:text-[32px]">
+          Слова админа и показания прибора — это разные источники
+        </h2>
+
+        <div className="mt-9 grid gap-px sm:grid-cols-2">
+          <div className="pr-0 sm:pr-8">
+            <div className="eyebrow border-b border-rule pb-2">так делают остальные</div>
+            <ul>
+              {CONTRAST.map(([a]) => (
+                <li key={a} className="border-b border-rule py-3 text-[13.5px] text-ink-3">
+                  {a}
+                </li>
+              ))}
+            </ul>
+          </div>
+          <div className="border-l-0 border-rule sm:border-l sm:pl-8">
+            <div className="eyebrow border-b border-rule pb-2" style={{ color: 'var(--color-rust-hot)' }}>
+              так делаю я
             </div>
-            <StatusPill tone={r.soon ? 'hot' : r.next.startsWith('цикл') ? 'muted' : 'plain'} dot={r.soon}>
-              {r.next}
-            </StatusPill>
-          </div>
-        ))}
-      </div>
-    </Card>
-  )
-}
-
-function PlayerPreview() {
-  const factors = [
-    ['Возраст аккаунта · с 2021', 28, 38],
-    ['Часы в Rust · 1 611 ч', 34, 45],
-    ['Профиль открыт', 12, 12],
-    ['Жалобы игроков', -10, 25],
-  ] as const
-  return (
-    <Card className="overflow-hidden">
-      <CardHeader title="Досье" sub="пример" />
-      <div className="flex flex-wrap items-end gap-4 px-4 pt-4">
-        <div>
-          <div className="text-[11px] tracking-wide text-ink-3 uppercase">Trust Score</div>
-          <div className="mt-1 flex items-end gap-2">
-            <span className="text-[38px] leading-none font-semibold text-good">73</span>
-            <span className="pb-1 text-[12.5px] text-ink-3">из 100 · высокий</span>
+            <ul>
+              {CONTRAST.map(([, b]) => (
+                <li key={b} className="border-b border-rule py-3 text-[13.5px] text-ink">
+                  {b}
+                </li>
+              ))}
+            </ul>
           </div>
         </div>
-        <div className="ml-auto text-right">
-          <div className="text-[13px] font-medium text-ink">paparazzi34</div>
-          <div className="font-mono text-[11px] text-ink-3">76561198012345678</div>
-        </div>
+
+        <p className="mt-8 max-w-2xl text-[13.5px] leading-relaxed text-ink-2">
+          Побочный эффект метода: иногда кривая не складывается в цикл — сервер вайпается
+          нерегулярно или наблюдение началось недавно. Тогда в прогнозе стоит{' '}
+          <span className="text-ink">«цикл не определён»</span>, а не выдуманное число. Это
+          неудобно, зато на это можно опереться.
+        </p>
       </div>
-      <div className="space-y-2 px-4 pt-4 pb-4">
-        {factors.map(([label, points, max]) => (
-          <div key={label} className="grid grid-cols-[minmax(0,1fr)_56px_32px] items-center gap-2">
-            <span className="truncate text-[12px] text-ink-2">{label}</span>
-            <span className="relative h-1.5 overflow-hidden rounded-full bg-ink-3/15">
-              <span
-                className={cx(
-                  'absolute inset-y-0 rounded-full',
-                  points < 0 ? 'right-0 bg-danger' : 'left-0 bg-good',
-                )}
-                style={{ width: `${Math.min(100, (Math.abs(points) / max) * 100)}%` }}
-              />
-            </span>
-            <span className={cx('tnum text-right text-[11.5px]', points < 0 ? 'text-danger' : 'text-ink')}>
-              {points > 0 ? `+${points}` : points}
-            </span>
-          </div>
-        ))}
-      </div>
-    </Card>
+    </section>
   )
 }
 
-function WatchlistPreview() {
-  const rows = [
-    ['xX_Raider_Xx', 'на Magic Rust #4', 'зашёл 2 часа назад', 'on'],
-    ['НагибаторВаня', 'профиль скрыт · вижу через A2S', 'зашёл 15 минут назад', 'hidden'],
-    ['sleepy_bob', 'офлайн', 'был вчера в 23:10', 'off'],
-  ] as const
-  return (
-    <Card className="overflow-hidden">
-      <CardHeader title="Вочлист" sub="пример" />
-      <div className="divide-y divide-line/70">
-        {rows.map(([nick, where, when, state]) => (
-          <div key={nick} className="flex items-center gap-3 px-4 py-3">
-            <span
-              className={cx(
-                'size-2 shrink-0 rounded-full',
-                state === 'on' && 'animate-live bg-good',
-                state === 'hidden' && 'bg-rust',
-                state === 'off' && 'bg-ink-3/50',
-              )}
-            />
-            <span className="min-w-0 flex-1">
-              <span className="block truncate text-[13px] font-medium text-ink">{nick}</span>
-              <span className="block truncate text-[11.5px] text-ink-3">{where}</span>
-            </span>
-            <span className="shrink-0 text-[11.5px] text-ink-3">{when}</span>
-          </div>
-        ))}
-      </div>
-    </Card>
-  )
-}
+/* ------------------------------------------------------------- Что умею */
 
-function RustPlusPreview() {
-  const rows = [
-    ['!', 'Рейд.', 'Взрыв у базы — Smart Alarm «Главная дверь»', '14:32', 'raid'],
-    ['~', 'Smart Alarm.', '«Ловушка в гараже» — движение', '11:07', 'alarm'],
-    ['×', 'Смерть.', 'ShadowKiller_228 — AK-47, 87 м', '23:48', 'death'],
-  ] as const
-  return (
-    <Card className="overflow-hidden">
-      <CardHeader title="Лента Rust+" sub="пример" />
-      <div className="divide-y divide-line/70">
-        {rows.map(([glyph, title, detail, time, kind]) => (
-          <div key={title} className="flex items-start gap-3 px-4 py-3">
-            <span
-              className={cx(
-                'mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-[4px] border text-[13px] font-semibold',
-                kind === 'raid' && 'border-danger/40 bg-danger/10 text-danger',
-                kind === 'alarm' && 'border-rust/40 bg-rust/10 text-rust-hot',
-                kind === 'death' && 'border-line bg-surface-2 text-ink-2',
-              )}
-              aria-hidden
-            >
-              {glyph}
-            </span>
-            <span className="min-w-0 flex-1 text-[13px] text-ink">
-              <b className="font-semibold">{title}</b> {detail}
-            </span>
-            <span className="tnum shrink-0 text-[11.5px] text-ink-3">{time}</span>
-          </div>
-        ))}
-      </div>
-    </Card>
-  )
-}
-
-const FAQ = [
+const ABILITIES: Array<{ title: string; body: string; to?: string; soon?: boolean }> = [
   {
-    q: 'Откуда у тебя данные?',
-    a: 'Три источника: публичная статистика мониторингов, прямой A2S-опрос серверов (тот же протокол, которым пользуется сама игра) и собственная база истории, которая пишется круглосуточно с мая. Снапшот покажет любой — историю надо было начать собирать вовремя.',
+    title: 'Вайп-календарь',
+    body: 'Список серверов, собранный не по онлайну, а по тому, когда там вайп: сегодня, завтра, на неделе.',
+    to: '/servers',
   },
   {
-    q: 'Почему нельзя просто верить дате вайпа на мониторинге?',
-    a: 'Потому что её заполняет админ сервера руками. Кто-то честно обновляет, кто-то забывает месяцами, а кто-то врёт специально, чтобы сервер выглядел свежим и собирал онлайн. Я валидирую каждую дату по форме онлайна: пик, провал, рост. Эту подпись подделать нельзя — она требует, чтобы с сервера реально вылетели все игроки.',
+    title: 'Карточка сервера',
+    body: 'Вердикт одной фразой, график онлайна с отметками подтверждённых вайпов, прайм-тайм по часам и вся история вайпов.',
+    to: '/servers',
   },
   {
-    q: 'Профиль игрока закрыт — что ты вообще увидишь?',
-    a: 'Больше, чем кажется. Закрытый профиль прячет статистику Steam, но не прячет самого игрока на сервере: топ-500 серверов я опрашиваю напрямую и вижу, кто где играет — по факту присутствия. А чего не вижу, о том честно пишу «неизвестно».',
+    title: 'Досье игрока',
+    body: 'По SteamID: возраст аккаунта, часы в Rust, баны, Trust Score с разбором по факторам и где этого человека видели.',
+    to: '/players',
   },
   {
-    q: 'Почему у некоторых серверов «цикл не определён»?',
-    a: 'Потому что интервалы между их вайпами разбросаны — то четыре дня, то одиннадцать. Из такого ряда прогноз не строится. Можно было бы нарисовать среднее и сделать вид, что это дата, но тогда весь смысл проекта пропадает. Лучше прочерк, чем уверенное враньё.',
+    title: 'Вочлист',
+    body: 'Слежу за конкретными людьми и говорю, когда они заходят на сервер. Нужна авторизация через телеграм.',
+    soon: true,
   },
   {
-    q: 'Это бесплатно?',
-    a: 'База — да: поиск, вайпы, досье. Продвинутым штукам вроде слежки за пачкой целей и громких рейд-алертов со временем появится подписка. Но сначала я должен быть полезен, а потом просить денег, а не наоборот.',
-  },
-  {
-    q: 'А если сервер маленький и его нет в твоей базе?',
-    a: 'Найду через поиск и возьму под наблюдение — с этого момента история начнёт писаться. Чем раньше добавишь свой сервер, тем длиннее будет его память к следующему циклу.',
+    title: 'Рейд-алерты Rust+',
+    body: 'Подключаю Rust+ и пишу в телеграм, когда по базе стучат. Нужна авторизация через телеграм.',
+    soon: true,
   },
 ]
+
+function WhatICan() {
+  return (
+    <section id="can" className="bleed py-12">
+      <div className="eyebrow">что умею</div>
+      <div className="mt-5 border-t border-rule">
+        {ABILITIES.map((a) => {
+          const inner = (
+            <div className="grid gap-x-8 gap-y-1.5 py-4 sm:grid-cols-[240px_1fr] sm:items-baseline">
+              <h3 className="flex items-baseline gap-2.5 text-[15px] font-semibold text-ink">
+                {a.title}
+                {a.soon && (
+                  <span className="eyebrow" style={{ letterSpacing: '0.1em' }}>
+                    в боте
+                  </span>
+                )}
+              </h3>
+              <p className="max-w-2xl text-[13.5px] leading-relaxed text-ink-2">{a.body}</p>
+            </div>
+          )
+          return a.to ? (
+            <Link
+              key={a.title}
+              to={a.to}
+              className="row block border-b border-rule px-3 transition-colors"
+            >
+              {inner}
+            </Link>
+          ) : (
+            <div key={a.title} className="border-b border-rule px-3 opacity-70">
+              {inner}
+            </div>
+          )
+        })}
+      </div>
+    </section>
+  )
+}
+
+/* -------------------------------------------------------------- Вопросы */
+
+const FAQ: Array<[string, string]> = [
+  [
+    'Откуда берутся данные',
+    'Онлайн снимается круглосуточно: BattleMetrics API для широкого охвата и прямой A2S-запрос к топ-500 серверов. Сейчас в базе около 2 600 серверов и больше двух миллионов замеров.',
+  ],
+  [
+    'Что считается вайпом',
+    'Три события подряд: сервер жил суточной волной, онлайн обвалился почти в ноль, следом пошёл резкий рост. Одиночный рестарт или ночное затишье под это не подходят.',
+  ],
+  [
+    'Почему у некоторых серверов нет прогноза',
+    'Потому что интервалы между вайпами разъезжаются или наблюдение началось недавно. Придумать число можно, опереться на него нельзя — поэтому там честное «цикл не определён».',
+  ],
+  [
+    'Поиск по нику работает',
+    'Нет. Игрока ищу по SteamID64 или по ссылке на профиль Steam. Если в ссылке ник вместо цифр — вставляй ссылку целиком, разберусь сам.',
+  ],
+  [
+    'Чем это отличается от BattleMetrics',
+    'BattleMetrics отвечает на вопрос «что на сервере сейчас». Я отвечаю на вопрос «что там было и что будет» — потому что храню историю и считаю по ней циклы.',
+  ],
+]
+
+function Faq() {
+  return (
+    <section id="faq" className="border-t border-rule bg-panel">
+      <div className="bleed py-12">
+        <div className="eyebrow">вопросы</div>
+        <dl className="mt-5 border-t border-rule">
+          {FAQ.map(([q, a]) => (
+            <div
+              key={q}
+              className="grid gap-x-8 gap-y-1.5 border-b border-rule py-4 sm:grid-cols-[300px_1fr]"
+            >
+              <dt className="text-[14px] font-semibold text-ink">{q}</dt>
+              <dd className="m-0 max-w-2xl text-[13.5px] leading-relaxed text-ink-2">{a}</dd>
+            </div>
+          ))}
+        </dl>
+      </div>
+    </section>
+  )
+}
+
+/* ------------------------------------------------------------------- CTA */
+
+function Cta() {
+  return (
+    <section className="bleed border-t border-rule py-14">
+      <h2
+        className="stencil font-semibold text-ink"
+        style={{ fontSize: 'clamp(26px, 4.4vw, 54px)', lineHeight: 1 }}
+      >
+        Сначала посмотри данные.
+        <br />
+        <span className="text-ink-3">Потом решай, куда заходить.</span>
+      </h2>
+      <div className="mt-7 flex flex-wrap items-center gap-3">
+        <Link to="/servers" className="btn btn-solid h-10 px-5">
+          Открыть список серверов
+        </Link>
+        <a
+          href="https://t.me/RustPeek_Bot"
+          target="_blank"
+          rel="noopener"
+          className="btn h-10 px-5"
+        >
+          <IconTelegram size={14} />
+          Тот же мониторинг в телеграме
+        </a>
+        <Tag tone="mute" className="ml-1">
+          вочлист и рейд-алерты — пока только в боте
+        </Tag>
+      </div>
+    </section>
+  )
+}

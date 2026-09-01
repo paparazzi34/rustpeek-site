@@ -15,7 +15,7 @@ import type {
   SiteStats,
   WipeRow,
 } from './types'
-import { pad2 } from './format'
+import { pad2, pluralDays } from './format'
 
 const NAMES: Array<[string, 'vanilla' | 'mod', string, number, number]> = [
   ['Rustafied.com - EU Main', 'vanilla', 'x1', 218, 225],
@@ -91,7 +91,7 @@ export function mockServers(): ServerListItem[] {
       wipe_label: wipeLabelFor(sinceWipe),
       next_wipe_estimate: known ? sqlDT(cycleDays * 24 - sinceWipe) : null,
       country: ['DE', 'RU', 'US', 'NL'][i % 4],
-      sparkline: onlineSeries(28, n[4], seeded(i * 31 + 5), [(i * 7) % 40]),
+      spark: onlineSeries(48, n[4], seeded(i * 31 + 5), [(i * 7) % 40]),
     }
   })
 }
@@ -126,7 +126,7 @@ export function mockDetail(id: number): ServerDetail {
     country: 'DE',
     wipe: wipeLabelFor(sinceWipe),
     wipe_state: sinceWipe < 24 ? 'fresh' : null,
-    cycle: idx % 5 === 3 ? null : `${cycleDays} дней`,
+    cycle: idx % 5 === 3 ? null : `${cycleDays} ${pluralDays(cycleDays)}`,
     next_wipe_estimate: idx % 5 === 3 ? null : sqlDT(cycleDays * 24 - sinceWipe),
     peak: Math.round(n[4] * 0.98),
     avg: Math.round(n[4] * 0.55),
@@ -135,41 +135,7 @@ export function mockDetail(id: number): ServerDetail {
     team_limit: ['без лимита', 'соло/дуо/трио', 'квад'][idx % 3],
     bp_wipe: idx % 2 ? 'только при форс-вайпе' : 'каждый вайп',
     activity_status: 'stable',
-    prime_time: '18:00–23:00',
-    history_days: '86 дней',
-    days_unavailable: idx === 2, // один мок-сервер показывает состояние "недоступно"
-    days: idx === 2 ? undefined : mockDailyBreakdown(idx, n[4]),
   }
-}
-
-function mockDailyBreakdown(idx: number, maxOnline: number) {
-  const rnd = seeded(idx * 4133 + 9)
-  const today = new Date()
-  const wipeDayIndex = 4
-  const gapDayIndex = idx % 2 === 0 ? 2 : -1
-  return Array.from({ length: 8 }, (_, i) => {
-    const dayNo = 8 - i
-    const d = new Date(today)
-    d.setDate(d.getDate() - i)
-    const date = `${pad2(d.getDate())}.${pad2(d.getMonth() + 1)}`
-    if (i === gapDayIndex) {
-      return { label: `День ${dayNo}`, date, value: '— нет данных', pct: 0, is_wipe: false, is_gap: true }
-    }
-    if (i === wipeDayIndex) {
-      const peak = Math.round(maxOnline * (0.5 + rnd() * 0.3))
-      return { label: `День ${dayNo} · вайп`, date, value: String(peak), pct: Math.round((peak / maxOnline) * 100), is_wipe: true, is_gap: false }
-    }
-    const peak = Math.round(maxOnline * (0.3 + rnd() * 0.65))
-    const drop = i > wipeDayIndex ? Math.round(rnd() * 25) : 0
-    return {
-      label: `День ${dayNo}`,
-      date,
-      value: drop ? `${peak} −${drop}%` : String(peak),
-      pct: Math.round((peak / maxOnline) * 100),
-      is_wipe: false,
-      is_gap: false,
-    }
-  }).reverse()
 }
 
 export function mockHistory(id: number, period: string): HistoryResponse {

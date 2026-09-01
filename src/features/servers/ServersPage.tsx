@@ -1,12 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
+import { CycleTrack } from '../../components/CycleTrack'
+import { Sparkline } from '../../components/charts/Signature'
+import { Button, EmptyState, ErrorState, Meter, SearchField, Segmented, cx } from '../../components/ui'
 import { searchServers } from '../../lib/api'
-import type {
-  CalendarKey,
-  FilterKey,
-  ServerListItem,
-  SortKey,
-} from '../../lib/types'
 import {
   activityLabel,
   nextWipe,
@@ -16,12 +13,23 @@ import {
   thousands,
   wipeAgeHours,
 } from '../../lib/format'
-import { Button, Card, EmptyState, ErrorState, Meter, SearchField, Segmented, Skeleton, StatusPill, cx } from '../../components/ui'
-import { Sparkline } from '../../components/charts/Sparkline'
+import type { CalendarKey, FilterKey, SearchResponse, ServerListItem, SortKey } from '../../lib/types'
 
-const LIMIT = 50
+/* СПИСОК СЕРВЕРОВ — сердце продукта.
 
-const CALENDARS: Array<{ value: CalendarKey; label: string }> = [
+   Организован по вайп-календарю, а не по онлайну: «по онлайну» умеет любой
+   мониторинг, а вопрос игрока звучит «куда зайти сегодня».
+
+   Про визуальную массу. Пятьдесят одинаковых строк — это стена, глазу не за
+   что зацепиться. Поэтому масса разная и она означает конкретное:
+     · свежий вайп (< 24 ч) — зелёный флажок в жёлобе и яркая дата;
+     · вайп в ближайшие сутки — жёлтый флажок;
+     · мёртвый или пустеющий сервер — вся строка уходит в 45% непрозрачности.
+   Никаких новых цветов, только иерархия. */
+
+const LIMIT = 40
+
+const CALENDAR: Array<{ value: CalendarKey; label: string }> = [
   { value: 'today', label: 'Сегодня' },
   { value: 'tomorrow', label: 'Завтра' },
   { value: 'week', label: 'На неделе' },
@@ -35,337 +43,336 @@ const FILTERS: Array<{ value: FilterKey; label: string }> = [
 ]
 
 const SORTS: Array<{ value: SortKey; label: string; hint: string }> = [
+  { value: 'wipe_fresh', label: 'Свежий вайп', hint: 'Сначала те, где вайп только что был' },
+  { value: 'cycle', label: 'Ближе к вайпу', hint: 'Сначала те, где вайп вот-вот будет' },
   { value: 'online', label: 'Онлайн', hint: 'Сначала самые населённые' },
-  { value: 'wipe_fresh', label: 'Свежий вайп', hint: 'Вайпнулись меньше суток назад' },
-  { value: 'cycle', label: 'Ближе к вайпу', hint: 'У кого следующий вайп скорее' },
 ]
 
 export function ServersPage() {
   const [params, setParams] = useSearchParams()
-  const [query, setQuery] = useState(params.get('q') ?? '')
-  const [calendar, setCalendar] = useState<CalendarKey>('all')
-  const [filter, setFilter] = useState<FilterKey>('all')
-  const [sort, setSort] = useState<SortKey>('online')
+  const calendar = (params.get('calendar') as CalendarKey) || 'all'
+  const filter = (params.get('filter') as FilterKey) || 'all'
+  const sort = (params.get('sort') as SortKey) || 'wipe_fresh'
+  const q = params.get('q') ?? ''
 
-  const [items, setItems] = useState<ServerListItem[]>([])
-  const [total, setTotal] = useState<number | null>(null)
-  const [counts, setCounts] = useState<Partial<Record<CalendarKey, number>>>({})
-  const [beforeFilter, setBeforeFilter] = useState(0)
-  const [status, setStatus] = useState<'idle' | 'loading' | 'refreshing' | 'error'>('loading')
-  const [loadingMore, setLoadingMore] = useState(false)
+  const [draft, setDraft] = useState(q)
+  const [data, setData] = useState<SearchResponse | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(false)
+  const [offset, setOffset] = useState(0)
+  const abort = useRef<AbortController | null>(null)
 
-  const abortRef = useRef<AbortController | null>(null)
-  const seqRef = useRef(0)
+  useEffect(() => setDraft(q), [q])
 
-  const load = useCallback(
-    async (offset: number, mode: 'replace' | 'append') => {
-      const mySeq = ++seqRef.current
-      abortRef.current?.abort()
-      const ctrl = new AbortController()
-      abortRef.current = ctrl
-
-      if (mode === 'replace') setStatus(items.length ? 'refreshing' : 'loading')
-      else setLoadingMore(true)
-
-      try {
-        const data = await searchServers({
-          q: query.trim() || undefined,
-          filter,
-          sort,
-          calendar,
-          limit: LIMIT,
-          offset,
-          signal: ctrl.signal,
-        })
-        if (mySeq !== seqRef.current) return
-        const list = data.servers ?? []
-        setItems((prev) => (mode === 'append' ? [...prev, ...list] : list))
-        setTotal(data.total ?? list.length)
-        if (data.calendar_counts) setCounts(data.calendar_counts)
-        setBeforeFilter(data.local_count_before_filter ?? 0)
-        setStatus('idle')
-      } catch (err) {
-        if (err instanceof DOMException && err.name === 'AbortError') return
-        if (mySeq !== seqRef.current) return
-        setStatus('error')
-      } finally {
-        if (mySeq === seqRef.current) setLoadingMore(false)
+  const patch = useCallback(
+    (next: Record<string, string>) => {
+      const p = new URLSearchParams(params)
+      for (const [k, v] of Object.entries(next)) {
+        if (v) p.set(k, v)
+        else p.delete(k)
       }
+      setOffset(0)
+      setParams(p, { replace: true })
     },
-    // items.length только для выбора «скелет или приглушение» — перезапуск не нужен
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [query, filter, sort, calendar],
+    [params, setParams],
   )
 
-  // дебаунс набора: не долбим API на каждый символ
   useEffect(() => {
-    const t = setTimeout(() => void load(0, 'replace'), query ? 300 : 0)
-    return () => clearTimeout(t)
-  }, [load, query])
+    abort.current?.abort()
+    const ac = new AbortController()
+    abort.current = ac
+    setLoading(true)
+    setError(false)
+    searchServers({ q, filter, sort, calendar, limit: LIMIT, offset, signal: ac.signal })
+      .then((r) => {
+        if (ac.signal.aborted) return
+        setData((prev) =>
+          offset > 0 && prev
+            ? { ...r, servers: [...prev.servers, ...r.servers] }
+            : r,
+        )
+      })
+      .catch((e) => {
+        if (ac.signal.aborted || (e as Error)?.name === 'AbortError') return
+        setError(true)
+      })
+      .finally(() => !ac.signal.aborted && setLoading(false))
+    return () => ac.abort()
+  }, [q, filter, sort, calendar, offset])
 
-  // адрес хранит запрос — ссылкой можно поделиться
-  useEffect(() => {
-    const next = new URLSearchParams(params)
-    if (query.trim()) next.set('q', query.trim())
-    else next.delete('q')
-    setParams(next, { replace: true })
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [query])
+  const counts = data?.calendar_counts
+  const servers = data?.servers ?? []
+  const total = data?.total ?? servers.length
 
-  const localItems = useMemo(() => items.filter((s) => s.source !== 'battlemetrics_live'), [items])
-  const bmItems = useMemo(() => items.filter((s) => s.source === 'battlemetrics_live'), [items])
-  const canLoadMore = total != null && localItems.length < total
+  const withoutFreshWipe = useMemo(
+    () => servers.length === 0 && (data?.local_count_before_filter ?? 0) > 0,
+    [servers.length, data],
+  )
 
   return (
-    <div className="fade-up">
-      <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="text-[22px] leading-tight font-semibold tracking-tight">Серверы</h1>
-          <p className="mt-1 text-[13px] text-ink-2">
-            Даты вайпов подтверждены формой кривой онлайна — пик, провал, рост. Не полем
-            «last_wipe», которое заполняет админ.
-          </p>
-        </div>
-        {total != null && (
-          <p className="tnum text-[12.5px] text-ink-3">
-            {thousands(total)} {pluralServers(total)} под наблюдением
-          </p>
-        )}
-      </div>
-
-      {/* Один ряд фильтров над всем, что они изменяют */}
-      <div className="sticky top-14 z-30 -mx-5 mb-4 border-b border-line bg-bg/92 px-5 py-3 backdrop-blur-md">
-        <div className="flex flex-col gap-2.5 xl:flex-row xl:flex-wrap xl:items-center">
-          <div className="xl:min-w-[300px] xl:flex-1">
+    <>
+      {/* ---- Шапка страницы: заголовок и поиск в одной строке ---- */}
+      <div className="bleed border-b border-rule py-5">
+        <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-4">
+          <div>
+            <div className="eyebrow">вайп-календарь</div>
+            <h1 className="mt-2 text-[24px] leading-none font-semibold text-ink">Серверы</h1>
+          </div>
+          <div className="w-full max-w-lg">
             <SearchField
-              value={query}
-              onChange={setQuery}
-              placeholder="Название сервера — найду и скажу правду про вайп"
+              value={draft}
+              onChange={setDraft}
+              onSubmit={() => patch({ q: draft.trim() })}
+              placeholder="Название сервера"
+              action={
+                draft ? (
+                  <Button
+                    variant="bare"
+                    type="button"
+                    className="h-7"
+                    onClick={() => {
+                      setDraft('')
+                      patch({ q: '' })
+                    }}
+                  >
+                    Сбросить
+                  </Button>
+                ) : null
+              }
             />
           </div>
-          {/* На узком экране ряд фильтров прокручивается вбок, а не ломается
-              на четыре этажа и не обрезается по краю */}
-          <div className="-mx-5 flex gap-2.5 overflow-x-auto px-5 pb-0.5 xl:mx-0 xl:overflow-visible xl:px-0 xl:pb-0">
-          <Segmented
-            ariaLabel="Вайп-календарь"
-            value={calendar}
-            onChange={setCalendar}
-            options={CALENDARS.map((c) => ({
-              value: c.value,
-              label: (
-                <span className="flex items-center gap-1.5">
-                  {c.label}
-                  <span className="tnum text-[11px] text-ink-3">
-                    {counts[c.value] != null ? counts[c.value] : '—'}
+        </div>
+
+        {/* ---- Календарь: главный переключатель, поэтому он крупнее прочих ---- */}
+        <div className="mt-5 flex flex-wrap items-center gap-x-1 gap-y-3">
+          {CALENDAR.map((c) => {
+            const on = c.value === calendar
+            return (
+              <button
+                key={c.value}
+                onClick={() => patch({ calendar: c.value })}
+                className={cx(
+                  'stencil border-b-2 px-3 py-1.5 text-[13px] transition-colors',
+                  on
+                    ? 'border-rust text-ink'
+                    : 'border-transparent text-ink-3 hover:text-ink-2',
+                )}
+              >
+                {c.label}
+                {counts?.[c.value] != null && (
+                  <span className="num ml-2 text-[11px] normal-case opacity-60">
+                    {thousands(counts[c.value])}
                   </span>
-                </span>
-              ),
-            }))}
-          />
-          <Segmented ariaLabel="Тип сервера" value={filter} onChange={setFilter} options={FILTERS} />
-          <Segmented
-            ariaLabel="Сортировка"
-            value={sort}
-            onChange={setSort}
-            options={SORTS.map((s) => ({ value: s.value, label: s.label, hint: s.hint }))}
-          />
+                )}
+              </button>
+            )
+          })}
+
+          <div className="ml-auto flex flex-wrap items-center gap-2">
+            <Segmented value={filter} options={FILTERS} onChange={(v) => patch({ filter: v })} ariaLabel="Тип сервера" />
+            <Segmented value={sort} options={SORTS} onChange={(v) => patch({ sort: v })} ariaLabel="Сортировка" />
           </div>
         </div>
       </div>
 
-      <Card className="overflow-hidden">
-        <div className="hidden grid-cols-[36px_minmax(0,1fr)_128px_88px_150px_160px] items-center gap-3 border-b border-line bg-surface-2/60 px-4 py-2 text-[11px] font-medium tracking-wide text-ink-3 uppercase lg:grid">
-          <span>#</span>
-          <span>Сервер</span>
-          <span>Онлайн</span>
-          <span>48 ч</span>
-          <span>Последний вайп</span>
-          <span>Следующий вайп</span>
+      {/* ---- Заголовки колонок ---- */}
+      <div className="bleed hidden border-b border-rule py-2 lg:block">
+        <div className="grid grid-cols-[30px_1fr_120px_70px_150px_180px] items-center gap-x-5">
+          <span className="eyebrow">#</span>
+          <span className="eyebrow">сервер</span>
+          <span className="eyebrow">онлайн</span>
+          <span className="eyebrow">48 ч</span>
+          <span className="eyebrow">последний вайп</span>
+          <span className="eyebrow">фаза цикла</span>
         </div>
+      </div>
 
-        {status === 'loading' && <RowSkeletons />}
-
-        {status === 'error' && (
+      {error ? (
+        <div className="bleed">
           <ErrorState
-            title="Не дотянулся до базы. Похоже, бэкенд сейчас молчит."
-            onRetry={() => void load(0, 'replace')}
+            title="Не дозвонился до бэкенда, поэтому списка нет. Показывать пустую таблицу вместо данных я не буду."
+            onRetry={() => setOffset((o) => o)}
           />
-        )}
-
-        {status !== 'loading' && status !== 'error' && localItems.length === 0 && (
+        </div>
+      ) : loading && servers.length === 0 ? (
+        <div className="bleed pt-1">
+          {Array.from({ length: 12 }, (_, i) => (
+            <div key={i} className="skeleton mb-px h-[54px]" style={{ opacity: 1 - i * 0.06 }} />
+          ))}
+        </div>
+      ) : servers.length === 0 ? (
+        <div className="bleed">
           <EmptyState
             title={
-              beforeFilter > 0 && filter !== 'all'
-                ? `Нашлось ${beforeFilter} ${pluralServers(beforeFilter)}, но ни один не подошёл под «${
-                    FILTERS.find((f) => f.value === filter)?.label
-                  }»`
-                : 'Ничего не нашлось'
+              withoutFreshWipe
+                ? `Серверов нашлось ${data?.local_count_before_filter}, но ни у одного нет подтверждённого вайпа в этом окне.`
+                : 'По этому запросу ничего не нашлось.'
             }
             hint={
-              beforeFilter > 0 && filter !== 'all'
-                ? 'Ослабь фильтр — покажу всё, что есть.'
-                : 'Проверь написание. Если сервера нет в базе, найду его в BattleMetrics и возьму под наблюдение.'
+              withoutFreshWipe ? (
+                <>
+                  Календарь показывает только подтверждённые вайпы. Открой{' '}
+                  <button
+                    className="text-rust-hot underline underline-offset-4"
+                    onClick={() => patch({ calendar: 'all' })}
+                  >
+                    вкладку «Все»
+                  </button>{' '}
+                  — там серверы есть, просто у части из них цикл ещё не определён.
+                </>
+              ) : (
+                'Проверь написание или поищи по части названия — «rustafied» найдёт все их площадки.'
+              )
             }
           />
-        )}
-
-        {localItems.length > 0 && (
-          <div className={cx('divide-y divide-line/70', status === 'refreshing' && 'opacity-50 transition-opacity')}>
-            {localItems.map((s, i) => (
-              <ServerRow key={s.id} server={s} rank={i + 1} />
+        </div>
+      ) : (
+        <>
+          <ul className="bleed">
+            {servers.map((s, i) => (
+              <ServerRow key={s.id} s={s} rank={offset > 0 ? i + 1 : i + 1} />
             ))}
-          </div>
-        )}
+          </ul>
 
-        {bmItems.length > 0 && (
-          <>
-            <div className="border-t border-line bg-surface-2/60 px-4 py-2 text-[12px] text-ink-3">
-              Нашёл ещё в BattleMetrics — истории по ним пока нет, наблюдение только начинается
-            </div>
-            <div className="divide-y divide-line/70">
-              {bmItems.map((s, i) => (
-                <ServerRow key={`bm-${s.id ?? i}`} server={s} rank={null} />
-              ))}
-            </div>
-          </>
-        )}
-      </Card>
-
-      {canLoadMore && (
-        <div className="mt-4 flex justify-center">
-          <Button onClick={() => void load(localItems.length, 'append')} disabled={loadingMore}>
-            {loadingMore ? 'Загружаю…' : `Показать ещё ${LIMIT}`}
-          </Button>
-        </div>
-      )}
-    </div>
-  )
-}
-
-/* --------------------------------------------------------------- строка */
-
-function ServerRow({ server: s, rank }: { server: ServerListItem; rank: number | null }) {
-  const next = nextWipe(s.next_wipe_estimate)
-  const age = wipeAgeHours(s.wipe_label)
-  const fresh = age != null && age < 24
-  const dim = (s.online ?? 0) <= 0 || s.activity_status === 'draining' || s.online_stale
-  const activity = activityLabel(s.activity_status)
-  const clickable = rank != null && s.id != null
-
-  const body = (
-    <div
-      className={cx(
-        'grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-4 py-2.5 text-left transition-colors',
-        'lg:grid-cols-[36px_minmax(0,1fr)_128px_88px_150px_160px]',
-        clickable && 'hover:bg-surface-2',
-        dim && 'opacity-55',
-      )}
-    >
-      <span className="tnum hidden text-[12px] text-ink-3 lg:block">{rank ?? '—'}</span>
-
-      <span className="min-w-0">
-        <span className="block truncate text-[13.5px] font-medium text-ink">{s.name}</span>
-        <span className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11.5px] text-ink-3">
-          <span>{serverTypeLabel(s.type)}</span>
-          {s.rate && <span>· {s.rate}</span>}
-          {activity && <span>· {activity}</span>}
-          {rank == null && <span>· нет истории, найден в BattleMetrics</span>}
-        </span>
-      </span>
-
-      <span className="hidden lg:block">
-        {s.online_stale ? (
-          <span className="text-[12px] text-ink-3">нет свежих данных</span>
-        ) : (
-          <>
-            <span className="tnum block text-[12.5px] text-ink">
-              {thousands(s.online)}
-              <span className="text-ink-3"> / {thousands(s.max)}</span>
+          <div className="bleed flex items-center justify-between gap-4 py-6">
+            <span className="text-[12.5px] text-ink-3">
+              Показано <span className="num text-ink-2">{servers.length}</span> из{' '}
+              <span className="num text-ink-2">{thousands(total)}</span> {pluralServers(total)}
             </span>
-            <span className="mt-1 block">
-              <Meter value={s.online} max={s.max} />
-            </span>
-          </>
-        )}
-      </span>
-
-      <span className="hidden lg:block">
-        {s.sparkline && s.sparkline.length > 1 && !s.online_stale ? (
-          <Sparkline values={s.sparkline} />
-        ) : (
-          <span className="text-[12px] text-ink-3">—</span>
-        )}
-      </span>
-
-      <span className="hidden lg:block">
-        {age == null ? (
-          <span className="text-[12.5px] text-ink-3">не подтверждён</span>
-        ) : (
-          <>
-            <span className={cx('block text-[12.5px]', fresh ? 'text-good' : 'text-ink-2')}>
-              {relativeWipe(s.wipe_label)}
-            </span>
-            {fresh && (
-              <span className="mt-0.5 block text-[11px] text-ink-3">свежий — карта чистая</span>
+            {servers.length < total && (
+              <Button onClick={() => setOffset(servers.length)} disabled={loading}>
+                {loading ? 'Гружу…' : 'Показать ещё'}
+              </Button>
             )}
-          </>
-        )}
-      </span>
-
-      <span className="justify-self-end lg:justify-self-start">
-        <StatusPill
-          tone={next.tone === 'soon' ? 'hot' : next.tone === 'unknown' ? 'muted' : 'plain'}
-          dot={next.tone === 'soon'}
-        >
-          {next.text}
-        </StatusPill>
-      </span>
-
-      {/* Узкий экран: онлайн и вайп не прячем, а переносим на свою строку —
-          без них строка списка бессмысленна */}
-      <span className="col-span-2 mt-1.5 flex items-center gap-3 lg:hidden">
-        {s.online_stale ? (
-          <span className="text-[12px] text-ink-3">нет свежих данных</span>
-        ) : (
-          <>
-            <span className="tnum shrink-0 text-[12px] text-ink-2">
-              {thousands(s.online)}
-              <span className="text-ink-3">/{thousands(s.max)}</span>
-            </span>
-            <span className="w-16 shrink-0">
-              <Meter value={s.online} max={s.max} />
-            </span>
-          </>
-        )}
-        <span className={cx('truncate text-[12px]', fresh ? 'text-good' : 'text-ink-3')}>
-          {age == null ? 'вайп не подтверждён' : `вайп ${relativeWipe(s.wipe_label)}`}
-        </span>
-      </span>
-    </div>
-  )
-
-  if (!clickable) return <div>{body}</div>
-  return (
-    <Link to={`/servers/${s.id}`} className="block">
-      {body}
-    </Link>
+          </div>
+        </>
+      )}
+    </>
   )
 }
 
-function RowSkeletons() {
+/* ------------------------------------------------------------------ Строка */
+
+function ServerRow({ s, rank }: { s: ServerListItem; rank: number }) {
+  const since = wipeAgeHours(s.wipe_label)
+  const next = nextWipe(s.next_wipe_estimate)
+  const fresh = since != null && since < 24
+  const soon = next.tone === 'soon'
+  const activity = activityLabel(s.activity_status)
+  const dead = s.online_stale || (s.max > 0 && s.online / s.max < 0.05)
+
   return (
-    <div className="divide-y divide-line/70">
-      {Array.from({ length: 8 }).map((_, i) => (
-        <div key={i} className="grid grid-cols-[36px_minmax(0,1fr)_128px_150px] items-center gap-3 px-4 py-3">
-          <Skeleton className="h-3 w-4" />
-          <div className="space-y-1.5">
-            <Skeleton className="h-3.5" style={{ width: `${45 + ((i * 7) % 35)}%` }} />
-            <Skeleton className="h-2.5 w-24" />
-          </div>
-          <Skeleton className="h-3" />
-          <Skeleton className="h-5 w-28 justify-self-end" />
-        </div>
-      ))}
-    </div>
+    <li
+      className="row border-b border-rule"
+      data-flag={fresh ? 'fresh' : soon ? 'soon' : undefined}
+      data-dim={dead || undefined}
+    >
+      <Link
+        to={`/servers/${s.id}`}
+        className="grid grid-cols-[30px_1fr] items-center gap-x-5 gap-y-2 py-3 pl-3 lg:grid-cols-[30px_1fr_120px_70px_150px_180px]"
+      >
+        {/* ранг */}
+        <span className="num self-start pt-0.5 text-[12px] text-ink-3 lg:self-center lg:pt-0">
+          {rank}
+        </span>
+
+        {/* название и метаданные */}
+        <span className="min-w-0">
+          <span
+            className={cx(
+              'block truncate text-[14.5px]',
+              fresh ? 'font-semibold text-ink' : 'font-medium text-ink',
+            )}
+          >
+            {s.name}
+          </span>
+          <span className="mt-0.5 flex flex-wrap items-center gap-x-2.5 text-[11.5px] text-ink-3">
+            <span>{serverTypeLabel(s.type)}</span>
+            {s.rate && <span className="num">{s.rate}</span>}
+            {activity && <span>{activity}</span>}
+            {s.country && <span className="num uppercase">{s.country}</span>}
+          </span>
+
+          {/* На узком экране цифры и трек переезжают под название */}
+          <span className="mt-2.5 block pr-3 lg:hidden">
+            <span className="flex items-center gap-3">
+              <span className="num shrink-0 text-[13px] text-ink">
+                {thousands(s.online)}
+                <span className="text-ink-3"> / {thousands(s.max)}</span>
+              </span>
+              <span className="w-full max-w-[130px] min-w-0">
+                <Meter value={s.online} max={s.max} />
+              </span>
+            </span>
+            <span className="mt-2.5 block">
+              <CycleTrack sinceHours={since} untilHours={next.hours} height={14} />
+            </span>
+            <span className="mt-1.5 flex justify-between gap-3 text-[11px]">
+              <span className={fresh ? 'text-good' : 'text-ink-3'}>
+                {relativeWipe(s.wipe_label)}
+              </span>
+              <span
+                className={cx(
+                  'truncate text-right',
+                  soon ? 'text-warn' : next.tone === 'unknown' ? 'text-ink-3 italic' : 'text-ink-3',
+                )}
+              >
+                {next.text}
+              </span>
+            </span>
+          </span>
+        </span>
+
+        {/* онлайн */}
+        <span className="hidden lg:block">
+          <span className="num block text-[13.5px] text-ink">
+            {thousands(s.online)}
+            <span className="text-[12px] text-ink-3"> / {thousands(s.max)}</span>
+          </span>
+          <span className="mt-1.5 block">
+            <Meter value={s.online} max={s.max} />
+          </span>
+          {s.online_stale && (
+            <span className="mt-1 block text-[10.5px] text-ink-3">нет свежих данных</span>
+          )}
+        </span>
+
+        {/* форма кривой за двое суток */}
+        <span className="hidden lg:block">
+          {s.sparkline?.length ? (
+            <Sparkline values={s.sparkline.filter((v): v is number => v !== null)} active={fresh} />
+          ) : (
+            <span className="num text-[12px] text-ink-3">—</span>
+          )}
+        </span>
+
+        {/* последний вайп */}
+        <span className="hidden lg:block">
+          <span className={cx('block text-[13px]', fresh ? 'text-good' : 'text-ink-2')}>
+            {relativeWipe(s.wipe_label)}
+          </span>
+          {s.wipe_label && (
+            <span className="num mt-0.5 block text-[11px] text-ink-3">{s.wipe_label}</span>
+          )}
+        </span>
+
+        {/* фаза цикла — подписной элемент */}
+        <span className="hidden pr-1 lg:block">
+          <CycleTrack sinceHours={since} untilHours={next.hours} height={18} />
+          <span
+            className={cx(
+              'mt-1 block text-right text-[11.5px]',
+              next.tone === 'soon'
+                ? 'text-warn'
+                : next.tone === 'unknown'
+                  ? 'text-ink-3 italic'
+                  : 'text-ink-3',
+            )}
+          >
+            {next.text}
+          </span>
+        </span>
+      </Link>
+    </li>
   )
 }

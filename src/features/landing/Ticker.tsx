@@ -2,67 +2,47 @@ import { useEffect, useState } from 'react'
 import { getRecentEvents } from '../../lib/api'
 import type { LiveEvent } from '../../lib/types'
 import { pad2, parseSqlDateTime } from '../../lib/format'
-import { cx } from '../../components/ui'
 
-/* Лента живых событий мониторинга. Если API молчит — блока просто нет:
-   выдуманные строки «для красоты» здесь были бы прямым враньём о том,
-   что система сейчас работает. */
-
-function eventTime(value?: string | null) {
-  const d = parseSqlDateTime(value)
-  if (d) return `${pad2(d.getHours())}:${pad2(d.getMinutes())}`
-  const m = /(\d{2}):(\d{2})/.exec(value || '')
-  return m ? `${m[1]}:${m[2]}` : ''
-}
-
-function splitEvent(text: string) {
-  const i = text.indexOf(' · ')
-  return i === -1 ? { type: text, detail: '' } : { type: text.slice(0, i), detail: text.slice(i + 3) }
-}
-
-function typeTone(type: string) {
-  if (type.startsWith('вайп подтверждён')) return 'text-good'
-  if (type.startsWith('вайп отклонён')) return 'text-ink-2'
-  if (type.startsWith('взят под наблюдение')) return 'text-rust-hot'
-  return 'text-ink-3'
-}
+/* Лента наблюдения. Если бэкенд молчит — ленты просто нет: выдуманные
+   строки создавали бы впечатление, что мониторинг работает, когда он лёг. */
 
 export function Ticker() {
   const [events, setEvents] = useState<LiveEvent[] | null>(null)
 
   useEffect(() => {
     let alive = true
-    const load = () =>
-      getRecentEvents()
-        .then((d) => alive && setEvents(d.events?.length ? d.events : null))
-        .catch(() => alive && setEvents(null))
-    void load()
-    const t = setInterval(load, 60_000)
+    getRecentEvents()
+      .then((r) => alive && setEvents(r.events?.length ? r.events : null))
+      .catch(() => alive && setEvents(null))
     return () => {
       alive = false
-      clearInterval(t)
     }
   }, [])
 
   if (!events) return null
-
-  const row = (e: LiveEvent, i: number) => {
-    const { type, detail } = splitEvent(e.text || '')
-    const time = eventTime(e.time)
-    return (
-      <span key={i} className="flex shrink-0 items-center gap-2 border-r border-line px-6">
-        {time && <span className="tnum text-ink-3/70">{time}</span>}
-        <span className={cx('font-medium', typeTone(type))}>{type}</span>
-        {detail && <span className="text-ink-3">· {detail}</span>}
-      </span>
-    )
-  }
+  const loop = [...events, ...events]
 
   return (
-    <div className="marquee-host overflow-hidden border-y border-line bg-surface/60">
-      <div className="marquee flex w-max py-2 font-mono text-[12px] whitespace-nowrap">
-        {events.map(row)}
-        {events.map((e, i) => row(e, i + events.length))}
+    <div className="marquee-host overflow-hidden border-y border-rule bg-panel py-1.5">
+      <div className="marquee flex w-max gap-8">
+        {loop.map((e, i) => {
+          const d = parseSqlDateTime(e.time)
+          const [kind, ...rest] = e.text.split('·')
+          const detail = rest.join('·').trim()
+          const tone =
+            /подтвержд/i.test(kind) ? 'text-good' : /отклон/i.test(kind) ? 'text-bad' : 'text-ink-3'
+          return (
+            <span key={i} className="flex shrink-0 items-baseline gap-2 text-[12px]">
+              {d && (
+                <span className="num text-ink-3">
+                  {pad2(d.getHours())}:{pad2(d.getMinutes())}
+                </span>
+              )}
+              <span className={tone}>{kind.trim()}</span>
+              {detail && <span className="text-ink-2">{detail}</span>}
+            </span>
+          )
+        })}
       </div>
     </div>
   )
