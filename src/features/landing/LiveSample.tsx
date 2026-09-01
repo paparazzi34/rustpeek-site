@@ -5,6 +5,7 @@ import { getHistory, searchServers } from '../../lib/api'
 import { relativeWipe, thousands, wipeAgeHours } from '../../lib/format'
 import type { HistoryResponse, ServerListItem } from '../../lib/types'
 import { Skeleton } from '../../components/ui'
+import { Signature } from '../../components/charts/Signature'
 
 /* ЖИВОЙ ПРИМЕР — правая половина первого экрана.
 
@@ -13,9 +14,9 @@ import { Skeleton } from '../../components/ui'
    график — это картинка, с названием — доказательство. Именно поэтому он
    стоит на главной, а не схема.
 
-   Если бэкенд молчит или свежих вайпов нет — блок не рисуется совсем.
-   Нарисовать здесь выдуманную кривую значило бы соврать ровно в том месте,
-   где продукт обещает не врать. */
+   Если свежих вайпов нет или бэкенд молчит — на это место встаёт схема,
+   подписанная схемой, и причина названа вслух. Выдать нарисованную кривую
+   за наблюдение нельзя: это ровно то место, где продукт обещает не врать. */
 
 export function LiveSample() {
   const [server, setServer] = useState<ServerListItem | null>(null)
@@ -49,7 +50,11 @@ export function LiveSample() {
     }
   }, [])
 
-  if (dead) return null
+  // Свежего вайпа может не быть — тихие сутки бывают. Тогда вместо живого
+  // примера показываем схему: правая половина первого экрана не должна
+  // пустеть, иначе вёрстка разъезжается влево. Схема честно подписана
+  // схемой, а причина отсутствия живого примера названа вслух.
+  if (dead) return <SchemaFallback />
 
   if (!server || !history) {
     return (
@@ -96,6 +101,22 @@ export function LiveSample() {
           <>Кривая за семь суток. Подтверждённых вайпов в этом окне нет.</>
         )}
       </p>
+    </figure>
+  )
+}
+
+/* Запасной вариант: схема вместо живого примера. Подписана как схема —
+   выдавать нарисованную кривую за наблюдение нельзя. */
+function SchemaFallback() {
+  return (
+    <figure className="m-0">
+      <figcaption className="mb-3 border-b border-rule pb-2">
+        <div className="eyebrow">схема · как вайп выглядит в данных</div>
+        <p className="mt-1.5 text-[13px] text-ink-2">
+          Живого примера сейчас нет: за последние сутки ни один сервер не вайпнулся.
+        </p>
+      </figcaption>
+      <Signature />
     </figure>
   )
 }
