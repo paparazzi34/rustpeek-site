@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { IconTelegram } from '../components/icons'
 import { cx } from '../components/ui'
-import { usingMock } from '../lib/api'
+import { useUsingMock } from '../lib/useUsingMock'
 import { Brand } from './Brand'
 
 /* ОБОЛОЧКА ПРИЛОЖЕНИЯ.
@@ -25,6 +25,7 @@ const TABS = [
 export function AppShell() {
   const navigate = useNavigate()
   const [q, setQ] = useState('')
+  const mock = useUsingMock()
 
   return (
     <div className="min-h-dvh bg-void">
@@ -82,7 +83,7 @@ export function AppShell() {
         </div>
       </header>
 
-      {usingMock && (
+      {mock && (
         <div className="border-b border-rust-dim bg-rust-dim/25">
           <p className="bleed py-1 text-[11.5px] text-rust-hot">
             Демо-данные: живой API сейчас недоступен, цифры на экране ненастоящие.

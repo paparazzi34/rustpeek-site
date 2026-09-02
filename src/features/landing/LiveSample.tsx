@@ -25,28 +25,41 @@ export function LiveSample() {
 
   useEffect(() => {
     let alive = true
-    searchServers({ filter: 'all', sort: 'wipe_fresh', calendar: 'today', limit: 8, offset: 0 })
-      .then((r) => {
-        // Именно свежий вайп: блок обещает показать, как выглядит вайп
-        // в данных, значит вайп должен быть виден в выбранном окне.
-        const s = (r.servers ?? []).find((x) => {
-          const h = wipeAgeHours(x.wipe_label)
-          return h != null && h < 36
+
+    const pull = () =>
+      searchServers({ filter: 'all', sort: 'wipe_fresh', calendar: 'today', limit: 20, offset: 0 })
+        .then((r) => {
+          // Именно свежий вайп: блок обещает показать, как выглядит вайп
+          // в данных, значит вайп должен быть виден в выбранном окне.
+          // Из подходящих берём самый крупный — на сервере с полутора
+          // тысячами игроков кривая читается, а на сервере с двадцатью
+          // это шум, по которому ничего не докажешь.
+          const fresh = (r.servers ?? []).filter((x) => {
+            const h = wipeAgeHours(x.wipe_label)
+            return h != null && h < 36
+          })
+          const s = fresh.sort((a, b) => (b.max ?? 0) - (a.max ?? 0))[0]
+          if (!alive || !s) {
+            if (alive) setDead(true)
+            return
+          }
+          setServer(s)
+          setDead(false)
+          return getHistory(s.id, '7d').then((h) => {
+            if (!alive) return
+            if (!h.points?.length) setDead(true)
+            else setHistory(h)
+          })
         })
-        if (!alive || !s) {
-          if (alive) setDead(true)
-          return
-        }
-        setServer(s)
-        return getHistory(s.id, '7d').then((h) => {
-          if (!alive) return
-          if (!h.points?.length) setDead(true)
-          else setHistory(h)
-        })
-      })
-      .catch(() => alive && setDead(true))
+        .catch(() => alive && setDead(true))
+
+    pull()
+    // Кривая должна жить вместе с сервером, а не застывать на момент
+    // загрузки страницы: перечитываем раз в минуту.
+    const t = setInterval(pull, 60_000)
     return () => {
       alive = false
+      clearInterval(t)
     }
   }, [])
 
@@ -79,8 +92,14 @@ export function LiveSample() {
             {server.name}
           </Link>
         </div>
-        <div className="num shrink-0 text-right text-[12px] text-ink-3">
-          {thousands(server.online)} / {thousands(server.max)}
+        <div className="shrink-0 text-right">
+          <div className="num text-[12px] text-ink-2">
+            {thousands(server.online)} <span className="text-ink-3">/ {thousands(server.max)}</span>
+          </div>
+          <div className="mt-1 flex items-center justify-end gap-1.5 text-[10.5px] text-ink-3">
+            <span className="live-dot block size-1.5 bg-good" />
+            живьём
+          </div>
         </div>
       </figcaption>
 

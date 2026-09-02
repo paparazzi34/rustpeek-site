@@ -1,5 +1,6 @@
 import { Link, Outlet } from 'react-router-dom'
 import { IconTelegram } from '../components/icons'
+import { useUsingMock } from '../lib/useUsingMock'
 import { Brand } from './Brand'
 import { SiteFooter } from './SiteFooter'
 
@@ -15,6 +16,8 @@ const LINKS = [
 ]
 
 export function SiteLayout() {
+  const mock = useUsingMock()
+
   return (
     <div className="min-h-dvh bg-void">
       <header className="sticky top-0 z-40 border-b border-rule bg-void/95 backdrop-blur-sm">
@@ -43,6 +46,18 @@ export function SiteLayout() {
           </div>
         </div>
       </header>
+
+      {/* Полоса демо-данных нужна и здесь. Раньше её не было только внутри
+          приложения, и главная молча показывала выдуманные серверы — ровно
+          то, чего продукт обещает не делать. */}
+      {mock && (
+        <div className="border-b border-rust-dim bg-rust-dim/25">
+          <p className="bleed py-1 text-[11.5px] text-rust-hot">
+            Демо-данные: живой API сейчас недоступен, цифры и названия серверов на экране
+            ненастоящие.
+          </p>
+        </div>
+      )}
 
       <main>
         <Outlet />

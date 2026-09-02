@@ -354,6 +354,20 @@
     animation: rp-draw 1.2s cubic-bezier(0.32, 0.72, 0.28, 1) forwards;
   }
 
+  /* Вспышка «значение только что изменилось». Живёт одну секунду и гаснет:
+     задача не украсить, а показать, что данные пришли новые. */
+  @keyframes rp-flash {
+    0% {
+      background-color: color-mix(in srgb, var(--color-rust) 16%, transparent);
+    }
+    100% {
+      background-color: transparent;
+    }
+  }
+  .flash {
+    animation: rp-flash 1.1s ease-out;
+  }
+
   @keyframes rp-shimmer {
     from {
       background-position: -200% 0;
@@ -392,6 +406,7 @@
     .live-dot,
     .skeleton,
     .marquee,
+    .flash,
     .draw {
       animation: none !important;
     }

@@ -1,14 +1,14 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Signature } from '../../components/charts/Signature'
 import { CycleTrack } from '../../components/CycleTrack'
 import { IconTelegram } from '../../components/icons'
-import { Button, Meter, SearchField } from '../../components/ui'
+import { Button, Meter, SearchField, Segmented, cx } from '../../components/ui'
 import { searchServers } from '../../lib/api'
 import { nextWipe, relativeWipe, serverTypeLabel, thousands, wipeAgeHours } from '../../lib/format'
-import type { ServerListItem } from '../../lib/types'
+import type { FilterKey, ServerListItem } from '../../lib/types'
 import { LiveSample } from './LiveSample'
-import { LiveStrip, useSiteStats } from './LiveStrip'
+import { LiveStrip, useCountUp, useSiteStats } from './LiveStrip'
 
 const HINTS = ['Rustafied', 'Atlas', 'Magic Rust', 'Bestrust', 'Rustoria']
 
@@ -31,13 +31,13 @@ export function LandingPage() {
 
 /* ------------------------------------------------------------------- Герой
 
-   Две колонки, не одна. Слева утверждение и поиск, справа настоящий сервер
-   с настоящей кривой. Так первый экран занят целиком, а главное — заявление
-   и его доказательство стоят рядом и читаются вместе.
+   Две колонки, не одна. Слева — что это за сервис и поиск, справа настоящий
+   сервер с настоящей кривой. Первый экран занят целиком, а обещание и его
+   доказательство стоят рядом и читаются вместе.
 
-   Заголовок построен на цифрах, потому что цифры здесь и есть аргумент:
-   объём наблюдения — единственное, чем этот мониторинг отличается от
-   остальных. Числа живые, приходят из API. */
+   Заголовок назван по задаче игрока, а не по методу: человек приходит с
+   вопросом «куда зайти», а не «как вы считаете вайпы». Цифры наблюдения
+   ушли в строку под заголовком — они остались, но перестали кричать. */
 
 function Hero({
   q,
@@ -55,25 +55,27 @@ function Hero({
       <div className="grid gap-x-12 gap-y-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,46%)]">
         <div className="min-w-0">
           <h1
-            className="stencil font-semibold"
-            style={{ fontSize: 'clamp(25px, 3.5vw, 46px)', lineHeight: 1.04 }}
+            className="stencil font-semibold text-ink"
+            style={{ fontSize: 'clamp(26px, 3.2vw, 44px)', lineHeight: 1.04 }}
           >
-            <span className="text-ink-3">
-              <span className="text-ink">{thousands(stats.servers_total)}</span> серверов.
-              <br />
-              <span className="text-ink">{thousands(stats.online_measurements)}</span> замеров.
-            </span>
-            <br />
-            <span className="text-ink">Ни одной даты со слов админа.</span>
+            Вайп-календарь Rust
           </h1>
 
-          <p className="mt-6 max-w-xl text-[14.5px] leading-relaxed text-ink-2">
-            На других мониторингах дату вайпа вписывает админ сервера — руками, когда вспомнит.
-            Я её не спрашиваю: круглосуточно замеряю онлайн и вижу вайп по форме кривой.
-            Эту подпись подделать нельзя.
+          <p className="mt-4 text-[17px] leading-snug text-ink-2">
+            Где вайп был сегодня, где будет завтра.
           </p>
 
-          <div className="mt-8 max-w-xl">
+          {/* Цифры не исчезли, а перестали кричать: теперь это строка
+              под заголовком, а не сам заголовок. Значения живые. */}
+          <p className="mt-5 flex flex-wrap items-baseline gap-x-2 gap-y-1 text-[12.5px] text-ink-3">
+            <Stat value={stats.servers_total} label="серверов" />
+            <span className="text-rule-2">·</span>
+            <Stat value={stats.online_measurements} label="замеров" />
+            <span className="text-rule-2">·</span>
+            <Stat value={stats.wipes} label="вайпов подтверждено" />
+          </p>
+
+          <div className="mt-7 max-w-xl">
             <SearchField
               value={q}
               onChange={setQ}
@@ -118,32 +120,80 @@ function Hero({
   )
 }
 
+/** Цифра в строке под заголовком: докручивается до настоящего значения. */
+function Stat({ value, label }: { value: number; label: string }) {
+  const shown = useCountUp(value)
+  return (
+    <span className="flex items-baseline gap-1.5">
+      <span className="num text-[13.5px] text-ink">{thousands(shown)}</span>
+      <span>{label}</span>
+    </span>
+  )
+}
+
 /* ------------------------------------------------ Свежие вайпы, живой срез */
 
-function FreshToday() {
-  const [rows, setRows] = useState<ServerListItem[] | null>(null)
-  const [failed, setFailed] = useState(false)
+const QUICK: Array<{ value: FilterKey; label: string }> = [
+  { value: 'all', label: 'Все' },
+  { value: 'vanilla', label: 'Vanilla' },
+  { value: 'mod', label: 'Моды' },
+]
 
+const MAX_ROWS = 5
+const REFRESH_MS = 60_000
+
+function FreshToday() {
+  const [all, setAll] = useState<ServerListItem[] | null>(null)
+  const [failed, setFailed] = useState(false)
+  const [filter, setFilter] = useState<FilterKey>('all')
+  const [updatedAt, setUpdatedAt] = useState<Date | null>(null)
+  const prev = useRef(new Map<number, number>())
+  const [changed, setChanged] = useState<Set<number>>(new Set())
+
+  // Тянем с запасом и фильтруем на месте: переключение вкладок тогда
+  // мгновенное, без похода на сервер за каждым кликом.
   useEffect(() => {
     let alive = true
-    searchServers({ filter: 'all', sort: 'wipe_fresh', calendar: 'today', limit: 6, offset: 0 })
-      .then((r) => {
-        if (!alive) return
-        // Заголовок обещает «за последние сутки» — значит и показать надо
-        // ровно это. Отсекаем сами: подпись и содержимое обязаны совпадать.
-        const fresh = (r.servers ?? []).filter((s) => {
-          const h = wipeAgeHours(s.wipe_label)
-          return h != null && h < 24
+    const pull = () => {
+      searchServers({ filter: 'all', sort: 'wipe_fresh', calendar: 'today', limit: 30, offset: 0 })
+        .then((r) => {
+          if (!alive) return
+          // Заголовок обещает «за последние сутки» — значит и показать надо
+          // ровно это. Отсекаем сами: подпись и содержимое обязаны совпадать.
+          const fresh = (r.servers ?? []).filter((s) => {
+            const h = wipeAgeHours(s.wipe_label)
+            return h != null && h < 24
+          })
+
+          // Отмечаем строки, у которых онлайн изменился с прошлого замера —
+          // они мигнут. Движение здесь означает «пришли новые данные»,
+          // а не «нам захотелось анимации».
+          const moved = new Set<number>()
+          for (const s of fresh) {
+            const was = prev.current.get(s.id)
+            if (was != null && was !== s.online) moved.add(s.id)
+            prev.current.set(s.id, s.online)
+          }
+          setChanged(moved)
+          setAll(fresh)
+          setUpdatedAt(new Date())
         })
-        setRows(fresh.slice(0, 6))
-      })
-      .catch(() => alive && setFailed(true))
+        .catch(() => alive && setFailed(true))
+    }
+    pull()
+    const t = setInterval(pull, REFRESH_MS)
     return () => {
       alive = false
+      clearInterval(t)
     }
   }, [])
 
   if (failed) return null
+
+  const rows =
+    all == null
+      ? null
+      : all.filter((s) => filter === 'all' || s.type === filter).slice(0, MAX_ROWS)
 
   return (
     <section className="bleed py-10">
@@ -152,45 +202,85 @@ function FreshToday() {
           <div className="eyebrow">вайпнулись за последние сутки</div>
           <h2 className="mt-2 text-[19px] font-semibold text-ink">Куда заходить сегодня</h2>
         </div>
-        <Link to="/servers?calendar=today" className="btn h-8">
-          Весь вайп-календарь
-        </Link>
+        <div className="flex flex-wrap items-center gap-3">
+          <Segmented
+            value={filter}
+            options={QUICK}
+            onChange={setFilter}
+            ariaLabel="Быстрый фильтр"
+          />
+          <Link to="/servers?calendar=today" className="btn h-8">
+            Весь календарь
+          </Link>
+        </div>
       </div>
 
       {rows == null ? (
         <div className="pt-2">
-          {[0, 1, 2, 3, 4, 5].map((i) => (
-            <div key={i} className="skeleton mb-px h-[52px]" style={{ opacity: 1 - i * 0.1 }} />
+          {[0, 1, 2, 3, 4].map((i) => (
+            <div key={i} className="skeleton mb-px h-[52px]" style={{ opacity: 1 - i * 0.12 }} />
           ))}
         </div>
       ) : rows.length === 0 ? (
         <p className="max-w-2xl py-8 text-[13.5px] text-ink-2">
-          За последние 24 часа ни на одном сервере не было подтверждённого вайпа. Это не сбой —
-          просто сегодня тихо.{' '}
-          <Link
-            to="/servers?calendar=tomorrow"
-            className="text-rust-hot underline underline-offset-4"
-          >
-            Посмотри, кто вайпается завтра
-          </Link>
-          .
+          {filter === 'all' ? (
+            <>
+              За последние 24 часа ни на одном сервере не было подтверждённого вайпа. Это не
+              сбой — просто сегодня тихо.{' '}
+              <Link
+                to="/servers?calendar=tomorrow"
+                className="text-rust-hot underline underline-offset-4"
+              >
+                Посмотри, кто вайпается завтра
+              </Link>
+              .
+            </>
+          ) : (
+            <>
+              Свежие вайпы за сутки есть, но среди них нет ни одного{' '}
+              {filter === 'vanilla' ? 'ванильного' : 'модового'} сервера.{' '}
+              <button
+                className="text-rust-hot underline underline-offset-4"
+                onClick={() => setFilter('all')}
+              >
+                Показать все
+              </button>
+              .
+            </>
+          )}
         </p>
       ) : (
-        <ul className="pt-1">
-          {rows.map((s, i) => (
-            <FreshRow key={s.id} s={s} rank={i + 1} />
-          ))}
-        </ul>
+        <>
+          <ul className="pt-1">
+            {rows.map((s, i) => (
+              <FreshRow key={s.id} s={s} rank={i + 1} flash={changed.has(s.id)} />
+            ))}
+          </ul>
+          {updatedAt && (
+            <p className="mt-3 flex items-center gap-2 text-[11.5px] text-ink-3">
+              <span className="live-dot block size-1.5 bg-good" />
+              обновляется само · последний замер{' '}
+              <span className="num">
+                {String(updatedAt.getHours()).padStart(2, '0')}:
+                {String(updatedAt.getMinutes()).padStart(2, '0')}
+              </span>
+            </p>
+          )}
+        </>
       )}
     </section>
   )
 }
 
-function FreshRow({ s, rank }: { s: ServerListItem; rank: number }) {
+function FreshRow({ s, rank, flash }: { s: ServerListItem; rank: number; flash?: boolean }) {
   const since = wipeAgeHours(s.wipe_label)
   const next = nextWipe(s.next_wipe_estimate)
   return (
-    <li className="row border-b border-rule" data-flag="fresh">
+    <li
+      key={`${s.id}-${s.online}`}
+      className={cx('row border-b border-rule', flash && 'flash')}
+      data-flag="fresh"
+    >
       <Link
         to={`/servers/${s.id}`}
         className="grid grid-cols-[26px_1fr] items-center gap-x-5 gap-y-2 py-3 pl-3 sm:grid-cols-[26px_1fr_150px_200px]"

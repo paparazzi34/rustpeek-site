@@ -90,7 +90,7 @@ function Counter({ value, label }: { value: number; label: string }) {
   )
 }
 
-function useCountUp(target: number, ms = 900) {
+export function useCountUp(target: number, ms = 900) {
   const [value, setValue] = useState(target)
   const from = useRef(0)
   const first = useRef(true)

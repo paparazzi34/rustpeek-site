@@ -23,8 +23,25 @@ const forcedMock =
   import.meta.env.VITE_USE_MOCK === '1' ||
   (typeof location !== 'undefined' && new URLSearchParams(location.search).get('mock') === '1')
 
-/** Признак «сидим на демо-данных» — UI обязан сказать об этом вслух */
-export let usingMock = forcedMock
+/* Признак «сидим на демо-данных» — UI обязан сказать об этом вслух.
+   Флаг переключается уже после первого запроса, поэтому он не просто
+   переменная, а маленький источник подписки: иначе полоса «демо-данные»
+   не появится, ведь React не узнает, что значение изменилось. */
+let mockFlag = forcedMock
+const mockListeners = new Set<() => void>()
+
+export const getUsingMock = () => mockFlag
+
+export function subscribeUsingMock(fn: () => void) {
+  mockListeners.add(fn)
+  return () => void mockListeners.delete(fn)
+}
+
+function setUsingMock(v: boolean) {
+  if (mockFlag === v) return
+  mockFlag = v
+  for (const fn of mockListeners) fn()
+}
 
 export class ApiError extends Error {
   constructor(
@@ -41,7 +58,7 @@ async function get<T>(path: string, fallback: () => T, init?: RequestInit): Prom
     const res = await fetch(API_BASE + path, { ...init, cache: 'no-store' })
     if (res.status === 404) throw new ApiError('not_found', 'not_found')
     if (!res.ok) throw new ApiError('bad status ' + res.status)
-    usingMock = false
+    setUsingMock(false)
     return (await res.json()) as T
   } catch (err) {
     if (err instanceof ApiError && err.kind === 'not_found') throw err
@@ -49,7 +66,7 @@ async function get<T>(path: string, fallback: () => T, init?: RequestInit): Prom
     // Бэкенд недоступен — в дев-режиме показываем моки, чтобы можно было
     // работать над оболочкой; в проде честно роняем в ошибку.
     if (import.meta.env.DEV) {
-      usingMock = true
+      setUsingMock(true)
       return await delay(fallback())
     }
     throw err instanceof ApiError ? err : new ApiError('network')
