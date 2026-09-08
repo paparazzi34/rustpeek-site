@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { Button, ErrorState, SearchField, Skeleton, Tag, cx } from '../../components/ui'
-import { getPlayer } from '../../lib/api'
-import { hoursFromMinutes, parseSqlDateTime, shortDateTime, thousands } from '../../lib/format'
-import type { Player } from '../../lib/types'
+import { getBmPlayerSessions, getPlayer } from '../../lib/api'
+import { hoursFromMinutes, parseSqlDateTime, plural, shortDateTime, thousands } from '../../lib/format'
+import type { BmCandidate, BmSession, Player } from '../../lib/types'
 
 /* ДОСЬЕ ИГРОКА.
 
@@ -201,6 +201,8 @@ function Dossier({ p }: { p: Player }) {
         <TrustPanel p={p} />
         <SeenOn p={p} />
       </div>
+
+      <PlayedOnBm p={p} />
     </>
   )
 }
@@ -289,6 +291,171 @@ function TrustPanel({ p }: { p: Player }) {
         нашего наблюдения. Высокий балл не значит «играет честно», низкий не значит «читер»:
         у новичка с закрытым профилем балл будет низким просто потому, что о нём мало известно.
       </p>
+    </section>
+  )
+}
+
+/* ------------------------------------------------- Где играл (BattleMetrics)
+
+   Своей истории у нас на нового человека нет — он мог ни разу не попасть
+   в наш обход. Поэтому идём в BattleMetrics, но связка там идёт по нику
+   (в Rust внутриигровой ник = ник Steam), а не по SteamID. Ник — не ключ,
+   поэтому каждый ответ снабжён честным статусом, и в неоднозначном случае
+   мы не угадываем за человека, а показываем тёзок. */
+
+function PlayedOnBm({ p }: { p: Player }) {
+  const bm = p.bm_history
+  const [picked, setPicked] = useState<BmCandidate | null>(null)
+  const [pickedSessions, setPickedSessions] = useState<BmSession[] | null>(null)
+  const [pickError, setPickError] = useState(false)
+
+  // Новый игрок в поиске — сбрасываем выбор тёзки, иначе на чужом досье
+  // останется висеть чужая история.
+  useEffect(() => {
+    setPicked(null)
+    setPickedSessions(null)
+    setPickError(false)
+  }, [p.steam_id])
+
+  if (!bm) return null
+
+  function pick(c: BmCandidate) {
+    setPicked(c)
+    setPickedSessions(null)
+    setPickError(false)
+    getBmPlayerSessions(c.bm_player_id)
+      .then((r) => setPickedSessions(r.sessions ?? []))
+      .catch(() => setPickError(true))
+  }
+
+  const sessions = picked ? pickedSessions : bm.sessions
+
+  return (
+    <section className="bleed border-b border-rule py-6">
+      <div className="eyebrow mb-4">где играл · по данным BattleMetrics</div>
+
+      {bm.status === 'not_found' && (
+        <p className="text-[13.5px] leading-relaxed text-ink-2">
+          BattleMetrics про этого игрока ничего не знает. Так бывает часто: они видят человека
+          только на серверах, где владелец подключил их плагин, а подключают его немногие.
+        </p>
+      )}
+
+      {bm.status === 'ambiguous' && !picked && (
+        <>
+          <p className="mb-4 text-[13.5px] leading-relaxed text-ink-2">
+            Под ником <b className="text-ink">{p.name ?? '—'}</b> в BattleMetrics играет{' '}
+            <b className="text-ink">{bm.candidates.length}</b>{' '}
+            {plural(bm.candidates.length, 'человек', 'человека', 'человек')}. Кто из них твой —
+            видно по последнему серверу.
+          </p>
+          <ul className="space-y-2">
+            {bm.candidates.map((c) => (
+              <li key={String(c.bm_player_id)}>
+                <button
+                  type="button"
+                  onClick={() => pick(c)}
+                  className="w-full border border-rule px-3 py-2.5 text-left transition-colors hover:border-rust-hot"
+                >
+                  <span className="text-[13.5px] text-ink">
+                    {c.last_server_known ? c.last_server_name : 'сервер не из нашей базы'}
+                  </span>
+                  <span className="num ml-3 text-[12.5px] text-ink-3">
+                    последний раз: {shortDateTime(c.last_seen_at) ?? 'неизвестно'}
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+
+      {(bm.status === 'confirmed' || bm.status === 'single' || picked) && (
+        <>
+          <p className="mb-4 text-[13.5px] leading-relaxed text-ink-2">
+            {picked ? (
+              <>
+                История выбранного тёзки. Что это именно тот человек — решил ты, я это{' '}
+                <b className="text-ink">не проверял</b>.
+              </>
+            ) : bm.status === 'confirmed' ? (
+              <>
+                Совпадение <b className="text-ink">подтверждено</b>: игрок засветился на том же
+                сервере и в то же время, где его видели мы.
+              </>
+            ) : (
+              <>
+                Совпадение <b className="text-ink">по нику</b> — тёзок в BattleMetrics не нашлось,
+                но стопроцентной гарантии, что это он, у нас нет.
+              </>
+            )}
+          </p>
+
+          {picked && (
+            <button
+              type="button"
+              onClick={() => {
+                setPicked(null)
+                setPickedSessions(null)
+                setPickError(false)
+              }}
+              className="mb-4 text-[12.5px] text-ink-3 underline transition-colors hover:text-rust-hot"
+            >
+              ← к списку тёзок
+            </button>
+          )}
+
+          {pickError ? (
+            <p className="text-[13.5px] text-ink-2">История не загрузилась — попробуй ещё раз.</p>
+          ) : sessions == null ? (
+            <Skeleton className="h-24 w-full" />
+          ) : sessions.length === 0 ? (
+            <p className="text-[13.5px] text-ink-2">Сессий не нашлось.</p>
+          ) : (
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-rule text-left">
+                  <th className="eyebrow pb-2 font-normal">сервер</th>
+                  <th className="eyebrow pb-2 font-normal">зашёл</th>
+                  <th className="eyebrow pb-2 text-right font-normal">вышел</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sessions.map((sn, i) => (
+                  <tr key={i} className="row border-b border-rule">
+                    <td className="py-2.5">
+                      {sn.server_id ? (
+                        <Link
+                          to={`/servers/${sn.server_id}`}
+                          className="text-[13.5px] text-ink transition-colors hover:text-rust-hot"
+                        >
+                          {sn.server_name}
+                        </Link>
+                      ) : (
+                        <span className="text-[13.5px] text-ink-2">сервер не из нашей базы</span>
+                      )}
+                    </td>
+                    <td className="num py-2.5 text-[12.5px] text-ink-2">
+                      {shortDateTime(sn.start) ?? '—'}
+                    </td>
+                    <td className="num py-2.5 text-right text-[12.5px] text-ink-3">
+                      {sn.stop ? (
+                        shortDateTime(sn.stop)
+                      ) : (
+                        <Tag tone="good">ещё играет</Tag>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+
+          <p className="mt-4 text-[12.5px] leading-relaxed text-ink-3">
+            BattleMetrics видит не все серверы, так что история может быть неполной.
+          </p>
+        </>
+      )}
     </section>
   )
 }

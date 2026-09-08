@@ -2,6 +2,7 @@
    Никаких «тихих ноликов»: если бэкенд молчит — это ошибка, и UI её показывает. */
 
 import type {
+  BmSession,
   CalendarKey,
   FilterKey,
   HistoryResponse,
@@ -117,6 +118,13 @@ export const getHourlyProfile = (id: number) =>
 
 export const getPlayer = (q: string) =>
   get<Player>('/api/player/' + encodeURIComponent(q), () => mock.mockPlayer(q))
+
+/** История выбранного тёзки из BM — второй шаг, когда под ником их несколько. */
+export const getBmPlayerSessions = (bmPlayerId: number | string) =>
+  get<{ sessions: BmSession[] }>(
+    `/api/bm_player/${encodeURIComponent(String(bmPlayerId))}/sessions`,
+    () => ({ sessions: [] }),
+  )
 
 export const getRecentEvents = () =>
   get<{ events: LiveEvent[] }>('/api/events/recent', mock.mockEvents)

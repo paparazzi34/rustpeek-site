@@ -129,6 +129,41 @@ export interface PlayerServerRow {
   is_current?: boolean
 }
 
+/** Сессия из BattleMetrics: где и когда человек играл. */
+export interface BmSession {
+  start?: string | null
+  stop?: string | null
+  /** Ник на момент сессии — в Rust он же ник Steam */
+  name_at_the_time?: string | null
+  battlemetrics_server_id?: number | string | null
+  /** Заполнено, только если сервер есть в нашей базе */
+  server_id?: number | null
+  server_name?: string | null
+}
+
+/** Тёзка: под одним ником в BM может играть несколько человек. */
+export interface BmCandidate {
+  bm_player_id: number | string
+  name?: string | null
+  last_seen_at?: string | null
+  last_server_name?: string | null
+  last_server_known?: boolean
+}
+
+/**
+ * Где играл — по данным BattleMetrics. Связка идёт через ник Steam,
+ * поэтому статус говорит, насколько совпадению можно верить:
+ * confirmed — сошлось с нашим собственным наблюдением;
+ * single — единственный точный тёзка, проверить нечем;
+ * ambiguous — тёзок несколько, выбор за человеком;
+ * not_found — BM про такой ник не знает.
+ */
+export interface BmHistory {
+  status: 'confirmed' | 'single' | 'ambiguous' | 'not_found'
+  sessions: BmSession[]
+  candidates: BmCandidate[]
+}
+
 export interface Player {
   steam_id: string
   name?: string | null
@@ -141,6 +176,7 @@ export interface Player {
   bans?: { vac_ban_count?: number; game_ban_count?: number } | null
   trust: { score: number; label: string; factors?: TrustFactor[] }
   server_history?: PlayerServerRow[]
+  bm_history?: BmHistory | null
 }
 
 /** /api/stats — отдаётся воркером из KV, обновляется пушем с VPS */
