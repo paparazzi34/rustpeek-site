@@ -7,6 +7,7 @@ import { searchServers } from '../../lib/api'
 import {
   activityLabel,
   nextWipe,
+  nextWipeNote,
   pluralServers,
   relativeWipe,
   serverTypeLabel,
@@ -345,6 +346,7 @@ function ServerRow({
                 )}
               >
                 {next.text}
+                {nextWipeNote(s, next.tone)}
               </span>
             </span>
           </span>
@@ -395,6 +397,7 @@ function ServerRow({
             )}
           >
             {next.text}
+            {nextWipeNote(s, next.tone)}
           </span>
         </span>
       </Link>

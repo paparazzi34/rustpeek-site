@@ -88,6 +88,19 @@ export type NextWipe = {
   hours: number | null
 }
 
+/** Откуда дата прогноза — короткая приписка для строк списка: глобальный
+    вайп Facepunch или цикл, заявленный админом в названии. Свой цикл по
+    наблюдению — без приписки. */
+export function nextWipeNote(
+  item: { next_wipe_forced?: boolean; cycle_source?: string | null },
+  tone: NextWipe['tone'],
+): string {
+  if (tone === 'unknown') return ''
+  if (item.next_wipe_forced) return ' · глобальный'
+  if (item.cycle_source === 'name') return ' · по названию'
+  return ''
+}
+
 export function nextWipe(estimate?: string | null): NextWipe {
   const d = parseSqlDateTime(estimate)
   if (!d) return { text: 'цикл не определён', tone: 'unknown', hours: null }

@@ -5,7 +5,7 @@ import { CycleTrack } from '../../components/CycleTrack'
 import { IconTelegram } from '../../components/icons'
 import { Button, Meter, SearchField, Segmented, cx } from '../../components/ui'
 import { searchServers } from '../../lib/api'
-import { nextWipe, relativeWipe, serverTypeLabel, thousands, wipeAgeHours } from '../../lib/format'
+import { nextWipe, nextWipeNote, relativeWipe, serverTypeLabel, thousands, wipeAgeHours } from '../../lib/format'
 import type { FilterKey, ServerListItem } from '../../lib/types'
 import { LiveSample } from './LiveSample'
 import { LiveStrip, useCountUp, useSiteStats } from './LiveStrip'
@@ -305,7 +305,10 @@ function FreshRow({ s, rank, flash }: { s: ServerListItem; rank: number; flash?:
         </span>
         <span className="hidden pr-1 sm:block">
           <CycleTrack sinceHours={since} untilHours={next.hours} height={16} />
-          <span className="mt-1 block text-right text-[11.5px] text-ink-3">{next.text}</span>
+          <span className="mt-1 block text-right text-[11.5px] text-ink-3">
+            {next.text}
+            {nextWipeNote(s, next.tone)}
+          </span>
         </span>
       </Link>
     </li>
