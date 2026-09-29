@@ -18,6 +18,8 @@ export interface ServerListItem {
   /** SQL datetime или null, если цикл не определён */
   next_wipe_estimate?: string | null
   next_wipe_forced?: boolean
+  /** длина цикла в сутках, null — не определён */
+  cycle?: number | null
   cycle_source?: 'history' | 'name' | null
   country?: string | null
   source?: 'battlemetrics_live' | string

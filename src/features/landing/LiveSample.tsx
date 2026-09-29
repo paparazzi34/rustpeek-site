@@ -10,7 +10,9 @@ import { Signature } from '../../components/charts/Signature'
 /* ЖИВОЙ ПРИМЕР — правая половина первого экрана.
 
    Берём настоящий сервер, у которого вайп подтвердился недавно, и рисуем
-   его настоящую кривую за неделю. Подпись обязательна: без названия сервера
+   его настоящую кривую. Если цикл сервера известен — за 30 дней, чтобы было
+   видно ритм: за неделю прошлый вайп недельного сервера почти всегда
+   оказывался на несколько часов левее края графика (2026-09-29). Подпись обязательна: без названия сервера
    график — это картинка, с названием — доказательство. Именно поэтому он
    стоит на главной, а не схема.
 
@@ -38,14 +40,19 @@ export function LiveSample() {
             const h = wipeAgeHours(x.wipe_label)
             return h != null && h < 36
           })
-          const s = fresh.sort((a, b) => (b.max ?? 0) - (a.max ?? 0))[0]
+          // Свой цикл по наблюдению — в приоритете: такой пример показывает
+          // не один вайп, а расписание. Цикл из названия не считаем — это
+          // слова админа, а блок про наблюдение.
+          const byMax = (a: ServerListItem, b: ServerListItem) => (b.max ?? 0) - (a.max ?? 0)
+          const withCycle = fresh.filter((x) => x.cycle != null && x.cycle_source !== 'name')
+          const s = (withCycle.length ? withCycle : fresh).sort(byMax)[0]
           if (!alive || !s) {
             if (alive) setDead(true)
             return
           }
           setServer(s)
           setDead(false)
-          return getHistory(s.id, '7d').then((h) => {
+          return getHistory(s.id, s.cycle != null && s.cycle_source !== 'name' ? 'month' : '7d').then((h) => {
             if (!alive) return
             if (!h.points?.length) setDead(true)
             else setHistory(h)
@@ -113,7 +120,7 @@ export function LiveSample() {
       <p className="mt-2 text-[12px] text-ink-3">
         {wipes > 0 ? (
           <>
-            Зелёные рубцы — вайпы, подтверждённые по форме кривой. Последний был{' '}
+            Зелёные рубцы — подтверждённые вайпы. Последний был{' '}
             <span className="text-good">{relativeWipe(server.wipe_label)}</span>.
           </>
         ) : (
