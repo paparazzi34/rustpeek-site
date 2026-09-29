@@ -13,12 +13,14 @@ import {
   isJunkMapName,
   nextWipe,
   parseSqlDateTime,
+  plural,
   relativeWipe,
   serverTypeLabel,
   shortDateTime,
   thousands,
   wipeAgeHours,
 } from '../../lib/format'
+import type { NextWipe } from '../../lib/format'
 import type { HistoryResponse, HourlyProfile, Period, ServerDetail, WipeRow } from '../../lib/types'
 
 /* СТРАНИЦА СЕРВЕРА.
@@ -93,6 +95,16 @@ export function ServerDetailPage() {
     )
   }
 
+  // Сквозной номер подтверждённого вайпа — общий для рубцов на графике и
+  // строк таблицы: подпись под графиком обещает, что они совпадают.
+  const wipeNumbers = useMemo(() => {
+    const confirmed = (wipes ?? [])
+      .filter((w) => !w.suspicious)
+      .map((w) => w.wipe_time)
+      .sort()
+    return new Map(confirmed.map((t, i) => [t, i + 1]))
+  }, [wipes])
+
   if (!server) {
     return (
       <div className="bleed space-y-3 pt-6">
@@ -106,6 +118,8 @@ export function ServerDetailPage() {
 
   const since = wipeAgeHours(server.wipe)
   const next = nextWipe(server.next_wipe_estimate)
+  // Цикл неизвестен, но глобал близко — честная граница «не позже».
+  const bound = next.tone === 'unknown' ? forcedBound(server) : null
   const fresh = since != null && since < 24
   const fill = server.max > 0 ? server.online / server.max : 0
 
@@ -113,15 +127,17 @@ export function ServerDetailPage() {
     <>
       <Header server={server} />
 
-      <Verdict server={server} since={since} next={next} fill={fill} fresh={fresh} />
+      <Verdict server={server} since={since} next={next} bound={bound} fill={fill} fresh={fresh} />
 
       {/* ---- Фаза цикла: подписной элемент, во всю ширину ---- */}
       <section className="bleed border-b border-rule py-5">
         <CycleTrackLarge
           sinceHours={since}
-          untilHours={next.hours}
+          untilHours={bound ? bound.hours : next.hours}
           wipedAt={server.wipe ?? 'нет данных'}
-          nextAt={shortDateTime(server.next_wipe_estimate) ?? '—'}
+          nextAt={shortDateTime(bound ? server.forced_wipe : server.next_wipe_estimate) ?? '—'}
+          forced={server.next_wipe_forced}
+          upperBound={bound != null}
         />
       </section>
 
@@ -146,6 +162,7 @@ export function ServerDetailPage() {
             points={history.points}
             wipes={history.wipes}
             granularity={history.granularity}
+            wipeNumbers={wipeNumbers}
           />
         )}
       </section>
@@ -162,7 +179,7 @@ export function ServerDetailPage() {
 
       {/* ---- История вайпов + техданные ---- */}
       <div className="grid lg:grid-cols-[1fr_300px]">
-        <WipeHistory wipes={wipes} />
+        <WipeHistory wipes={wipes} wipeNumbers={wipeNumbers} />
         <TechPanel server={server} />
       </div>
     </>
@@ -220,12 +237,14 @@ function Verdict({
   next,
   fill,
   fresh,
+  bound,
 }: {
   server: ServerDetail
   since: number | null
   next: ReturnType<typeof nextWipe>
   fill: number
   fresh: boolean
+  bound: NextWipe | null
 }) {
   const state =
     server.online_stale
@@ -269,7 +288,13 @@ function Verdict({
           </>
         )}
         {' · '}
-        {next.tone === 'unknown' ? (
+        {next.tone === 'unknown' && bound ? (
+          <>
+            следующий не позже чем{' '}
+            <span className={bound.tone === 'soon' ? 'text-warn' : undefined}>{bound.text}</span>
+            <span className="text-ink-3"> — глобальный вайп</span>
+          </>
+        ) : next.tone === 'unknown' ? (
           <span className="text-ink-3">следующий вайп — цикл не определён</span>
         ) : (
           <>
@@ -286,16 +311,25 @@ function Verdict({
             Интервалы между вайпами на этом сервере не складываются в ровный цикл — либо админ
             вайпает нерегулярно, либо наблюдение началось недавно. Придумать дату можно, опереться
             на неё нельзя.
+            {bound && (
+              <>
+                {' '}
+                Одно известно точно: в первый четверг месяца Facepunch вайпает все серверы
+                принудительно, так что не позже{' '}
+                <span className="num text-ink">{shortDateTime(server.forced_wipe)}</span> карта
+                сменится и здесь.
+              </>
+            )}
           </>
         ) : server.cycle && server.cycle_source === 'name' ? (
           <>
-            Цикл <span className="num text-ink">{server.cycle}</span> заявил админ в названии
+            Цикл <DaysValue text={server.cycle} className="text-ink" /> заявил админ в названии
             сервера. Своих подтверждённых вайпов для проверки пока мало, но те, что есть, ему не
             противоречат.
           </>
         ) : server.cycle ? (
           <>
-            Цикл <span className="num text-ink">{server.cycle}</span> — это не слова админа, а
+            Цикл <DaysValue text={server.cycle} className="text-ink" /> — это не слова админа, а
             среднее по интервалам между подтверждёнными вайпами из таблицы ниже.
           </>
         ) : (
@@ -338,7 +372,7 @@ function Metrics({ server }: { server: ServerDetail }) {
     {
       label: 'цикл',
       value: server.cycle ? (
-        <span className="num">{server.cycle}</span>
+        <DaysValue text={server.cycle} />
       ) : (
         <span className="text-[17px] text-ink-3 italic">не определён</span>
       ),
@@ -350,7 +384,11 @@ function Metrics({ server }: { server: ServerDetail }) {
     },
     {
       label: 'в базе',
-      value: <span className="num">{server.history_span_days ?? '—'} дней</span>,
+      value: (
+        <>
+          <span className="num">{server.history_span_days ?? '—'}</span> дней
+        </>
+      ),
       sub: server.total_measurements != null ? (
         <>
           <span className="num">{thousands(server.total_measurements)}</span> замеров
@@ -386,18 +424,43 @@ function Metrics({ server }: { server: ServerDetail }) {
 }
 
 /* --------------------------------------------------------- История вайпов
-   Подозрительные записи не прячутся, а помечаются — это часть договора
-   с читателем: показываю всё, что нашёл, включая то, в чём сомневаюсь. */
+   Подозрительные записи не выбрасываются — это часть договора с читателем:
+   показываю всё, что нашёл, включая то, в чём сомневаюсь. Но по умолчанию
+   они свёрнуты: у серверов с ежедневным рестартом отбракованных строк в
+   разы больше настоящих, и таблица превращалась в стену красных меток
+   (у [US East] Facepunch 1 страница вырастала до 13 000 px). Интервалы
+   считаются между показанными строками — иначе у настоящего вайпа стоял бы
+   интервал до соседнего рестарта. */
 
-function WipeHistory({ wipes }: { wipes: WipeRow[] | null }) {
-  const rows = useMemo(
-    () => (wipes ?? []).slice().sort((a, b) => (a.wipe_time < b.wipe_time ? 1 : -1)),
-    [wipes],
-  )
+function WipeHistory({
+  wipes,
+  wipeNumbers,
+}: {
+  wipes: WipeRow[] | null
+  wipeNumbers: Map<string, number>
+}) {
+  const [showRejected, setShowRejected] = useState(false)
+  const rejectedCount = useMemo(() => (wipes ?? []).filter((w) => w.suspicious).length, [wipes])
+  const rows = useMemo(() => {
+    const shown = (wipes ?? [])
+      .filter((w) => showRejected || !w.suspicious)
+      .slice()
+      .sort((a, b) => (a.wipe_time < b.wipe_time ? -1 : 1))
+    let prev: Date | null = null
+    const withIntervals = shown.map((w) => {
+      const d = parseSqlDateTime(w.wipe_time)
+      const interval_hours = d && prev ? (d.getTime() - prev.getTime()) / 3_600_000 : null
+      if (d) prev = d
+      return { ...w, interval_hours }
+    })
+    return withIntervals.reverse()
+  }, [wipes, showRejected])
 
   return (
     <section className="bleed border-b border-rule py-6 lg:border-r">
-      <div className="eyebrow mb-4">история вайпов · каждая строка подтверждена кривой</div>
+      <div className="eyebrow mb-4">
+        история вайпов · {showRejected ? 'все записи, с отбракованными' : 'подтверждённые'}
+      </div>
 
       {wipes == null ? (
         <Skeleton className="h-40 w-full" />
@@ -418,12 +481,12 @@ function WipeHistory({ wipes }: { wipes: WipeRow[] | null }) {
             </tr>
           </thead>
           <tbody>
-            {rows.map((w, i) => {
+            {rows.map((w) => {
               const d = parseSqlDateTime(w.wipe_time)
-              const n = rows.length - i
+              const n = wipeNumbers.get(w.wipe_time)
               return (
                 <tr key={w.wipe_time} className="row border-b border-rule">
-                  <td className="num w-8 py-2.5 pr-3 text-[12px] text-ink-3">{n}</td>
+                  <td className="num w-8 py-2.5 pr-3 text-[12px] text-ink-3">{n ?? '·'}</td>
                   <td className="py-2.5">
                     <span className="num text-[13px] text-ink">{shortDateTime(w.wipe_time)}</span>
                     {w.suspicious && (
@@ -453,6 +516,18 @@ function WipeHistory({ wipes }: { wipes: WipeRow[] | null }) {
             })}
           </tbody>
         </table>
+      )}
+
+      {wipes != null && rejectedCount > 0 && (
+        <button
+          type="button"
+          onClick={() => setShowRejected((v) => !v)}
+          className="mt-4 text-[12.5px] text-ink-3 underline decoration-rule underline-offset-4 transition-colors hover:text-ink"
+        >
+          {showRejected
+            ? 'Скрыть отбракованные записи'
+            : `Ещё ${thousands(rejectedCount)} ${plural(rejectedCount, 'запись отбракована', 'записи отбраковано', 'записей отбраковано')} — рестарты и сбои замера. Показать`}
+        </button>
       )}
     </section>
   )
@@ -495,4 +570,24 @@ function TechPanel({ server }: { server: ServerDetail }) {
       </p>
     </section>
   )
+}
+
+/* Число — моноширинным, слово — обычным: иначе «7 дней» набиралось цифровым
+   шрифтом целиком, и пробел выходил вдвое шире. */
+function DaysValue({ text, className }: { text?: string | null; className?: string }) {
+  const m = /^(\d+)\s+(.*)$/.exec(text ?? '')
+  if (!m) return <span className={className}>{text}</span>
+  return (
+    <span className={className}>
+      <span className="num">{m[1]}</span> {m[2]}
+    </span>
+  )
+}
+
+/** Ближайший глобал как граница «не позже» — только если он в пределах 10 суток:
+    за месяц до глобала такая граница ничего не говорит. */
+function forcedBound(server: ServerDetail): NextWipe | null {
+  const bound = nextWipe(server.forced_wipe)
+  if (bound.tone === 'unknown' || bound.hours == null || bound.hours > 240) return null
+  return bound
 }

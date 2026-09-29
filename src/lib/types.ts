@@ -55,6 +55,8 @@ export interface ServerDetail {
   next_wipe_estimate?: string | null
   /** следующим будет глобальный (принудительный) вайп Facepunch */
   next_wipe_forced?: boolean
+  /** ближайший глобал — граница «не позже», если свой цикл неизвестен */
+  forced_wipe?: string | null
   peak?: number | null
   avg?: number | null
   history_span_days?: number | null

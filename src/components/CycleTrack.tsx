@@ -147,10 +147,16 @@ export function CycleTrackLarge({
   wipedAt,
   nextAt,
   marks,
+  forced = false,
+  upperBound = false,
 }: CyclePhase & {
   wipedAt: string
   nextAt: string
   marks?: number[]
+  /** следующим будет глобальный вайп Facepunch, а не свой по интервалам */
+  forced?: boolean
+  /** цикл неизвестен, дата — граница «не позже» (ближайший глобал) */
+  upperBound?: boolean
 }) {
   const known = untilHours != null
   const fresh = sinceHours != null && sinceHours < 24
@@ -182,7 +188,15 @@ export function CycleTrackLarge({
           </div>
         </div>
         <div className="text-right">
-          <div className="eyebrow">{known ? 'следующий, по интервалам' : 'следующий'}</div>
+          <div className="eyebrow">
+            {!known
+              ? 'следующий'
+              : upperBound
+                ? 'не позже, глобальный'
+                : forced
+                  ? 'следующий, глобальный'
+                  : 'следующий, по интервалам'}
+          </div>
           <div
             className={cx(
               'mt-1.5 text-[13px]',

@@ -15,11 +15,14 @@ export function OnlineChart({
   wipes,
   height = 300,
   granularity,
+  wipeNumbers,
 }: {
   points: HistoryPoint[]
   wipes?: HistoryWipe[]
   height?: number
   granularity?: string
+  /** сквозной номер вайпа по wipe_time — тот же, что в таблице истории */
+  wipeNumbers?: Map<string, number>
 }) {
   const { ref, width } = useMeasure<HTMLDivElement>()
   const [hover, setHover] = useState<number | null>(null)
@@ -66,10 +69,10 @@ export function OnlineChart({
   const area = `${path} L${x(data.rows[data.rows.length - 1].t.getTime()).toFixed(1)} ${PAD.top + ih} L${x(data.t0).toFixed(1)} ${PAD.top + ih} Z`
 
   const wipeMarks = (wipes ?? [])
-    .map((w2) => parseSqlDateTime(w2.wipe_time))
-    .filter((d): d is Date => d != null)
-    .filter((d) => d.getTime() >= data.t0 && d.getTime() <= data.t0 + data.span)
-    .sort((a, b) => b.getTime() - a.getTime())
+    .map((w2) => ({ d: parseSqlDateTime(w2.wipe_time), key: w2.wipe_time }))
+    .filter((m): m is { d: Date; key: string } => m.d != null)
+    .filter((m) => m.d.getTime() >= data.t0 && m.d.getTime() <= data.t0 + data.span)
+    .sort((a, b) => b.d.getTime() - a.d.getTime())
 
   const xTicks = pickXTicks(data.rows.map((r) => r.t), granularity)
   const hovered = hover != null ? data.rows[hover] : null
@@ -149,9 +152,9 @@ export function OnlineChart({
         />
 
         {/* рубцы вайпов: линия во всю высоту + номер у основания */}
-        {wipeMarks.map((d, i) => {
+        {wipeMarks.map(({ d, key }, i) => {
           const px = x(d.getTime())
-          const n = wipeMarks.length - i
+          const n = wipeNumbers?.get(key) ?? wipeMarks.length - i
           return (
             <g key={d.getTime()}>
               <line

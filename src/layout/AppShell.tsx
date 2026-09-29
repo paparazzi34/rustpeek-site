@@ -15,10 +15,12 @@ import { Brand } from './Brand'
    Активный раздел помечен ржавой линией снизу и белым текстом, без заливки:
    заливка-пилюля — это то, от чего мы уходим. */
 
-const TABS = [
+const TABS: Array<{ to: string; label: string; badge?: number }> = [
   { to: '/servers', label: 'Серверы' },
   { to: '/players', label: 'Игроки' },
-  { to: '/watchlist', label: 'Вочлист', badge: 4 },
+  // Бейдж со счётчиком убран (2026-09-29): вочлист на сайте — витрина без
+  // входа, а цифра «4» была зашита в код и показывалась каждому посетителю.
+  { to: '/watchlist', label: 'Вочлист' },
   { to: '/rustplus', label: 'Rust+' },
 ]
 
@@ -30,17 +32,19 @@ export function AppShell() {
   return (
     <div className="min-h-dvh bg-void">
       <header className="sticky top-0 z-40 border-b border-rule bg-void/95 backdrop-blur-sm">
-        <div className="bleed flex h-12 items-center gap-6">
+        <div className="bleed flex h-12 items-center gap-3 sm:gap-6">
           <Brand />
 
-          <nav className="-mb-px flex h-12 items-stretch">
+          {/* На узком экране вкладки прокручиваются внутри своей полосы, а не
+              растягивают страницу вбок: на 390 px шапка была шириной 518. */}
+          <nav className="no-scrollbar -mb-px flex h-12 min-w-0 items-stretch overflow-x-auto">
             {TABS.map((t) => (
               <NavLink
                 key={t.to}
                 to={t.to}
                 className={({ isActive }) =>
                   cx(
-                    'flex items-center gap-2 border-b-2 px-3 text-[13.5px] font-medium transition-colors',
+                    'flex shrink-0 items-center gap-2 border-b-2 px-2 text-[13.5px] font-medium whitespace-nowrap transition-colors sm:px-3',
                     isActive
                       ? 'border-rust text-ink'
                       : 'border-transparent text-ink-3 hover:text-ink-2',
@@ -75,7 +79,7 @@ export function AppShell() {
             href="https://t.me/RustPeek_Bot"
             target="_blank"
             rel="noopener"
-            className="btn btn-solid ml-auto h-8 lg:ml-0"
+            className="btn btn-solid ml-auto h-8 shrink-0 lg:ml-0"
           >
             <IconTelegram size={13} />
             <span className="hidden sm:inline">Бот</span>

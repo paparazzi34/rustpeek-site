@@ -415,3 +415,12 @@
     }
   }
 }
+
+/* Горизонтальная прокрутка без видимой полосы — вкладки шапки на узком
+   экране (2026-09-29). */
+@utility no-scrollbar {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
