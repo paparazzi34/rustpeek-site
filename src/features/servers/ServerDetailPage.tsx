@@ -275,6 +275,7 @@ function Verdict({
           <>
             следующий{' '}
             <span className={next.tone === 'soon' ? 'text-warn' : undefined}>{next.text}</span>
+            {server.next_wipe_forced && <span className="text-ink-3"> — глобальный вайп</span>}
           </>
         )}
       </p>
@@ -286,6 +287,12 @@ function Verdict({
             вайпает нерегулярно, либо наблюдение началось недавно. Придумать дату можно, опереться
             на неё нельзя.
           </>
+        ) : server.cycle && server.cycle_source === 'name' ? (
+          <>
+            Цикл <span className="num text-ink">{server.cycle}</span> заявил админ в названии
+            сервера. Своих подтверждённых вайпов для проверки пока мало, но те, что есть, ему не
+            противоречат.
+          </>
         ) : server.cycle ? (
           <>
             Цикл <span className="num text-ink">{server.cycle}</span> — это не слова админа, а
@@ -293,6 +300,13 @@ function Verdict({
           </>
         ) : (
           <>Прогноз построен по интервалам между подтверждёнными вайпами, а не по полю «last wipe».</>
+        )}
+        {server.next_wipe_forced && (
+          <>
+            {' '}
+            Ближайший вайп — глобальный: в первый четверг месяца Facepunch вайпает все серверы
+            принудительно, раньше собственного расписания.
+          </>
         )}
       </p>
     </section>
@@ -328,7 +342,11 @@ function Metrics({ server }: { server: ServerDetail }) {
       ) : (
         <span className="text-[17px] text-ink-3 italic">не определён</span>
       ),
-      sub: server.cycle ? 'по интервалам между вайпами' : 'интервалы разъезжаются',
+      sub: server.cycle
+        ? server.cycle_source === 'name'
+          ? 'заявлен в названии'
+          : 'по интервалам между вайпами'
+        : 'интервалы разъезжаются',
     },
     {
       label: 'в базе',

@@ -17,6 +17,8 @@ export interface ServerListItem {
   wipe_label?: string | null
   /** SQL datetime или null, если цикл не определён */
   next_wipe_estimate?: string | null
+  next_wipe_forced?: boolean
+  cycle_source?: 'history' | 'name' | null
   country?: string | null
   source?: 'battlemetrics_live' | string
   /** короткая история онлайна для спарклайна в строке — 28 точек, 6ч-бакеты
@@ -48,7 +50,11 @@ export interface ServerDetail {
   wipe?: string | null
   wipe_state?: 'fresh' | string | null
   cycle?: string | null
+  /** history — наш цикл по подтверждённым вайпам; name — заявлен админом в названии */
+  cycle_source?: 'history' | 'name' | null
   next_wipe_estimate?: string | null
+  /** следующим будет глобальный (принудительный) вайп Facepunch */
+  next_wipe_forced?: boolean
   peak?: number | null
   avg?: number | null
   history_span_days?: number | null
