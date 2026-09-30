@@ -149,6 +149,7 @@ export function CycleTrackLarge({
   marks,
   forced = false,
   upperBound = false,
+  wipedLabel = 'подтверждённый вайп',
 }: CyclePhase & {
   wipedAt: string
   nextAt: string
@@ -157,6 +158,8 @@ export function CycleTrackLarge({
   forced?: boolean
   /** цикл неизвестен, дата — граница «не позже» (ближайший глобал) */
   upperBound?: boolean
+  /** подпись левого края — «подтверждённый» только если вайп наблюдался */
+  wipedLabel?: string
 }) {
   const known = untilHours != null
   const fresh = sinceHours != null && sinceHours < 24
@@ -182,7 +185,7 @@ export function CycleTrackLarge({
 
       <div className="mt-2.5 flex items-start justify-between gap-4">
         <div>
-          <div className="eyebrow">подтверждённый вайп</div>
+          <div className="eyebrow">{wipedLabel}</div>
           <div className={cx('num mt-1.5 text-[13px]', fresh ? 'text-good' : 'text-ink-2')}>
             {wipedAt}
           </div>

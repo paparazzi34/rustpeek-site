@@ -13,8 +13,10 @@ export interface ServerListItem {
   max: number
   online_stale?: boolean
   activity_status?: ActivityStatus
-  /** "DD.MM HH:MM" — последний ПОДТВЕРЖДЁННЫЙ вайп */
+  /** "DD.MM HH:MM" — последний вайп */
   wipe_label?: string | null
+  /** map — по смене карты (факт), online — по провалу онлайна (оценка) */
+  wipe_basis?: 'map' | 'online' | null
   /** SQL datetime или null, если цикл не определён */
   next_wipe_estimate?: string | null
   next_wipe_forced?: boolean
@@ -59,6 +61,8 @@ export interface ServerDetail {
   next_wipe_forced?: boolean
   /** ближайший глобал — граница «не позже», если свой цикл неизвестен */
   forced_wipe?: string | null
+  /** на чём основана дата вайпа: map — смена карты (факт), остальное — нет */
+  wipe_basis?: 'map' | 'online' | 'name' | 'global' | 'bm' | null
   peak?: number | null
   avg?: number | null
   history_span_days?: number | null

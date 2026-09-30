@@ -291,7 +291,10 @@ function FreshRow({ s, rank, flash }: { s: ServerListItem; rank: number; flash?:
           <span className="mt-0.5 block text-[11.5px] text-ink-3">
             {serverTypeLabel(s.type)}
             {s.rate && ` · ${s.rate}`} · вайп{' '}
-            <span className="text-good">{relativeWipe(s.wipe_label)}</span>
+            <span className={s.wipe_basis === 'online' ? 'text-ink-2' : 'text-good'}>
+              {s.wipe_basis === 'online' ? '≈ ' : ''}
+              {relativeWipe(s.wipe_label)}
+            </span>
           </span>
         </span>
         <span className="hidden sm:block">

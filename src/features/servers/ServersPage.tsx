@@ -281,7 +281,9 @@ function ServerRow({
 }) {
   const since = wipeAgeHours(s.wipe_label)
   const next = nextWipe(s.next_wipe_estimate)
-  const fresh = since != null && since < 24
+  // Дата по провалу онлайна — оценка, не свежий вайп: без зелёного и с «≈».
+  const estimated = s.wipe_basis === 'online'
+  const fresh = !estimated && since != null && since < 24
   const soon = next.tone === 'soon'
   const activity = activityLabel(s.activity_status)
   const dead = s.online_stale || (s.max > 0 && s.online / s.max < 0.05)
@@ -337,6 +339,7 @@ function ServerRow({
             </span>
             <span className="mt-1.5 flex justify-between gap-3 text-[11px]">
               <span className={fresh ? 'text-good' : 'text-ink-3'}>
+                {estimated && s.wipe_label ? '≈ ' : ''}
                 {relativeWipe(s.wipe_label)}
               </span>
               <span
@@ -376,6 +379,7 @@ function ServerRow({
         {/* последний вайп */}
         <span className="hidden lg:block">
           <span className={cx('block text-[13px]', fresh ? 'text-good' : 'text-ink-2')}>
+            {estimated && s.wipe_label ? '≈ ' : ''}
             {relativeWipe(s.wipe_label)}
           </span>
           {s.wipe_label && (

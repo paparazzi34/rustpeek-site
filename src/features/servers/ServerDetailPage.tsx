@@ -120,7 +120,9 @@ export function ServerDetailPage() {
   const next = nextWipe(server.next_wipe_estimate)
   // Цикл неизвестен, но глобал близко — честная граница «не позже».
   const bound = next.tone === 'unknown' ? forcedBound(server) : null
-  const fresh = since != null && since < 24
+  // Наблюдали ли мы сам вайп (смену карты) — или дата лишь предположение.
+  const observed = !server.wipe_basis || server.wipe_basis === 'map'
+  const fresh = observed && since != null && since < 24
   const fill = server.max > 0 ? server.online / server.max : 0
 
   return (
@@ -134,7 +136,8 @@ export function ServerDetailPage() {
         <CycleTrackLarge
           sinceHours={since}
           untilHours={bound ? bound.hours : next.hours}
-          wipedAt={server.wipe ?? 'нет данных'}
+          wipedAt={server.wipe ? (observed ? server.wipe : '≈ ' + server.wipe) : 'нет данных'}
+          wipedLabel={observed ? 'подтверждённый вайп' : 'предполагаемый вайп'}
           nextAt={shortDateTime(bound ? server.forced_wipe : server.next_wipe_estimate) ?? '—'}
           forced={server.next_wipe_forced}
           upperBound={bound != null}
@@ -274,7 +277,7 @@ function Verdict({
           <>Подтверждённого вайпа в памяти пока нет.</>
         ) : (
           <>
-            Вайпнулся{' '}
+            {server.wipe_basis && server.wipe_basis !== 'map' ? 'Предположительно вайпнулся ≈ ' : 'Вайпнулся '}
             <span className={fresh ? 'text-good' : undefined}>{relativeWipe(server.wipe)}</span>
           </>
         )}
@@ -304,6 +307,12 @@ function Verdict({
           </>
         )}
       </p>
+
+      {server.wipe_basis && server.wipe_basis !== 'map' && BASIS_NOTE[server.wipe_basis] && (
+        <p className="mt-3 max-w-3xl text-[13px] leading-relaxed text-warn">
+          {BASIS_NOTE[server.wipe_basis]}
+        </p>
+      )}
 
       <p className="mt-3 max-w-3xl text-[13px] leading-relaxed text-ink-2">
         {next.tone === 'unknown' ? (
@@ -590,4 +599,15 @@ function forcedBound(server: ServerDetail): NextWipe | null {
   const bound = nextWipe(server.forced_wipe)
   if (bound.tone === 'unknown' || bound.hours == null || bound.hours > 240) return null
   return bound
+}
+
+/* Откуда дата вайпа, если сам вайп мы не наблюдали (2026-09-30). Смена карты —
+   факт; всё остальное — оценка, и так и должно быть написано. */
+const BASIS_NOTE: Record<string, string> = {
+  global:
+    'Сам вайп мы не видели: время рождения карты этого сервера нам недоступно. Дата — предположение: в первый четверг месяца Facepunch вайпает все серверы.',
+  online:
+    'Дата — по провалу онлайна, смену карты мы не видели. Такая оценка верна примерно в половине случаев.',
+  name: 'Дата — из названия сервера, сам вайп мы не видели.',
+  bm: 'Дата — из поля BattleMetrics, сам вайп мы не видели.',
 }
