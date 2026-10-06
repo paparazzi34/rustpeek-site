@@ -15,7 +15,12 @@ export const WEEKDAYS_FULL = [
 
 export const pad2 = (n: number) => String(n).padStart(2, '0')
 
-/** Бэкенд отдаёт SQL-datetime без таймзоны — Safari такое не парсит через new Date() */
+/** Бэкенд отдаёт SQL-datetime без таймзоны — Safari такое не парсит через new Date().
+
+    Время на сервере — UTC (2026-10-07). Раньше строка читалась как местное
+    время браузера, и у игрока из Москвы «вайп 3 часа назад» на деле был
+    15 минут назад, а свежие вайпы после 21:00 UTC попадали во «вчера».
+    Читаем как UTC, показываем — в местном времени человека. */
 export function parseSqlDateTime(value?: string | null): Date | null {
   if (!value) return null
   const m = /^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::(\d{2}))?/.exec(value)
@@ -23,7 +28,7 @@ export function parseSqlDateTime(value?: string | null): Date | null {
     const d = new Date(value)
     return Number.isNaN(d.getTime()) ? null : d
   }
-  return new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], m[6] ? +m[6] : 0)
+  return new Date(Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], m[6] ? +m[6] : 0))
 }
 
 export function plural(n: number, one: string, few: string, many: string) {
@@ -52,14 +57,23 @@ export function compact(n: number | null | undefined) {
   return (n / 1_000_000).toFixed(1).replace('.0', '') + ' млн'
 }
 
-/** wipe_label приходит как "DD.MM HH:MM" без года — год восстанавливаем назад */
+/** wipe_label приходит как "DD.MM HH:MM" (UTC) без года — год восстанавливаем назад */
 export function parseWipeLabel(label?: string | null): Date | null {
   const m = /^(\d{2})\.(\d{2})\s+(\d{2}):(\d{2})$/.exec(label || '')
   if (!m) return null
   const now = new Date()
-  const d = new Date(now.getFullYear(), +m[2] - 1, +m[1], +m[3], +m[4])
-  if (d > now) d.setFullYear(d.getFullYear() - 1)
+  let d = new Date(Date.UTC(now.getUTCFullYear(), +m[2] - 1, +m[1], +m[3], +m[4]))
+  if (d.getTime() > now.getTime() + 3_600_000) {
+    d = new Date(Date.UTC(now.getUTCFullYear() - 1, +m[2] - 1, +m[1], +m[3], +m[4]))
+  }
   return d
+}
+
+/** wipe_label (UTC) → тот же формат "DD.MM HH:MM", но в местном времени. */
+export function localWipeLabel(label?: string | null): string | null {
+  const d = parseWipeLabel(label)
+  if (!d) return label ?? null
+  return `${pad2(d.getDate())}.${pad2(d.getMonth() + 1)} ${pad2(d.getHours())}:${pad2(d.getMinutes())}`
 }
 
 export function relativeWipe(label?: string | null): string {
@@ -148,7 +162,27 @@ export function activityLabel(status?: string | null) {
   }
 }
 
-export const serverTypeLabel = (t?: string | null) => (t === 'vanilla' ? 'Vanilla' : 'Mod')
+/** Меньше стольких игроков в пике за сутки — сервер почти пустой.
+    Тот же порог в api_service/app.py (EMPTY_PEAK_24H). */
+export const EMPTY_PEAK_24H = 10
+
+export function isNearlyEmpty(s: { peak_24h?: number | null; online: number }) {
+  return s.peak_24h != null ? s.peak_24h < EMPTY_PEAK_24H : s.online < EMPTY_PEAK_24H
+}
+
+/** Ярлык дня для группировки списка: «Сегодня», «Вчера», «Завтра» или
+    «пн, 28.09». */
+export function dayLabel(d: Date | null): string {
+  if (!d) return '—'
+  const start = (x: Date) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime()
+  const diff = Math.round((start(d) - start(new Date())) / 86_400_000)
+  if (diff === 0) return 'Сегодня'
+  if (diff === -1) return 'Вчера'
+  if (diff === 1) return 'Завтра'
+  return `${WEEKDAYS_SHORT[d.getDay()]}, ${pad2(d.getDate())}.${pad2(d.getMonth() + 1)}`
+}
+
+export const serverTypeLabel =(t?: string | null) => (t === 'vanilla' ? 'Vanilla' : 'Mod')
 
 /** BM иногда кладёт в map_name рекламу вместо названия карты */
 export function isJunkMapName(name?: string | null) {

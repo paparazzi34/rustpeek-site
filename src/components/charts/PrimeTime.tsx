@@ -7,13 +7,18 @@ import { cx } from '../ui'
    в одном приглушённом тоне: если раскрасить все, глазу не за что зацепиться. */
 
 export function PrimeTime({
-  hours,
-  peakHour,
+  hours: utcHours,
+  peakHour: utcPeak,
 }: {
   hours: (number | null)[]
   peakHour?: number | null
 }) {
   const [hover, setHover] = useState<number | null>(null)
+  // Бэкенд считает часы в UTC (2026-10-07) — сдвигаем на пояс человека,
+  // иначе в Москве «пик в 19:00» на деле был в 22:00.
+  const shift = Math.round(-new Date().getTimezoneOffset() / 60)
+  const hours = Array.from({ length: 24 }, (_, h) => utcHours[(((h - shift) % 24) + 24) % 24] ?? null)
+  const peakHour = utcPeak == null ? null : (((utcPeak + shift) % 24) + 24) % 24
   const values = hours.filter((v): v is number => v != null)
   if (!values.length) {
     return <p className="py-8 text-[13px] text-ink-3">Нет свежих данных по часам.</p>

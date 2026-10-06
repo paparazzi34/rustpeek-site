@@ -36,7 +36,9 @@ export function OnlineChart({
     const t0 = rows[0].t.getTime()
     const t1 = rows[rows.length - 1].t.getTime()
     const span = Math.max(1, t1 - t0)
-    const vmax = Math.max(1, ...rows.map((r) => r.v))
+    // Шкала не ниже 20 игроков (2026-10-02): у пустого сервера колебания
+    // 0–4 растягивались на всю высоту и выглядели как живой онлайн.
+    const vmax = Math.max(20, ...rows.map((r) => r.v))
 
     // Шкала Y: круглый шаг, не более пяти линий — сетка должна помогать,
     // а не рисоваться поверх данных.
@@ -63,10 +65,25 @@ export function OnlineChart({
   const x = (t: number) => PAD.left + ((t - data.t0) / data.span) * iw
   const y = (v: number) => PAD.top + ih - (v / data.top) * ih
 
-  const path = data.rows
-    .map((r, i) => `${i ? 'L' : 'M'}${x(r.t.getTime()).toFixed(1)} ${y(r.v).toFixed(1)}`)
+  // Дыры в данных не замазываем (2026-10-07): с 03.10 по 06.10 мониторинг
+  // молчал, а линия шла через трое суток прямой, как будто онлайн плавно
+  // падал. Разрыв больше GAP_MS — новый отрезок, площадь под ним — своя.
+  const GAP_MS = (granularity === 'hourly' ? 8 : 72) * 3_600_000
+  const segments: Array<typeof data.rows> = []
+  data.rows.forEach((r, i) => {
+    const prev = data.rows[i - 1]
+    if (!prev || r.t.getTime() - prev.t.getTime() > GAP_MS) segments.push([r])
+    else segments[segments.length - 1].push(r)
+  })
+  const seg = (rows: typeof data.rows) =>
+    rows.map((r, i) => `${i ? 'L' : 'M'}${x(r.t.getTime()).toFixed(1)} ${y(r.v).toFixed(1)}`).join(' ')
+  const path = segments.map(seg).join(' ')
+  const area = segments
+    .map(
+      (rows) =>
+        `${seg(rows)} L${x(rows[rows.length - 1].t.getTime()).toFixed(1)} ${PAD.top + ih} L${x(rows[0].t.getTime()).toFixed(1)} ${PAD.top + ih} Z`,
+    )
     .join(' ')
-  const area = `${path} L${x(data.rows[data.rows.length - 1].t.getTime()).toFixed(1)} ${PAD.top + ih} L${x(data.t0).toFixed(1)} ${PAD.top + ih} Z`
 
   const wipeMarks = (wipes ?? [])
     .map((w2) => ({ d: parseSqlDateTime(w2.wipe_time), key: w2.wipe_time }))
@@ -74,7 +91,7 @@ export function OnlineChart({
     .filter((m) => m.d.getTime() >= data.t0 && m.d.getTime() <= data.t0 + data.span)
     .sort((a, b) => b.d.getTime() - a.d.getTime())
 
-  const xTicks = pickXTicks(data.rows.map((r) => r.t), granularity)
+  const xTicks = pickXTicks(data.rows.map((r) => r.t), iw)
   const hovered = hover != null ? data.rows[hover] : null
 
   return (
@@ -129,7 +146,11 @@ export function OnlineChart({
             fontSize="10"
             fill="var(--color-ink-3)"
           >
-            {pad2(d.getDate())}.{pad2(d.getMonth() + 1)}
+            {/* окно короче двух суток — подписываем часы, иначе все
+                подписи одинаковые «06.10» */}
+            {data.span < 48 * 3_600_000
+              ? `${pad2(d.getHours())}:${pad2(d.getMinutes())}`
+              : `${pad2(d.getDate())}.${pad2(d.getMonth() + 1)}`}
           </text>
         ))}
 
@@ -228,11 +249,15 @@ function niceStep(raw: number) {
   return (n <= 1 ? 1 : n <= 2 ? 2 : n <= 5 ? 5 : 10) * pow
 }
 
-function pickXTicks(dates: Date[], granularity?: string) {
+/** Подписи оси X — равномерно по времени, а не по номеру точки (2026-10-07):
+    при дыре в данных подписи по индексу слипались в одну строку. Сколько
+    подписей — решает ширина: не чаще одной на 100 px. */
+function pickXTicks(dates: Date[], width: number) {
   if (dates.length < 2) return []
-  const want = granularity === 'hourly' ? 6 : 7
-  const step = Math.max(1, Math.floor(dates.length / want))
+  const t0 = dates[0].getTime()
+  const t1 = dates[dates.length - 1].getTime()
+  const want = Math.min(7, Math.max(2, Math.floor(width / 100)))
   const out: Date[] = []
-  for (let i = step; i < dates.length - step / 2; i += step) out.push(dates[i])
+  for (let i = 1; i <= want; i++) out.push(new Date(t0 + ((t1 - t0) * i) / (want + 1)))
   return out
 }

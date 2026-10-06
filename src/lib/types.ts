@@ -28,6 +28,8 @@ export interface ServerListItem {
   /** короткая история онлайна для спарклайна в строке — 28 точек, 6ч-бакеты
       за 7 суток (database.get_sparkline_batch), null = в бакете нет данных */
   sparkline?: (number | null)[]
+  /** пик онлайна за сутки, null — замеров за сутки нет */
+  peak_24h?: number | null
 }
 
 export interface SearchResponse {

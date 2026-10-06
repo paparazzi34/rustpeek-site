@@ -5,7 +5,12 @@ import { Sparkline } from '../../components/charts/Signature'
 import { Button, EmptyState, ErrorState, Meter, SearchField, Segmented, cx } from '../../components/ui'
 import { searchServers } from '../../lib/api'
 import {
+  EMPTY_PEAK_24H,
   activityLabel,
+  dayLabel,
+  isNearlyEmpty,
+  parseWipeLabel,
+  localWipeLabel,
   nextWipe,
   nextWipeNote,
   pluralServers,
@@ -245,11 +250,7 @@ export function ServersPage() {
         </div>
       ) : (
         <>
-          <ul className="bleed">
-            {servers.map((s, i) => (
-              <ServerRow key={s.id} s={s} rank={i + 1} showSpark={showSpark} />
-            ))}
-          </ul>
+          <GroupedRows servers={servers} byDay={sort === 'wipe_fresh'} showSpark={showSpark} />
 
           <div className="bleed flex items-center justify-between gap-4 py-6">
             <span className="text-[12.5px] text-ink-3">
@@ -265,6 +266,89 @@ export function ServersPage() {
         </>
       )}
     </>
+  )
+}
+
+/* --------------------------------------------------------------- Группы
+   Редизайн 2026-10-02 («всё в одну кучу»). Сорок одинаковых строк подряд
+   не читались: свежий вайп с сотнями игроков стоял вперемешку с пустыми
+   серверами. Теперь при сортировке «свежий вайп» строки разбиты по дню
+   вайпа, а почти пустые серверы (пик за сутки меньше EMPTY_PEAK_24H)
+   собраны в свёрнутый блок внизу — они не спрятаны, просто не мешают. */
+
+function GroupedRows({
+  servers,
+  byDay,
+  showSpark,
+}: {
+  servers: ServerListItem[]
+  byDay: boolean
+  showSpark: boolean
+}) {
+  const [showEmpty, setShowEmpty] = useState(false)
+
+  const { groups, empty } = useMemo(() => {
+    const live = byDay ? servers.filter((s) => !isNearlyEmpty(s)) : servers
+    const empty = byDay ? servers.filter((s) => isNearlyEmpty(s)) : []
+    const groups: Array<{ label: string; rows: ServerListItem[] }> = []
+    for (const s of live) {
+      const label = byDay
+        ? s.wipe_label
+          ? dayLabel(parseWipeLabel(s.wipe_label))
+          : 'Вайп ещё не видел'
+        : ''
+      // По метке, а не по соседству: аим-трейны API ставит в конец
+      // сортировки, и без этого «Сегодня» появлялось бы дважды.
+      const same = groups.find((g) => g.label === label)
+      if (same) same.rows.push(s)
+      else groups.push({ label, rows: [s] })
+    }
+    return { groups, empty }
+  }, [servers, byDay])
+
+  let rank = 0
+  return (
+    <div className="bleed">
+      {groups.map((g, gi) => (
+        <section key={g.label + gi}>
+          {byDay && (
+            <div className="group-head">
+              <span className="stencil text-[13px] text-ink">{g.label}</span>
+              <span className="num text-[11.5px] text-ink-3">{g.rows.length}</span>
+            </div>
+          )}
+          <ul>
+            {g.rows.map((s) => (
+              <ServerRow key={s.id} s={s} rank={++rank} showSpark={showSpark} />
+            ))}
+          </ul>
+        </section>
+      ))}
+
+      {empty.length > 0 && (
+        <section>
+          <button
+            type="button"
+            onClick={() => setShowEmpty((v) => !v)}
+            className="group-head w-full text-left transition-colors hover:text-ink"
+            aria-expanded={showEmpty}
+          >
+            <span className="stencil text-[13px] text-ink-2">Почти пустые</span>
+            <span className="num text-[11.5px] text-ink-3">{empty.length}</span>
+            <span className="ml-auto text-[12px] text-ink-3">
+              меньше {EMPTY_PEAK_24H} игроков за сутки · {showEmpty ? 'свернуть' : 'показать'}
+            </span>
+          </button>
+          {showEmpty && (
+            <ul>
+              {empty.map((s) => (
+                <ServerRow key={s.id} s={s} rank={++rank} showSpark={showSpark} />
+              ))}
+            </ul>
+          )}
+        </section>
+      )}
+    </div>
   )
 }
 
@@ -334,23 +418,22 @@ function ServerRow({
                 <Meter value={s.online} max={s.max} />
               </span>
             </span>
-            <span className="mt-2.5 block">
-              <CycleTrack sinceHours={since} untilHours={next.hours} height={14} />
-            </span>
+            {next.tone !== 'unknown' && (
+              <span className="mt-2.5 block">
+                <CycleTrack sinceHours={since} untilHours={next.hours} height={14} />
+              </span>
+            )}
             <span className="mt-1.5 flex justify-between gap-3 text-[11px]">
               <span className={fresh ? 'text-good' : 'text-ink-3'}>
                 {estimated && s.wipe_label ? '≈ ' : ''}
                 {relativeWipe(s.wipe_label)}
               </span>
-              <span
-                className={cx(
-                  'truncate text-right',
-                  soon ? 'text-warn' : next.tone === 'unknown' ? 'text-ink-3 italic' : 'text-ink-3',
-                )}
-              >
-                {next.text}
-                {nextWipeNote(s, next.tone)}
-              </span>
+              {next.tone !== 'unknown' && (
+                <span className={cx('truncate text-right', soon ? 'text-warn' : 'text-ink-3')}>
+                  {next.text}
+                  {nextWipeNote(s, next.tone)}
+                </span>
+              )}
             </span>
           </span>
         </span>
@@ -383,26 +466,31 @@ function ServerRow({
             {relativeWipe(s.wipe_label)}
           </span>
           {s.wipe_label && (
-            <span className="num mt-0.5 block text-[11px] text-ink-3">{s.wipe_label}</span>
+            <span className="num mt-0.5 block text-[11px] text-ink-3">{localWipeLabel(s.wipe_label)}</span>
           )}
         </span>
 
-        {/* фаза цикла — подписной элемент */}
+        {/* фаза цикла — подписной элемент. Цикла нет — один прочерк, а не
+            трек с пунктиром и курсивом в каждой строке: это был шум. */}
         <span className="hidden pr-1 lg:block">
-          <CycleTrack sinceHours={since} untilHours={next.hours} height={18} />
-          <span
-            className={cx(
-              'mt-1 block text-right text-[11.5px]',
-              next.tone === 'soon'
-                ? 'text-warn'
-                : next.tone === 'unknown'
-                  ? 'text-ink-3 italic'
-                  : 'text-ink-3',
-            )}
-          >
-            {next.text}
-            {nextWipeNote(s, next.tone)}
-          </span>
+          {next.tone === 'unknown' ? (
+            <span className="block text-right text-[12px] text-ink-3" title="Цикл не определён">
+              —
+            </span>
+          ) : (
+            <>
+              <CycleTrack sinceHours={since} untilHours={next.hours} height={18} />
+              <span
+                className={cx(
+                  'mt-1 block text-right text-[11.5px]',
+                  next.tone === 'soon' ? 'text-warn' : 'text-ink-3',
+                )}
+              >
+                {next.text}
+                {nextWipeNote(s, next.tone)}
+              </span>
+            </>
+          )}
         </span>
       </Link>
     </li>

@@ -1,11 +1,18 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Signature } from '../../components/charts/Signature'
 import { CycleTrack } from '../../components/CycleTrack'
 import { IconTelegram } from '../../components/icons'
 import { Button, Meter, SearchField, Segmented, cx } from '../../components/ui'
 import { searchServers } from '../../lib/api'
-import { nextWipe, nextWipeNote, relativeWipe, serverTypeLabel, thousands, wipeAgeHours } from '../../lib/format'
+import {
+  isNearlyEmpty,
+  nextWipe,
+  nextWipeNote,
+  relativeWipe,
+  serverTypeLabel,
+  thousands,
+  wipeAgeHours,
+} from '../../lib/format'
 import type { FilterKey, ServerListItem } from '../../lib/types'
 import { LiveSample } from './LiveSample'
 import { LiveStrip, useCountUp, useSiteStats } from './LiveStrip'
@@ -155,15 +162,20 @@ function FreshToday() {
   useEffect(() => {
     let alive = true
     const pull = () => {
-      searchServers({ filter: 'all', sort: 'wipe_fresh', calendar: 'today', limit: 30, offset: 0 })
+      searchServers({ filter: 'all', sort: 'wipe_fresh', calendar: 'today', limit: 80, offset: 0 })
         .then((r) => {
           if (!alive) return
           // Заголовок обещает «за последние сутки» — значит и показать надо
           // ровно это. Отсекаем сами: подпись и содержимое обязаны совпадать.
-          const fresh = (r.servers ?? []).filter((s) => {
-            const h = wipeAgeHours(s.wipe_label)
-            return h != null && h < 24
-          })
+          // «Куда заходить» — значит туда, где есть люди (2026-10-02): почти
+          // пустые серверы с пиком меньше EMPTY_PEAK_24H за сутки сюда не
+          // попадают, а из живых первыми идут самые населённые.
+          const fresh = (r.servers ?? [])
+            .filter((s) => {
+              const h = wipeAgeHours(s.wipe_label)
+              return h != null && h < 24 && !isNearlyEmpty(s)
+            })
+            .sort((a, b) => b.online - a.online)
 
           // Отмечаем строки, у которых онлайн изменился с прошлого замера —
           // они мигнут. Движение здесь означает «пришли новые данные»,
@@ -197,10 +209,11 @@ function FreshToday() {
 
   return (
     <section className="bleed py-10">
+      <div className="plate px-4 pt-6 pb-4 sm:px-5">
+      <span className="plate-tab" data-tone="good">вайп за последние сутки · есть люди</span>
       <div className="flex flex-wrap items-end justify-between gap-4 border-b border-rule pb-2.5">
         <div>
-          <div className="eyebrow">вайпнулись за последние сутки</div>
-          <h2 className="mt-2 text-[19px] font-semibold text-ink">Куда заходить сегодня</h2>
+          <h2 className="text-[19px] font-semibold text-ink">Куда заходить сегодня</h2>
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <Segmented
@@ -225,8 +238,8 @@ function FreshToday() {
         <p className="max-w-2xl py-8 text-[13.5px] text-ink-2">
           {filter === 'all' ? (
             <>
-              За последние 24 часа ни на одном сервере не было подтверждённого вайпа. Это не
-              сбой — просто сегодня тихо.{' '}
+              За последние 24 часа ни один сервер с живым онлайном не вайпался. Это не сбой —
+              просто сегодня тихо.{' '}
               <Link
                 to="/servers?calendar=tomorrow"
                 className="text-rust-hot underline underline-offset-4"
@@ -237,7 +250,7 @@ function FreshToday() {
             </>
           ) : (
             <>
-              Свежие вайпы за сутки есть, но среди них нет ни одного{' '}
+              Свежие вайпы за сутки есть, но среди населённых нет ни одного{' '}
               {filter === 'vanilla' ? 'ванильного' : 'модового'} сервера.{' '}
               <button
                 className="text-rust-hot underline underline-offset-4"
@@ -268,6 +281,7 @@ function FreshToday() {
           )}
         </>
       )}
+      </div>
     </section>
   )
 }
@@ -320,85 +334,91 @@ function FreshRow({ s, rank, flash }: { s: ServerListItem; rank: number; flash?:
 
 /* -------------------------------------------------------------------- Метод
 
-   Раньше здесь стояли две колонки по пять строк — двадцать одинаковых
-   реплик подряд, стена. Теперь метод объясняет схема кривой, потому что
-   весь метод и есть форма кривой, а слева от неё три строки различия.
-   Три, а не пять: остальные две были пересказом этих же. */
+   Переписано 2026-10-02. Прежний текст описывал старый метод — угадывание
+   вайпа по форме кривой онлайна. Сейчас основа другая: сервер сам отдаёт
+   время рождения своей карты, и это факт, а не догадка. Три плиты — три
+   разных по силе источника, и ярлык на каждой говорит, насколько ему верить. */
 
-const CONTRAST: Array<[string, string]> = [
-  ['Дату вайпа вписывает админ', 'Дата считается по форме кривой'],
-  ['«JUST WIPED» висит месяцами', 'Провал до нуля виден в конкретный час'],
-  ['Прогноза нет — только последняя дата', 'Интервалы между вайпами дают следующий'],
+const SOURCES: Array<{ tab: string; tone?: 'good'; title: string; body: string }> = [
+  {
+    tab: 'факт',
+    tone: 'good',
+    title: 'Сервер сам говорит, когда родилась карта',
+    body: 'Каждый Rust-сервер отдаёт время рождения текущей карты. Опрашиваю его напрямую и записываю смену карты с точностью до минуты. Рестарт без новой карты вайпом не считается.',
+  },
+  {
+    tab: 'правило',
+    title: 'Глобал — первый четверг месяца',
+    body: 'В этот день Facepunch вайпает все серверы принудительно, около 17:45 UTC. Если по своему расписанию сервер вайпнулся бы позже, показываю глобал.',
+  },
+  {
+    tab: 'прогноз',
+    title: 'Следующий вайп — из истории смен карты',
+    body: 'Интервалы между прошлыми вайпами дают следующий. Где они не складываются в ровный цикл, пишу «цикл не определён», а не выдумываю дату.',
+  },
 ]
 
 function Method() {
   return (
     <section id="method" className="border-y border-rule bg-panel">
       <div className="bleed py-12">
-        <div className="grid gap-x-12 gap-y-9 lg:grid-cols-[minmax(0,34%)_minmax(0,1fr)]">
-          <div>
-            <div className="eyebrow">как это работает</div>
-            <h2 className="mt-3 text-[23px] leading-tight font-semibold text-ink sm:text-[27px]">
-              У настоящего вайпа есть форма
-            </h2>
-            <p className="mt-4 text-[13.5px] leading-relaxed text-ink-2">
-              Сервер жил суточной волной. Онлайн обвалился почти в ноль — карту стёрли, всех
-              выкинуло. Следом резкий рост: все зашли заново. Три события подряд, и только они
-              считаются вайпом. Одиночный рестарт или ночное затишье под это не подходят.
-            </p>
+        <div className="eyebrow">как это работает</div>
+        <h2 className="mt-3 max-w-3xl text-[23px] leading-tight font-semibold text-ink sm:text-[27px]">
+          BattleMetrics — это снимок. RustPeek — это память.
+        </h2>
+        <p className="mt-3 max-w-2xl text-[13.5px] leading-relaxed text-ink-2">
+          Снимок показывает, что на сервере сейчас, и устаревает за минуту. Я записываю каждую
+          смену карты и по этой истории знаю, когда был вайп и когда будет следующий.
+        </p>
 
-            <dl className="mt-7 m-0 border-t border-rule">
-              {CONTRAST.map(([a, b]) => (
-                <div key={a} className="border-b border-rule py-3">
-                  <dt className="text-[12.5px] text-ink-3 line-through decoration-rule-2">{a}</dt>
-                  <dd className="m-0 mt-1 text-[13.5px] text-ink">{b}</dd>
-                </div>
-              ))}
-            </dl>
-          </div>
-
-          <div className="min-w-0">
-            <Signature />
-            <p className="mt-6 max-w-2xl text-[13px] leading-relaxed text-ink-2">
-              Побочный эффект метода: иногда кривая не складывается в цикл — сервер вайпается
-              нерегулярно или наблюдение началось недавно. Тогда в прогнозе стоит{' '}
-              <span className="text-ink">«цикл не определён»</span>, а не выдуманное число.
-              Это неудобно, зато на это можно опереться.
-            </p>
-          </div>
+        <div className="mt-9 grid gap-x-4 gap-y-7 md:grid-cols-3">
+          {SOURCES.map((s) => (
+            <div key={s.title} className="plate bg-void px-4 pt-6 pb-5">
+              <span className="plate-tab" data-tone={s.tone}>
+                {s.tab}
+              </span>
+              <h3 className="text-[15px] leading-snug font-semibold text-ink">{s.title}</h3>
+              <p className="mt-2 text-[13px] leading-relaxed text-ink-2">{s.body}</p>
+            </div>
+          ))}
         </div>
+
+        <p className="mt-6 max-w-3xl text-[12.5px] leading-relaxed text-ink-3">
+          Есть серверы, которые время рождения карты не отдают. У них дата вайпа — оценка по
+          провалу онлайна, и рядом с ней стоит «≈». Фактом я её не называю.
+        </p>
       </div>
     </section>
   )
 }
 
-/* ------------------------------------------------------------- Что умею */
+/* ------------------------------------------------------------- Что умею
+   Сетка плит вместо пяти одинаковых строк: на сайте три раздела, в боте
+   ещё два — и это видно по ярлыку, а не по мелкой приписке. */
 
-const ABILITIES: Array<{ title: string; body: string; to?: string; soon?: boolean }> = [
+const ABILITIES: Array<{ title: string; body: string; to?: string }> = [
   {
     title: 'Вайп-календарь',
-    body: 'Список серверов, собранный не по онлайну, а по тому, когда там вайп: сегодня, завтра, на неделе.',
+    body: 'Серверы по дате вайпа: сегодня, завтра, на неделе. Почти пустые не мешают — они ниже.',
     to: '/servers',
   },
   {
     title: 'Карточка сервера',
-    body: 'Вердикт одной фразой, график онлайна с отметками подтверждённых вайпов, прайм-тайм по часам и вся история вайпов.',
+    body: 'Вердикт одной фразой, график онлайна с отметками вайпов, часы пик и вся история смен карты.',
     to: '/servers',
   },
   {
     title: 'Досье игрока',
-    body: 'По SteamID: возраст аккаунта, часы в Rust, баны, Trust Score с разбором по факторам и где этого человека видели.',
+    body: 'По SteamID: возраст аккаунта, часы в Rust, баны и Trust Score с разбором, за что сняты баллы.',
     to: '/players',
   },
   {
     title: 'Вочлист',
-    body: 'Слежу за конкретными людьми и говорю, когда они заходят на сервер. Нужна авторизация через телеграм.',
-    soon: true,
+    body: 'Слежу за конкретными людьми и пишу, когда они заходят на сервер.',
   },
   {
     title: 'Рейд-алерты Rust+',
-    body: 'Подключаю Rust+ и пишу в телеграм, когда по базе стучат. Нужна авторизация через телеграм.',
-    soon: true,
+    body: 'Подключаю Rust+ и пишу в телеграм, когда по базе стучат.',
   },
 ]
 
@@ -406,29 +426,36 @@ function WhatICan() {
   return (
     <section id="can" className="bleed py-12">
       <div className="eyebrow">что умею</div>
-      <div className="mt-5 border-t border-rule">
+      <div className="mt-6 grid gap-x-4 gap-y-6 sm:grid-cols-2 lg:grid-cols-3">
         {ABILITIES.map((a) => {
           const inner = (
-            <div className="grid gap-x-10 gap-y-1.5 py-4 sm:grid-cols-[260px_1fr] sm:items-baseline">
-              <h3 className="flex items-baseline gap-2.5 text-[15px] font-semibold text-ink">
+            <>
+              <span className="plate-tab">
+                {a.to ? 'на сайте' : 'в боте'}
+              </span>
+              <h3 className="flex items-center justify-between gap-3 text-[15px] font-semibold text-ink">
                 {a.title}
-                {a.soon && (
-                  <span className="eyebrow" style={{ letterSpacing: '0.1em' }}>
-                    в боте
-                  </span>
-                )}
+                <span aria-hidden className="text-ink-3">
+                  →
+                </span>
               </h3>
-              <p className="max-w-3xl text-[13.5px] leading-relaxed text-ink-2">{a.body}</p>
-            </div>
+              <p className="mt-2 text-[13px] leading-relaxed text-ink-2">{a.body}</p>
+            </>
           )
           return a.to ? (
-            <Link key={a.title} to={a.to} className="row block border-b border-rule px-3">
+            <Link key={a.title} to={a.to} className="plate block px-4 pt-6 pb-5">
               {inner}
             </Link>
           ) : (
-            <div key={a.title} className="border-b border-rule px-3 opacity-70">
+            <a
+              key={a.title}
+              href="https://t.me/RustPeek_Bot"
+              target="_blank"
+              rel="noopener"
+              className="plate block px-4 pt-6 pb-5"
+            >
               {inner}
-            </div>
+            </a>
           )
         })}
       </div>
@@ -441,11 +468,11 @@ function WhatICan() {
 const FAQ: Array<[string, string]> = [
   [
     'Откуда берутся данные',
-    'Онлайн снимается круглосуточно: BattleMetrics API для широкого охвата и прямой A2S-запрос к топ-500 серверов.',
+    'Онлайн, слоты и время рождения карты спрашиваю у каждого сервера напрямую, круглосуточно. Названия и адреса серверов — из BattleMetrics.',
   ],
   [
     'Что считается вайпом',
-    'Три события подряд: суточная волна, обвал почти в ноль, резкий рост. Одиночный рестарт или ночное затишье под это не подходят.',
+    'Смена карты: сервер отдал новое время её рождения. Рестарт без новой карты — не вайп. Где смены карты не видно, дата — оценка по провалу онлайна, и рядом стоит «≈».',
   ],
   [
     'Почему у некоторых серверов нет прогноза',
@@ -457,7 +484,7 @@ const FAQ: Array<[string, string]> = [
   ],
   [
     'Чем это отличается от BattleMetrics',
-    'BattleMetrics отвечает на вопрос «что на сервере сейчас». Я отвечаю на вопрос «что там было и что будет» — потому что храню историю и считаю по ней циклы.',
+    'Они показывают, что на сервере сейчас. Я храню историю каждого сервера и по ней отвечаю, когда был вайп и когда будет следующий.',
   ],
 ]
 

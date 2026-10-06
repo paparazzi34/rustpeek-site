@@ -7,10 +7,12 @@ import { IconArrowLeft } from '../../components/icons'
 import { ErrorState, Meter, Segmented, Skeleton, Tag, cx } from '../../components/ui'
 import { getHistory, getHourlyProfile, getServer, getWipes } from '../../lib/api'
 import {
+  EMPTY_PEAK_24H,
   WEEKDAYS_SHORT,
   activityLabel,
   intervalText,
   isJunkMapName,
+  localWipeLabel,
   nextWipe,
   parseSqlDateTime,
   plural,
@@ -125,65 +127,76 @@ export function ServerDetailPage() {
   const fresh = observed && since != null && since < 24
   const fill = server.max > 0 ? server.online / server.max : 0
 
+  /* Редизайн 2026-10-02 («всё в одну кучу»): страница из одних линий
+     читалась сплошной лентой. Теперь каждый вопрос из списка выше — своя
+     плита с ярлыком в кромке; между плитами воздух. */
   return (
     <>
       <Header server={server} />
 
-      <Verdict server={server} since={since} next={next} bound={bound} fill={fill} fresh={fresh} />
+      <div className="bleed space-y-9 pt-8">
+        <div className={cx('plate', fresh && 'border-l-2 border-l-good')}>
+          <span className="plate-tab" data-tone={fresh ? 'good' : undefined}>
+            сейчас
+          </span>
+          <Verdict server={server} since={since} next={next} bound={bound} fill={fill} fresh={fresh} />
+          {/* ---- Фаза цикла: подписной элемент, во всю ширину ---- */}
+          <div className="border-t border-rule px-4 py-5 sm:px-5">
+            <CycleTrackLarge
+              sinceHours={since}
+              untilHours={bound ? bound.hours : next.hours}
+              wipedAt={
+                server.wipe
+                  ? (observed ? '' : '≈ ') + localWipeLabel(server.wipe)
+                  : 'нет данных'
+              }
+              wipedLabel={observed ? 'подтверждённый вайп' : 'предполагаемый вайп'}
+              nextAt={shortDateTime(bound ? server.forced_wipe : server.next_wipe_estimate) ?? '—'}
+              forced={server.next_wipe_forced}
+              upperBound={bound != null}
+            />
+          </div>
+        </div>
 
-      {/* ---- Фаза цикла: подписной элемент, во всю ширину ---- */}
-      <section className="bleed border-b border-rule py-5">
-        <CycleTrackLarge
-          sinceHours={since}
-          untilHours={bound ? bound.hours : next.hours}
-          wipedAt={server.wipe ? (observed ? server.wipe : '≈ ' + server.wipe) : 'нет данных'}
-          wipedLabel={observed ? 'подтверждённый вайп' : 'предполагаемый вайп'}
-          nextAt={shortDateTime(bound ? server.forced_wipe : server.next_wipe_estimate) ?? '—'}
-          forced={server.next_wipe_forced}
-          upperBound={bound != null}
-        />
-      </section>
+        <Metrics server={server} />
 
-      <Metrics server={server} />
-
-      {/* ---- График онлайна ---- */}
-      <section className="bleed border-b border-rule py-6">
-        <div className="mb-4 flex flex-wrap items-end justify-between gap-4">
-          <div>
-            <div className="eyebrow">онлайн по времени</div>
-            <p className="mt-1.5 max-w-xl text-[13px] text-ink-2">
+        {/* ---- График онлайна ---- */}
+        <section className="plate px-4 pt-6 pb-5 sm:px-5">
+          <span className="plate-tab">онлайн по времени</span>
+          <div className="mb-4 flex flex-wrap items-end justify-between gap-4">
+            <p className="max-w-xl text-[13px] text-ink-2">
               Вертикальные рубцы — подтверждённые вайпы. Номер на рубце совпадает с номером
               строки в истории ниже.
             </p>
+            <Segmented value={period} options={PERIODS} onChange={setPeriod} ariaLabel="Период" />
           </div>
-          <Segmented value={period} options={PERIODS} onChange={setPeriod} ariaLabel="Период" />
+          {history == null ? (
+            <Skeleton className="h-[300px] w-full" />
+          ) : (
+            <OnlineChart
+              points={history.points}
+              wipes={history.wipes}
+              granularity={history.granularity}
+              wipeNumbers={wipeNumbers}
+            />
+          )}
+        </section>
+
+        {/* ---- Прайм-тайм ---- */}
+        <section className="plate px-4 pt-6 pb-5 sm:px-5">
+          <span className="plate-tab">когда там людно · по часам, 30 дней</span>
+          {hourly ? (
+            <PrimeTime hours={hourly.hours} peakHour={hourly.peak_hour} />
+          ) : (
+            <Skeleton className="h-[104px] w-full" />
+          )}
+        </section>
+
+        {/* ---- История вайпов + техданные ---- */}
+        <div className="grid gap-x-4 gap-y-9 lg:grid-cols-[1fr_300px]">
+          <WipeHistory wipes={wipes} wipeNumbers={wipeNumbers} />
+          <TechPanel server={server} />
         </div>
-        {history == null ? (
-          <Skeleton className="h-[300px] w-full" />
-        ) : (
-          <OnlineChart
-            points={history.points}
-            wipes={history.wipes}
-            granularity={history.granularity}
-            wipeNumbers={wipeNumbers}
-          />
-        )}
-      </section>
-
-      {/* ---- Прайм-тайм ---- */}
-      <section className="bleed border-b border-rule py-6">
-        <div className="eyebrow mb-4">когда там людно · средний онлайн по часам, 30 дней</div>
-        {hourly ? (
-          <PrimeTime hours={hourly.hours} peakHour={hourly.peak_hour} />
-        ) : (
-          <Skeleton className="h-[104px] w-full" />
-        )}
-      </section>
-
-      {/* ---- История вайпов + техданные ---- */}
-      <div className="grid lg:grid-cols-[1fr_300px]">
-        <WipeHistory wipes={wipes} wipeNumbers={wipeNumbers} />
-        <TechPanel server={server} />
       </div>
     </>
   )
@@ -217,7 +230,7 @@ function Header({ server }: { server: ServerDetail }) {
         {server.rate && <span className="num">{server.rate}</span>}
         {activity && <span>{activity}</span>}
         {map && <span>{map}</span>}
-        {server.map_size && <span className="num">карта {server.map_size}</span>}
+        {server.map_size && <span className="num">размер карты {server.map_size}</span>}
         {server.ip && (
           <span className="num">
             {server.ip}
@@ -249,6 +262,7 @@ function Verdict({
   fresh: boolean
   bound: NextWipe | null
 }) {
+  const nearlyEmpty = server.peak != null && server.peak < EMPTY_PEAK_24H
   const state =
     server.online_stale
       ? 'нет свежих данных'
@@ -265,14 +279,8 @@ function Verdict({
                 : 'ровный онлайн'
 
   return (
-    <section
-      className={cx(
-        'bleed border-b border-rule py-6',
-        fresh ? 'border-l-2 border-l-good' : 'border-l-2 border-l-transparent',
-      )}
-    >
-      <div className="eyebrow">вердикт</div>
-      <p className="mt-3 max-w-4xl text-[19px] leading-snug text-ink sm:text-[23px]">
+    <section className="px-4 pt-6 pb-5 sm:px-5">
+      <p className="max-w-4xl text-[19px] leading-snug text-ink sm:text-[23px]">
         {since == null ? (
           <>Подтверждённого вайпа в памяти пока нет.</>
         ) : (
@@ -307,6 +315,13 @@ function Verdict({
           </>
         )}
       </p>
+
+      {nearlyEmpty && since != null && (
+        <p className="mt-3 max-w-3xl text-[13px] leading-relaxed text-warn">
+          Сервер почти пустой: пик за всё наблюдение — {thousands(server.peak)}. Частые смены
+          карты на таких серверах — скорее перезапуски, чем вайп, ради которого стоит заходить.
+        </p>
+      )}
 
       {server.wipe_basis && server.wipe_basis !== 'map' && BASIS_NOTE[server.wipe_basis] && (
         <p className="mt-3 max-w-3xl text-[13px] leading-relaxed text-warn">
@@ -407,13 +422,14 @@ function Metrics({ server }: { server: ServerDetail }) {
   ]
 
   return (
-    <section className="bleed border-b border-rule">
+    <section className="plate px-4 sm:px-5">
+      <span className="plate-tab">в цифрах</span>
       <div className="grid grid-cols-2 lg:grid-cols-4">
         {cells.map((c, i) => (
           <div
             key={c.label}
             className={cx(
-              'py-4 pr-5',
+              'pt-6 pb-4 pr-5',
               // На узком экране сетка 2×2: вертикальная линия только между
               // колонками, горизонтальная — между рядами. На широком —
               // один ряд из четырёх, линии только вертикальные.
@@ -466,10 +482,10 @@ function WipeHistory({
   }, [wipes, showRejected])
 
   return (
-    <section className="bleed border-b border-rule py-6 lg:border-r">
-      <div className="eyebrow mb-4">
-        история вайпов · {showRejected ? 'все записи, с отбракованными' : 'подтверждённые'}
-      </div>
+    <section className="plate min-w-0 px-4 pt-6 pb-5 sm:px-5">
+      <span className="plate-tab">
+        история вайпов · {showRejected ? 'с отбракованными' : 'подтверждённые'}
+      </span>
 
       {wipes == null ? (
         <Skeleton className="h-40 w-full" />
@@ -483,10 +499,10 @@ function WipeHistory({
           <thead>
             <tr className="border-b border-rule text-left">
               <th className="eyebrow w-8 pb-2 font-normal">#</th>
-              <th className="eyebrow pb-2 font-normal">когда</th>
-              <th className="eyebrow pb-2 font-normal">день</th>
-              <th className="eyebrow pb-2 font-normal">интервал</th>
-              <th className="eyebrow pb-2 text-right font-normal">пик за сутки</th>
+              <th className="eyebrow pr-3 pb-2 font-normal">когда</th>
+              <th className="eyebrow pr-3 pb-2 font-normal">день</th>
+              <th className="eyebrow pr-3 pb-2 font-normal">интервал</th>
+              <th className="eyebrow pb-2 text-right font-normal">пик 24 ч</th>
             </tr>
           </thead>
           <tbody>
@@ -496,7 +512,7 @@ function WipeHistory({
               return (
                 <tr key={w.wipe_time} className="row border-b border-rule">
                   <td className="num w-8 py-2.5 pr-3 text-[12px] text-ink-3">{n ?? '·'}</td>
-                  <td className="py-2.5">
+                  <td className="py-2.5 pr-3">
                     <span className="num text-[13px] text-ink">{shortDateTime(w.wipe_time)}</span>
                     {w.suspicious && (
                       <Tag tone="bad" className="ml-3">
@@ -507,10 +523,10 @@ function WipeHistory({
                       <span className="ml-3 text-[11.5px] text-ink-3">{w.source_note}</span>
                     )}
                   </td>
-                  <td className="py-2.5 text-[12.5px] text-ink-2">
+                  <td className="py-2.5 pr-3 text-[12.5px] text-ink-2">
                     {d ? WEEKDAYS_SHORT[d.getDay()] : '—'}
                   </td>
-                  <td className="num py-2.5 text-[12.5px] text-ink-2">
+                  <td className="num py-2.5 pr-3 text-[12.5px] text-ink-2">
                     {w.interval_hours == null ? (
                       <span className="text-ink-3">первый в памяти</span>
                     ) : (
@@ -546,18 +562,22 @@ function WipeHistory({
 
 function TechPanel({ server }: { server: ServerDetail }) {
   const map = isJunkMapName(server.map_name) ? null : server.map_name
-  const rows: Array<[string, React.ReactNode]> = [
-    ['Адрес', server.ip ? <span className="num">{server.ip}{server.port ? ':' + server.port : ''}</span> : '—'],
-    ['Страна', server.country ? <span className="num uppercase">{server.country}</span> : '—'],
-    ['Карта', map ?? '—'],
-    ['Размер карты', server.map_size ? <span className="num">{server.map_size}</span> : '—'],
-    ['Лимит группы', server.team_limit ?? '—'],
-    ['Вайп чертежей', server.bp_wipe ?? '—'],
-  ]
+  // Пустые строки не показываем (2026-10-02): «Карта —» рядом с «Размер
+  // карты 4750» читалось как противоречие.
+  const rows = (
+    [
+      ['Адрес', server.ip ? <span className="num">{server.ip}{server.port ? ':' + server.port : ''}</span> : null],
+      ['Страна', server.country ? <span className="num uppercase">{server.country}</span> : null],
+      ['Карта', map],
+      ['Размер карты', server.map_size ? <span className="num">{server.map_size}</span> : null],
+      ['Лимит группы', server.team_limit],
+      ['Вайп чертежей', server.bp_wipe],
+    ] as Array<[string, React.ReactNode]>
+  ).filter(([, v]) => v != null && v !== '')
 
   return (
-    <section className="bleed border-b border-rule py-6">
-      <div className="eyebrow mb-4">сервер</div>
+    <section className="plate px-4 pt-6 pb-5 sm:px-5">
+      <span className="plate-tab">сервер</span>
       <dl className="m-0">
         {rows.map(([k, v]) => (
           <div key={k} className="flex items-baseline justify-between gap-4 border-b border-rule py-2">

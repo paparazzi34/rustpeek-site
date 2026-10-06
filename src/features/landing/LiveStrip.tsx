@@ -50,7 +50,7 @@ export function LiveStrip() {
     { value: stats.online_measurements, label: 'замеров онлайна' },
     { value: stats.wipes, label: 'вайпов подтверждено' },
     { value: stats.servers_total, label: 'серверов в базе' },
-    { value: stats.servers_tracked, label: 'под наблюдением' },
+    { value: stats.servers_tracked, label: 'с игроками за сутки' },
   ]
 
   counters.forEach((c, i) => {

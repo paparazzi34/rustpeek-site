@@ -62,7 +62,7 @@ export function PlayersPage() {
             value={draft}
             onChange={setDraft}
             onSubmit={() => setParams(draft.trim() ? { q: draft.trim() } : {}, { replace: true })}
-            placeholder="76561198012345678 или ссылка на профиль Steam"
+            placeholder="SteamID64 или ссылка на профиль Steam"
             autoFocus={!q}
             action={
               <Button
@@ -102,11 +102,30 @@ export function PlayersPage() {
             Тебя подозрительно метко убили и хочется понять, кто это был? Открой профиль Steam
             убийцы, скопируй ссылку из адресной строки и вставь сюда.
           </p>
+
+          {/* Пустая страница занимала 80% экрана ничем (2026-10-02) — теперь
+              здесь видно, что именно будет в досье. */}
+          <div className="mt-10 grid max-w-5xl gap-x-4 gap-y-6 sm:grid-cols-2 lg:grid-cols-4">
+            {DOSSIER_PARTS.map(([title, body]) => (
+              <div key={title} className="plate px-4 pt-6 pb-5">
+                <span className="plate-tab">в досье</span>
+                <h3 className="text-[14.5px] font-semibold text-ink">{title}</h3>
+                <p className="mt-1.5 text-[12.5px] leading-relaxed text-ink-2">{body}</p>
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </>
   )
 }
+
+const DOSSIER_PARTS: Array<[string, string]> = [
+  ['Возраст аккаунта', 'Свежий акк с сотней часов — повод присмотреться. Старый — нет.'],
+  ['Часы в Rust', 'Всего и за последние две недели, если профиль открыт.'],
+  ['Баны', 'VAC и игровые баны Steam — сколько и есть ли вообще.'],
+  ['Trust Score', 'Итоговая оценка с разбором: за что прибавил, за что снял.'],
+]
 
 /* ------------------------------------------------------------------ Досье */
 
