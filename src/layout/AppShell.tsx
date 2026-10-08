@@ -44,7 +44,7 @@ export function AppShell() {
                 to={t.to}
                 className={({ isActive }) =>
                   cx(
-                    'flex shrink-0 items-center gap-2 border-b-2 px-2 text-[13.5px] font-medium whitespace-nowrap transition-colors sm:px-3',
+                    'flex shrink-0 items-center gap-2 border-b-2 px-2 text-[15px] font-medium whitespace-nowrap transition-colors sm:px-3',
                     isActive
                       ? 'border-rust text-ink'
                       : 'border-transparent text-ink-3 hover:text-ink-2',
@@ -54,7 +54,7 @@ export function AppShell() {
                 <span className="hidden sm:inline">{t.label}</span>
                 <span className="sm:hidden">{t.label}</span>
                 {t.badge != null && (
-                  <span className="num bg-panel-3 px-1 text-[10px] text-ink-2">{t.badge}</span>
+                  <span className="num bg-panel-3 px-1 text-[11.5px] text-ink-2">{t.badge}</span>
                 )}
               </NavLink>
             ))}
@@ -89,7 +89,7 @@ export function AppShell() {
 
       {mock && (
         <div className="border-b border-rust-dim bg-rust-dim/25">
-          <p className="bleed py-1 text-[11.5px] text-rust-hot">
+          <p className="bleed py-1 text-[13px] text-rust-hot">
             Демо-данные: живой API сейчас недоступен, цифры на экране ненастоящие.
           </p>
         </div>

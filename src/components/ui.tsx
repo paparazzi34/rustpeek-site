@@ -54,7 +54,7 @@ export function Segmented<T extends string>({
         >
           {o.label}
           {o.count != null && (
-            <span className="num ml-1.5 text-[10.5px] normal-case opacity-55">{o.count}</span>
+            <span className="num ml-1.5 text-[12px] normal-case opacity-55">{o.count}</span>
           )}
         </button>
       ))}
@@ -109,7 +109,7 @@ export function BandTitle({
       <div className="min-w-0">
         <div className="eyebrow">{label}</div>
         {title && <h2 className="mt-1.5 text-[15px] font-semibold text-ink">{title}</h2>}
-        {note && <p className="mt-1 text-[12.5px] text-ink-3">{note}</p>}
+        {note && <p className="mt-1 text-[14px] text-ink-3">{note}</p>}
       </div>
       {right && <div className="shrink-0">{right}</div>}
     </div>
@@ -126,8 +126,8 @@ export function Skeleton({ className, style }: { className?: string; style?: Rea
 export function EmptyState({ title, hint }: { title: ReactNode; hint?: ReactNode }) {
   return (
     <div className="border-l-2 border-rule-2 py-10 pl-4">
-      <p className="text-[14px] text-ink-2">{title}</p>
-      {hint && <p className="mt-1.5 max-w-xl text-[12.5px] text-ink-3">{hint}</p>}
+      <p className="text-[15px] text-ink-2">{title}</p>
+      {hint && <p className="mt-1.5 max-w-xl text-[14px] text-ink-3">{hint}</p>}
     </div>
   )
 }
@@ -138,7 +138,7 @@ export function ErrorState({ title, onRetry }: { title: ReactNode; onRetry?: () 
       <div className="eyebrow" style={{ color: 'var(--color-bad)' }}>
         сбой
       </div>
-      <p className="mt-2 text-[13.5px] text-ink-2">{title}</p>
+      <p className="mt-2 text-[15px] text-ink-2">{title}</p>
       {onRetry && (
         <Button className="mt-3" onClick={onRetry}>
           Повторить

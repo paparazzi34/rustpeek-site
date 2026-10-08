@@ -30,6 +30,8 @@ export interface ServerListItem {
   sparkline?: (number | null)[]
   /** пик онлайна за сутки, null — замеров за сутки нет */
   peak_24h?: number | null
+  /** карта меняется почти каждый день: аим-трейн, симулятор, песочница */
+  frequent_rebirth?: boolean
 }
 
 export interface SearchResponse {
@@ -175,7 +177,7 @@ export interface BmCandidate {
  * not_found — BM про такой ник не знает.
  */
 export interface BmHistory {
-  status: 'confirmed' | 'single' | 'ambiguous' | 'not_found'
+  status: 'confirmed' | 'single' | 'ambiguous' | 'not_found' | 'unavailable'
   sessions: BmSession[]
   candidates: BmCandidate[]
 }

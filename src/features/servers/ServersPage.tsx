@@ -1,18 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { CycleTrack } from '../../components/CycleTrack'
-import { Sparkline } from '../../components/charts/Signature'
 import { Button, EmptyState, ErrorState, Meter, SearchField, Segmented, cx } from '../../components/ui'
 import { searchServers } from '../../lib/api'
 import {
   EMPTY_PEAK_24H,
-  activityLabel,
   dayLabel,
   isNearlyEmpty,
-  parseWipeLabel,
   localWipeLabel,
   nextWipe,
   nextWipeNote,
+  parseWipeLabel,
   pluralServers,
   relativeWipe,
   serverTypeLabel,
@@ -21,27 +18,20 @@ import {
 } from '../../lib/format'
 import type { CalendarKey, FilterKey, SearchResponse, ServerListItem, SortKey } from '../../lib/types'
 
-/* СПИСОК СЕРВЕРОВ — сердце продукта.
+/* СПИСОК СЕРВЕРОВ (редизайн v4, 2026-10-07).
 
-   Организован по вайп-календарю, а не по онлайну: «по онлайну» умеет любой
-   мониторинг, а вопрос игрока звучит «куда зайти сегодня».
+   Организован по вайп-календарю, а не по онлайну: вопрос игрока звучит
+   «куда зайти сегодня». Строка отвечает на три вопроса слева направо —
+   какой сервер, сколько там людей, когда вайп был и когда будет.
 
-   Про визуальную массу. Пятьдесят одинаковых строк — это стена, глазу не за
-   что зацепиться. Поэтому масса разная и она означает конкретное:
-     · свежий вайп (< 24 ч) — зелёный флажок в жёлобе и яркая дата;
-     · вайп в ближайшие сутки — жёлтый флажок;
-     · мёртвый или пустеющий сервер — вся строка уходит в 45% непрозрачности.
-   Никаких новых цветов, только иерархия. */
+   Что убрано по сравнению с v3: номер строки (ничего не значил), спарклайн
+   за 48 часов (шум в каждой строке) и трек фазы цикла (дублировал даты).
+   Строки сгруппированы по дню вайпа, почти пустые серверы — свёрнутым
+   блоком внизу. */
 
 const LIMIT = 40
 
-/* Сетка списка объявлена в одном месте: заголовки колонок и строки обязаны
-   совпадать по ширинам, иначе таблица «поедет». Колонка спарклайна
-   появляется только когда бэкенд отдаёт кривые. */
-const COLS_SPARK = 'grid-cols-[30px_1fr_120px_70px_150px_180px]'
-const COLS_PLAIN = 'grid-cols-[30px_1fr_120px_150px_180px]'
-const COLS_SPARK_LG = 'lg:grid-cols-[30px_1fr_120px_70px_150px_180px]'
-const COLS_PLAIN_LG = 'lg:grid-cols-[30px_1fr_120px_150px_180px]'
+const COLS = 'lg:grid-cols-[minmax(0,1fr)_150px_170px_170px]'
 
 const CALENDAR: Array<{ value: CalendarKey; label: string }> = [
   { value: 'today', label: 'Сегодня' },
@@ -58,7 +48,7 @@ const FILTERS: Array<{ value: FilterKey; label: string }> = [
 
 const SORTS: Array<{ value: SortKey; label: string; hint: string }> = [
   { value: 'wipe_fresh', label: 'Свежий вайп', hint: 'Сначала те, где вайп только что был' },
-  { value: 'cycle', label: 'Ближе к вайпу', hint: 'Сначала те, где вайп вот-вот будет' },
+  { value: 'cycle', label: 'Скоро вайп', hint: 'Сначала те, где вайп вот-вот будет' },
   { value: 'online', label: 'Онлайн', hint: 'Сначала самые населённые' },
 ]
 
@@ -101,9 +91,7 @@ export function ServersPage() {
       .then((r) => {
         if (ac.signal.aborted) return
         setData((prev) =>
-          offset > 0 && prev
-            ? { ...r, servers: [...prev.servers, ...r.servers] }
-            : r,
+          offset > 0 && prev ? { ...r, servers: [...prev.servers, ...r.servers] } : r,
         )
       })
       .catch((e) => {
@@ -118,173 +106,147 @@ export function ServersPage() {
   const servers = data?.servers ?? []
   const total = data?.total ?? servers.length
 
-  // Колонка «48 ч» существует, только если бэкенд реально отдал кривые.
-  // Столбец из шестнадцати прочерков — это шум, а не честность: честность
-  // здесь в том, чтобы не занимать место под данные, которых нет.
-  const showSpark = useMemo(
-    () => servers.some((s) => s.sparkline?.some((v) => v != null)),
-    [servers],
-  )
-
-  const withoutFreshWipe = useMemo(
-    () => servers.length === 0 && (data?.local_count_before_filter ?? 0) > 0,
-    [servers.length, data],
-  )
+  const withoutFreshWipe = servers.length === 0 && (data?.local_count_before_filter ?? 0) > 0
 
   return (
-    <>
-      {/* ---- Шапка страницы: заголовок и поиск в одной строке ---- */}
-      <div className="bleed border-b border-rule py-5">
-        <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-4">
-          <div>
-            <div className="eyebrow">вайп-календарь</div>
-            <h1 className="mt-2 text-[24px] leading-none font-semibold text-ink">Серверы</h1>
+    <div className="bleed pt-7">
+      {/* ---- Шапка: заголовок и поиск ---- */}
+      <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-4">
+        <div>
+          <h1 className="stencil text-[30px] leading-none text-ink sm:text-[36px]">Серверы</h1>
+          <p className="mt-2 text-[15px] text-ink-2">
+            Когда был вайп и когда будет следующий. Вайп вижу по смене карты на сервере.
+          </p>
+        </div>
+        <div className="w-full max-w-md">
+          <SearchField
+            value={draft}
+            onChange={setDraft}
+            onSubmit={() => patch({ q: draft.trim() })}
+            placeholder="Найти сервер по названию"
+            action={
+              draft ? (
+                <Button
+                  variant="bare"
+                  type="button"
+                  className="h-8"
+                  onClick={() => {
+                    setDraft('')
+                    patch({ q: '' })
+                  }}
+                >
+                  Сбросить
+                </Button>
+              ) : null
+            }
+          />
+        </div>
+      </div>
+
+      {/* ---- Календарь — главный переключатель ---- */}
+      <div className="mt-6 grid grid-cols-2 gap-2 sm:grid-cols-4">
+        {CALENDAR.map((c) => {
+          const on = c.value === calendar
+          return (
+            <button
+              key={c.value}
+              onClick={() => patch({ calendar: c.value })}
+              className={cx(
+                'flex items-baseline justify-between rounded-[4px] border px-4 py-3 text-left transition-colors',
+                on
+                  ? 'border-rust bg-panel-2'
+                  : 'border-rule bg-panel hover:border-rule-2 hover:bg-panel-2',
+              )}
+            >
+              <span className={cx('stencil text-[17px]', on ? 'text-ink' : 'text-ink-2')}>
+                {c.label}
+              </span>
+              <span className={cx('num text-[17px]', on ? 'text-rust-hot' : 'text-ink-3')}>
+                {counts?.[c.value] != null ? thousands(counts[c.value]) : ''}
+              </span>
+            </button>
+          )
+        })}
+      </div>
+
+      <div className="mt-4 flex flex-wrap items-center gap-2">
+        <Segmented value={filter} options={FILTERS} onChange={(v) => patch({ filter: v })} ariaLabel="Тип сервера" />
+        <Segmented value={sort} options={SORTS} onChange={(v) => patch({ sort: v })} ariaLabel="Сортировка" />
+      </div>
+
+      {/* ---- Таблица ---- */}
+      <div className="plate mt-5 overflow-hidden">
+        <div className={cx('hidden gap-x-6 border-b border-rule px-5 py-3 lg:grid', COLS)}>
+          <span className="eyebrow">Сервер</span>
+          <span className="eyebrow">Онлайн</span>
+          <span className="eyebrow">Последний вайп</span>
+          <span className="eyebrow text-right">Следующий</span>
+        </div>
+
+        {error ? (
+          <div className="px-5">
+            <ErrorState
+              title="Не дозвонился до бэкенда, поэтому списка нет. Пустую таблицу вместо данных показывать не буду."
+              onRetry={() => setOffset((o) => o)}
+            />
           </div>
-          <div className="w-full max-w-lg">
-            <SearchField
-              value={draft}
-              onChange={setDraft}
-              onSubmit={() => patch({ q: draft.trim() })}
-              placeholder="Название сервера"
-              action={
-                draft ? (
-                  <Button
-                    variant="bare"
-                    type="button"
-                    className="h-7"
-                    onClick={() => {
-                      setDraft('')
-                      patch({ q: '' })
-                    }}
-                  >
-                    Сбросить
-                  </Button>
-                ) : null
+        ) : loading && servers.length === 0 ? (
+          <div className="space-y-1 p-3">
+            {Array.from({ length: 10 }, (_, i) => (
+              <div key={i} className="skeleton h-[58px]" style={{ opacity: 1 - i * 0.07 }} />
+            ))}
+          </div>
+        ) : servers.length === 0 ? (
+          <div className="px-5">
+            <EmptyState
+              title={
+                withoutFreshWipe
+                  ? `Серверов нашлось ${data?.local_count_before_filter}, но ни у одного нет подтверждённого вайпа в этом окне.`
+                  : 'По этому запросу ничего не нашлось.'
+              }
+              hint={
+                withoutFreshWipe ? (
+                  <>
+                    Календарь показывает только подтверждённые вайпы. Открой{' '}
+                    <button
+                      className="text-rust-hot underline underline-offset-4"
+                      onClick={() => patch({ calendar: 'all' })}
+                    >
+                      вкладку «Все»
+                    </button>
+                    .
+                  </>
+                ) : (
+                  'Проверь написание или поищи по части названия — «rustafied» найдёт все их площадки.'
+                )
               }
             />
           </div>
-        </div>
-
-        {/* ---- Календарь: главный переключатель, поэтому он крупнее прочих ---- */}
-        <div className="mt-5 flex flex-wrap items-center gap-x-1 gap-y-3">
-          {CALENDAR.map((c) => {
-            const on = c.value === calendar
-            return (
-              <button
-                key={c.value}
-                onClick={() => patch({ calendar: c.value })}
-                className={cx(
-                  'stencil border-b-2 px-3 py-1.5 text-[13px] transition-colors',
-                  on
-                    ? 'border-rust text-ink'
-                    : 'border-transparent text-ink-3 hover:text-ink-2',
-                )}
-              >
-                {c.label}
-                {counts?.[c.value] != null && (
-                  <span className="num ml-2 text-[11px] normal-case opacity-60">
-                    {thousands(counts[c.value])}
-                  </span>
-                )}
-              </button>
-            )
-          })}
-
-          <div className="ml-auto flex flex-wrap items-center gap-2">
-            <Segmented value={filter} options={FILTERS} onChange={(v) => patch({ filter: v })} ariaLabel="Тип сервера" />
-            <Segmented value={sort} options={SORTS} onChange={(v) => patch({ sort: v })} ariaLabel="Сортировка" />
-          </div>
-        </div>
+        ) : (
+          <GroupedRows servers={servers} byDay={sort === 'wipe_fresh'} />
+        )}
       </div>
 
-      {/* ---- Заголовки колонок ---- */}
-      <div className="bleed hidden border-b border-rule py-2 lg:block">
-        <div className={cx('grid items-center gap-x-5', showSpark ? COLS_SPARK : COLS_PLAIN)}>
-          <span className="eyebrow">#</span>
-          <span className="eyebrow">сервер</span>
-          <span className="eyebrow">онлайн</span>
-          {showSpark && <span className="eyebrow">48 ч</span>}
-          <span className="eyebrow">последний вайп</span>
-          <span className="eyebrow">фаза цикла</span>
+      {servers.length > 0 && (
+        <div className="flex items-center justify-between gap-4 py-6">
+          <span className="text-[14px] text-ink-3">
+            Показано <span className="num text-ink-2">{servers.length}</span> из{' '}
+            <span className="num text-ink-2">{thousands(total)}</span> {pluralServers(total)}
+          </span>
+          {servers.length < total && (
+            <Button onClick={() => setOffset(servers.length)} disabled={loading}>
+              {loading ? 'Гружу…' : 'Показать ещё'}
+            </Button>
+          )}
         </div>
-      </div>
-
-      {error ? (
-        <div className="bleed">
-          <ErrorState
-            title="Не дозвонился до бэкенда, поэтому списка нет. Показывать пустую таблицу вместо данных я не буду."
-            onRetry={() => setOffset((o) => o)}
-          />
-        </div>
-      ) : loading && servers.length === 0 ? (
-        <div className="bleed pt-1">
-          {Array.from({ length: 12 }, (_, i) => (
-            <div key={i} className="skeleton mb-px h-[54px]" style={{ opacity: 1 - i * 0.06 }} />
-          ))}
-        </div>
-      ) : servers.length === 0 ? (
-        <div className="bleed">
-          <EmptyState
-            title={
-              withoutFreshWipe
-                ? `Серверов нашлось ${data?.local_count_before_filter}, но ни у одного нет подтверждённого вайпа в этом окне.`
-                : 'По этому запросу ничего не нашлось.'
-            }
-            hint={
-              withoutFreshWipe ? (
-                <>
-                  Календарь показывает только подтверждённые вайпы. Открой{' '}
-                  <button
-                    className="text-rust-hot underline underline-offset-4"
-                    onClick={() => patch({ calendar: 'all' })}
-                  >
-                    вкладку «Все»
-                  </button>{' '}
-                  — там серверы есть, просто у части из них цикл ещё не определён.
-                </>
-              ) : (
-                'Проверь написание или поищи по части названия — «rustafied» найдёт все их площадки.'
-              )
-            }
-          />
-        </div>
-      ) : (
-        <>
-          <GroupedRows servers={servers} byDay={sort === 'wipe_fresh'} showSpark={showSpark} />
-
-          <div className="bleed flex items-center justify-between gap-4 py-6">
-            <span className="text-[12.5px] text-ink-3">
-              Показано <span className="num text-ink-2">{servers.length}</span> из{' '}
-              <span className="num text-ink-2">{thousands(total)}</span> {pluralServers(total)}
-            </span>
-            {servers.length < total && (
-              <Button onClick={() => setOffset(servers.length)} disabled={loading}>
-                {loading ? 'Гружу…' : 'Показать ещё'}
-              </Button>
-            )}
-          </div>
-        </>
       )}
-    </>
+    </div>
   )
 }
 
-/* --------------------------------------------------------------- Группы
-   Редизайн 2026-10-02 («всё в одну кучу»). Сорок одинаковых строк подряд
-   не читались: свежий вайп с сотнями игроков стоял вперемешку с пустыми
-   серверами. Теперь при сортировке «свежий вайп» строки разбиты по дню
-   вайпа, а почти пустые серверы (пик за сутки меньше EMPTY_PEAK_24H)
-   собраны в свёрнутый блок внизу — они не спрятаны, просто не мешают. */
+/* ---------------------------------------------------------------- Группы */
 
-function GroupedRows({
-  servers,
-  byDay,
-  showSpark,
-}: {
-  servers: ServerListItem[]
-  byDay: boolean
-  showSpark: boolean
-}) {
+function GroupedRows({ servers, byDay }: { servers: ServerListItem[]; byDay: boolean }) {
   const [showEmpty, setShowEmpty] = useState(false)
 
   const { groups, empty } = useMemo(() => {
@@ -297,8 +259,7 @@ function GroupedRows({
           ? dayLabel(parseWipeLabel(s.wipe_label))
           : 'Вайп ещё не видел'
         : ''
-      // По метке, а не по соседству: аим-трейны API ставит в конец
-      // сортировки, и без этого «Сегодня» появлялось бы дважды.
+      // По метке, а не по соседству: аим-трейны API ставит в конец.
       const same = groups.find((g) => g.label === label)
       if (same) same.rows.push(s)
       else groups.push({ label, rows: [s] })
@@ -306,20 +267,14 @@ function GroupedRows({
     return { groups, empty }
   }, [servers, byDay])
 
-  let rank = 0
   return (
-    <div className="bleed">
+    <div>
       {groups.map((g, gi) => (
         <section key={g.label + gi}>
-          {byDay && (
-            <div className="group-head">
-              <span className="stencil text-[13px] text-ink">{g.label}</span>
-              <span className="num text-[11.5px] text-ink-3">{g.rows.length}</span>
-            </div>
-          )}
+          {byDay && <GroupHead label={g.label} count={g.rows.length} />}
           <ul>
             {g.rows.map((s) => (
-              <ServerRow key={s.id} s={s} rank={++rank} showSpark={showSpark} />
+              <ServerRow key={s.id} s={s} />
             ))}
           </ul>
         </section>
@@ -330,19 +285,19 @@ function GroupedRows({
           <button
             type="button"
             onClick={() => setShowEmpty((v) => !v)}
-            className="group-head w-full text-left transition-colors hover:text-ink"
             aria-expanded={showEmpty}
+            className="flex w-full items-baseline gap-3 border-t border-rule bg-panel-2 px-5 py-3 text-left transition-colors hover:bg-panel-3"
           >
-            <span className="stencil text-[13px] text-ink-2">Почти пустые</span>
-            <span className="num text-[11.5px] text-ink-3">{empty.length}</span>
-            <span className="ml-auto text-[12px] text-ink-3">
+            <span className="stencil text-[15px] text-ink-2">Почти пустые</span>
+            <span className="num text-[14px] text-ink-3">{empty.length}</span>
+            <span className="ml-auto text-[14px] text-ink-3">
               меньше {EMPTY_PEAK_24H} игроков за сутки · {showEmpty ? 'свернуть' : 'показать'}
             </span>
           </button>
           {showEmpty && (
             <ul>
               {empty.map((s) => (
-                <ServerRow key={s.id} s={s} rank={++rank} showSpark={showSpark} />
+                <ServerRow key={s.id} s={s} />
               ))}
             </ul>
           )}
@@ -352,87 +307,77 @@ function GroupedRows({
   )
 }
 
+function GroupHead({ label, count }: { label: string; count: number }) {
+  return (
+    <div className="flex items-baseline gap-3 border-t border-rule bg-panel-2 px-5 py-2.5 first:border-t-0">
+      <span className="stencil text-[15px] text-ink">{label}</span>
+      <span className="num text-[14px] text-ink-3">{count}</span>
+    </div>
+  )
+}
+
 /* ------------------------------------------------------------------ Строка */
 
-function ServerRow({
-  s,
-  rank,
-  showSpark,
-}: {
-  s: ServerListItem
-  rank: number
-  showSpark: boolean
-}) {
+export function ServerRow({ s }: { s: ServerListItem }) {
   const since = wipeAgeHours(s.wipe_label)
   const next = nextWipe(s.next_wipe_estimate)
   // Дата по провалу онлайна — оценка, не свежий вайп: без зелёного и с «≈».
   const estimated = s.wipe_basis === 'online'
   const fresh = !estimated && since != null && since < 24
   const soon = next.tone === 'soon'
-  const activity = activityLabel(s.activity_status)
   const dead = s.online_stale || (s.max > 0 && s.online / s.max < 0.05)
+
+  const wipeText = (
+    <>
+      <span className={cx('text-[15px]', fresh ? 'font-semibold text-good' : 'text-ink')}>
+        {estimated && s.wipe_label ? '≈ ' : ''}
+        {relativeWipe(s.wipe_label)}
+      </span>
+      {s.wipe_label && (
+        <span className="num hidden text-[13px] text-ink-3 lg:block">{localWipeLabel(s.wipe_label)}</span>
+      )}
+    </>
+  )
+
+  const nextText =
+    next.tone === 'unknown' ? (
+      <span className="text-[15px] text-ink-3">—</span>
+    ) : (
+      <>
+        <span className={cx('text-[15px]', soon ? 'font-semibold text-warn' : 'text-ink')}>
+          {next.text}
+        </span>
+        {nextWipeNote(s, next.tone) && (
+          <span className="hidden text-[13px] text-ink-3 lg:block">
+            {nextWipeNote(s, next.tone).replace(' · ', '')}
+          </span>
+        )}
+      </>
+    )
 
   return (
     <li
-      className="row border-b border-rule"
+      className="row border-t border-rule first:border-t-0"
       data-flag={fresh ? 'fresh' : soon ? 'soon' : undefined}
       data-dim={dead || undefined}
     >
-      <Link
-        to={`/servers/${s.id}`}
-        className={cx(
-          'grid grid-cols-[30px_1fr] items-center gap-x-5 gap-y-2 py-3 pl-3',
-          showSpark ? COLS_SPARK_LG : COLS_PLAIN_LG,
-        )}
-      >
-        {/* ранг */}
-        <span className="num self-start pt-0.5 text-[12px] text-ink-3 lg:self-center lg:pt-0">
-          {rank}
-        </span>
-
-        {/* название и метаданные */}
+      <Link to={`/servers/${s.id}`} className={cx('grid gap-x-6 gap-y-2 px-5 py-3.5', COLS)}>
+        {/* сервер */}
         <span className="min-w-0">
-          <span
-            className={cx(
-              'block truncate text-[14.5px]',
-              fresh ? 'font-semibold text-ink' : 'font-medium text-ink',
-            )}
-          >
-            {s.name}
-          </span>
-          <span className="mt-0.5 flex flex-wrap items-center gap-x-2.5 text-[11.5px] text-ink-3">
-            <span>{serverTypeLabel(s.type)}</span>
-            {s.rate && <span className="num">{s.rate}</span>}
-            {activity && <span>{activity}</span>}
-            {s.country && <span className="num uppercase">{s.country}</span>}
-          </span>
-
-          {/* На узком экране цифры и трек переезжают под название */}
-          <span className="mt-2.5 block pr-3 lg:hidden">
-            <span className="flex items-center gap-3">
-              <span className="num shrink-0 text-[13px] text-ink">
-                {thousands(s.online)}
-                <span className="text-ink-3"> / {thousands(s.max)}</span>
-              </span>
-              <span className="w-full max-w-[130px] min-w-0">
-                <Meter value={s.online} max={s.max} />
-              </span>
-            </span>
-            {next.tone !== 'unknown' && (
-              <span className="mt-2.5 block">
-                <CycleTrack sinceHours={since} untilHours={next.hours} height={14} />
-              </span>
-            )}
-            <span className="mt-1.5 flex justify-between gap-3 text-[11px]">
-              <span className={fresh ? 'text-good' : 'text-ink-3'}>
-                {estimated && s.wipe_label ? '≈ ' : ''}
-                {relativeWipe(s.wipe_label)}
-              </span>
-              {next.tone !== 'unknown' && (
-                <span className={cx('truncate text-right', soon ? 'text-warn' : 'text-ink-3')}>
-                  {next.text}
-                  {nextWipeNote(s, next.tone)}
-                </span>
+          <span className="block truncate text-[16px] font-semibold text-ink">{s.name}</span>
+          <span className="mt-1.5 flex flex-wrap items-center gap-1.5">
+            <span className="chip">{serverTypeLabel(s.type)}</span>
+            {s.rate && <span className="chip">{s.rate}</span>}
+            {s.country && <span className="chip">{s.country.toUpperCase()}</span>}
+            {/* на телефоне онлайн — в этой же строке */}
+            <span className="num ml-auto text-[15px] text-ink lg:hidden">
+              {s.online_stale ? (
+                <span className="text-ink-3">нет данных</span>
+              ) : (
+                <>
+                  {thousands(s.online)}
+                  <span className="text-ink-3"> / {thousands(s.max)}</span>
+                </>
               )}
             </span>
           </span>
@@ -440,57 +385,33 @@ function ServerRow({
 
         {/* онлайн */}
         <span className="hidden lg:block">
-          <span className="num block text-[13.5px] text-ink">
-            {thousands(s.online)}
-            <span className="text-[12px] text-ink-3"> / {thousands(s.max)}</span>
+          <span className="num block shrink-0 text-[17px] text-ink">
+            {s.online_stale ? (
+              <span className="text-[14px] text-ink-3">нет данных</span>
+            ) : (
+              <>
+                {thousands(s.online)}
+                <span className="text-[14px] text-ink-3"> / {thousands(s.max)}</span>
+              </>
+            )}
           </span>
-          <span className="mt-1.5 block">
-            <Meter value={s.online} max={s.max} />
-          </span>
-          {s.online_stale && (
-            <span className="mt-1 block text-[10.5px] text-ink-3">нет свежих данных</span>
-          )}
-        </span>
-
-        {/* форма кривой за двое суток — колонки нет, если данных нет */}
-        {showSpark && (
-          <span className="hidden lg:block">
-            <Sparkline values={s.sparkline} active={fresh} />
-          </span>
-        )}
-
-        {/* последний вайп */}
-        <span className="hidden lg:block">
-          <span className={cx('block text-[13px]', fresh ? 'text-good' : 'text-ink-2')}>
-            {estimated && s.wipe_label ? '≈ ' : ''}
-            {relativeWipe(s.wipe_label)}
-          </span>
-          {s.wipe_label && (
-            <span className="num mt-0.5 block text-[11px] text-ink-3">{localWipeLabel(s.wipe_label)}</span>
-          )}
-        </span>
-
-        {/* фаза цикла — подписной элемент. Цикла нет — один прочерк, а не
-            трек с пунктиром и курсивом в каждой строке: это был шум. */}
-        <span className="hidden pr-1 lg:block">
-          {next.tone === 'unknown' ? (
-            <span className="block text-right text-[12px] text-ink-3" title="Цикл не определён">
-              —
+          {!s.online_stale && (
+            <span className="block w-full max-w-[140px] lg:mt-1.5">
+              <Meter value={s.online} max={s.max} />
             </span>
-          ) : (
-            <>
-              <CycleTrack sinceHours={since} untilHours={next.hours} height={18} />
-              <span
-                className={cx(
-                  'mt-1 block text-right text-[11.5px]',
-                  next.tone === 'soon' ? 'text-warn' : 'text-ink-3',
-                )}
-              >
-                {next.text}
-                {nextWipeNote(s, next.tone)}
-              </span>
-            </>
           )}
+        </span>
+
+        {/* вайпы: на телефоне — две колонки под названием */}
+        <span className="flex items-baseline justify-between gap-4 lg:contents">
+          <span>
+            <span className="text-[14px] text-ink-3 lg:hidden">вайп </span>
+            {wipeText}
+          </span>
+          <span className="text-right">
+            <span className="text-[14px] text-ink-3 lg:hidden">след. </span>
+            {nextText}
+          </span>
         </span>
       </Link>
     </li>

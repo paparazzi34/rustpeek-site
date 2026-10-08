@@ -21,7 +21,7 @@ export function PrimeTime({
   const peakHour = utcPeak == null ? null : (((utcPeak + shift) % 24) + 24) % 24
   const values = hours.filter((v): v is number => v != null)
   if (!values.length) {
-    return <p className="py-8 text-[13px] text-ink-3">Нет свежих данных по часам.</p>
+    return <p className="py-8 text-[14.5px] text-ink-3">Нет свежих данных по часам.</p>
   }
   const max = Math.max(...values)
   const active = hover ?? peakHour ?? null
@@ -57,14 +57,14 @@ export function PrimeTime({
       </div>
 
       <div className="mt-1.5 flex items-center justify-between border-t border-rule pt-1.5">
-        <div className="num flex-1 text-[10px] text-ink-3">00</div>
-        <div className="num flex-1 text-center text-[10px] text-ink-3">06</div>
-        <div className="num flex-1 text-center text-[10px] text-ink-3">12</div>
-        <div className="num flex-1 text-center text-[10px] text-ink-3">18</div>
-        <div className="num flex-1 text-right text-[10px] text-ink-3">23</div>
+        <div className="num flex-1 text-[11.5px] text-ink-3">00</div>
+        <div className="num flex-1 text-center text-[11.5px] text-ink-3">06</div>
+        <div className="num flex-1 text-center text-[11.5px] text-ink-3">12</div>
+        <div className="num flex-1 text-center text-[11.5px] text-ink-3">18</div>
+        <div className="num flex-1 text-right text-[11.5px] text-ink-3">23</div>
       </div>
 
-      <p className="mt-3 text-[13px] text-ink-2">
+      <p className="mt-3 text-[14.5px] text-ink-2">
         {active != null && hours[active] != null ? (
           <>
             В <span className="num text-ink">{pad2(active)}:00</span> на сервере в среднем{' '}

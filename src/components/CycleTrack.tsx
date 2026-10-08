@@ -174,7 +174,7 @@ export function CycleTrackLarge({
           на шкале и текущий момент это одно и то же. */}
       <div className="relative mb-1.5 h-4">
         <span
-          className="num absolute text-[11px] whitespace-nowrap text-ink-2"
+          className="num absolute text-[12.5px] whitespace-nowrap text-ink-2"
           style={{ left: `${now * 100}%`, transform: 'translateX(-50%)' }}
         >
           сейчас
@@ -186,7 +186,7 @@ export function CycleTrackLarge({
       <div className="mt-2.5 flex items-start justify-between gap-4">
         <div>
           <div className="eyebrow">{wipedLabel}</div>
-          <div className={cx('num mt-1.5 text-[13px]', fresh ? 'text-good' : 'text-ink-2')}>
+          <div className={cx('num mt-1.5 text-[14.5px]', fresh ? 'text-good' : 'text-ink-2')}>
             {wipedAt}
           </div>
         </div>
@@ -202,7 +202,7 @@ export function CycleTrackLarge({
           </div>
           <div
             className={cx(
-              'mt-1.5 text-[13px]',
+              'mt-1.5 text-[14.5px]',
               known ? (soon ? 'num text-warn' : 'num text-ink-2') : 'text-ink-3 italic',
             )}
           >

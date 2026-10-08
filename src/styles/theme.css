@@ -1,57 +1,61 @@
 @import 'tailwindcss';
 
 /* =============================================================
-   RustPeek — дизайн-система v3, «станция наблюдения»
+   RustPeek — дизайн-система v4, «как в игре» (2026-10-07)
 
-   Три решения, от которых пляшет всё остальное:
+   Прежняя v3 («станция наблюдения», линии в 1px на чёрном, текст 11–13 px
+   во всю ширину экрана) не прижилась: на широком мониторе дата вайпа и
+   пик онлайна стояли в полутора метрах друг от друга, читать было мелко,
+   и всё сливалось в одну серую ленту.
 
-   1. ЗЕМЛЯ ТЁПЛАЯ. Фон не нейтрально-чёрный и не сине-чёрный, а тёмное
-      окисленное железо (#0B0A09 — жёлто-красный тон на минимальной
-      насыщенности). Ржавый акцент тогда лежит с фоном в одной семье, и
-      сайт читается как один материал, а не «чёрная подложка + неон».
-   2. ТРИ ШРИФТА, ТРИ РОЛИ. Oswald — только узкие прописные подписи и
-      крупные утверждения (узкий шрифт держит длинные русские слова).
-      Golos Text — весь живой текст. IBM Plex Mono — ТОЛЬКО цифры.
-   3. НИКАКИХ КАРТОЧЕК. Разделяют линии в 1px, а не рамки, тени и
-      скругления. Радиус нулевой почти везде: это прибор, не приложение.
+   Что взято за основу и почему:
 
-   Цвет несёт смысл: ржавый — действие и внимание, зелёный — подтверждено
-   и свежо, жёлтый — скоро, красный — только подозрительное и сломанное.
-   Красный никогда не стоит в одном списке рядом с ржавым: при дейтеранопии
-   эта пара сливается. Ржавый/зелёный расходятся и проверены.
+   1. ИНТЕРФЕЙС САМОЙ ИГРЫ. Игрок Rust часами смотрит на её меню: тёплый
+      оливково-угольный фон, панели цвета хаки, красная кнопка действия,
+      оливково-зелёная — «готово». Это знакомый язык, а не чужой «дашборд».
+   2. ROBOTO CONDENSED — шрифт интерфейса Rust. Им набраны заголовки,
+      кнопки, ярлыки и все цифры (табличные). Обычный текст — Golos Text:
+      он лучше держит длинные русские абзацы.
+   3. КОЛОНКА ПО ЦЕНТРУ, до 1240 px. Текст от 13 px и выше, основной — 15.
+   4. ПАНЕЛИ, А НЕ ЛИНИИ. Смысловой блок — панель на подложке, со
+      скруглением в 4 px, как окна в игре. Внутри панели — линии.
+
+   Цвет несёт смысл: красный — действие и внимание, зелёный — подтверждённый
+   свежий вайп, жёлтый — скоро. Красный и зелёный разведены по светлоте,
+   а рядом с цветом всегда стоит слово.
    ============================================================= */
 
 @theme {
   /* --- земля --- */
-  --color-void: #0b0a09;
-  --color-panel: #121110;
-  --color-panel-2: #191714;
-  --color-panel-3: #211e1a;
-  --color-rule: #272320;
-  --color-rule-2: #3b352e;
+  --color-void: #1b1a16;
+  --color-panel: #24231e;
+  --color-panel-2: #2c2a24;
+  --color-panel-3: #35332b;
+  --color-rule: #37342c;
+  --color-rule-2: #4a463b;
 
   /* --- текст --- */
-  --color-ink: #f2ede6;
-  --color-ink-2: #a8a096;
-  --color-ink-3: #7b736a;
+  --color-ink: #ece7d9;
+  --color-ink-2: #b4ae9c;
+  --color-ink-3: #878170;
 
   /* --- сигнал --- */
-  --color-rust: #e8541f;
-  --color-rust-hot: #ff6a32;
-  --color-rust-dim: #7a2e11;
+  --color-rust: #cd412b;
+  --color-rust-hot: #e5573f;
+  --color-rust-dim: #5b2117;
 
-  --color-good: #3fb27a;
-  --color-good-dim: #17462f;
-  --color-warn: #d9a227;
-  --color-bad: #d0382e;
+  --color-good: #a3c152;
+  --color-good-dim: #3b4a1c;
+  --color-warn: #e3a83c;
+  --color-bad: #e06a8a;
 
   /* --- шрифты --- */
   --font-sans: 'Golos Text', system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --font-stencil: 'Oswald', 'Golos Text', system-ui, sans-serif;
-  --font-mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', monospace;
+  --font-stencil: 'Roboto Condensed', 'Arial Narrow', system-ui, sans-serif;
+  --font-mono: 'Roboto Condensed', 'Arial Narrow', system-ui, sans-serif;
 
-  --radius-xs: 0px;
-  --radius-sm: 2px;
+  --radius-xs: 2px;
+  --radius-sm: 4px;
 }
 
 @layer base {
@@ -71,8 +75,8 @@
     background: var(--color-void);
     color: var(--color-ink);
     font-family: var(--font-sans);
-    font-size: 13.5px;
-    line-height: 1.45;
+    font-size: 15px;
+    line-height: 1.5;
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
   }
@@ -84,7 +88,7 @@
 
   :focus-visible {
     outline: 2px solid var(--color-rust-hot);
-    outline-offset: 1px;
+    outline-offset: 2px;
   }
 
   a {
@@ -100,70 +104,71 @@
 @layer components {
   /* ------------------------------------------------ Типографика */
 
-  /* Узкие прописные — «подписи на приборе». Только служебные ярлыки и
-     крупные утверждения. В обычном тексте не появляются никогда. */
+  /* Заголовки и крупные утверждения — как надписи в меню игры */
   .stencil {
     font-family: var(--font-stencil);
-    font-weight: 500;
+    font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.08em;
+    letter-spacing: 0.01em;
   }
 
   .eyebrow {
     font-family: var(--font-stencil);
-    font-weight: 500;
-    font-size: 10.5px;
-    line-height: 1;
+    font-weight: 600;
+    font-size: 12.5px;
+    line-height: 1.1;
     text-transform: uppercase;
-    letter-spacing: 0.14em;
+    letter-spacing: 0.07em;
     color: var(--color-ink-3);
   }
 
-  /* Цифры. Единственное место моноширинного шрифта на сайте. */
+  /* Цифры: узкий шрифт игры, табличные — колонки не пляшут */
   .num {
     font-family: var(--font-mono);
     font-variant-numeric: tabular-nums;
-    letter-spacing: -0.02em;
+    font-weight: 500;
+    letter-spacing: 0;
   }
 
   /* ------------------------------------------------ Раскладка */
 
-  /* Полная ширина с полями, а не колонка по центру */
+  /* Колонка по центру. Раньше было «во всю ширину с полями» — на мониторе
+     2544 px строка таблицы растягивалась на два с половиной метра. */
   .bleed {
-    padding-inline: clamp(14px, 2.2vw, 30px);
+    width: 100%;
+    max-width: 1240px;
+    margin-inline: auto;
+    padding-inline: clamp(16px, 3vw, 28px);
   }
 
-  /* Плита (2026-10-02). Редизайн «всё в одну кучу»: страница из одних
-     линий в 1px читалась одной лентой, глазу не за что было зацепиться.
-     Теперь смысловые блоки лежат на плитах — чуть светлее земли, с
-     ярлыком, выбитым в верхней кромке, как шильдик на листе железа.
-     Внутри плиты по-прежнему только линии. */
+  /* Панель — окно в игре */
   .plate {
     position: relative;
     background: var(--color-panel);
     border: 1px solid var(--color-rule);
+    border-radius: var(--radius-sm);
   }
   .plate-tab {
     position: absolute;
     top: 0;
     left: 14px;
     transform: translateY(-50%);
-    padding-inline: 7px;
-    background: var(--color-void);
+    padding: 3px 8px;
+    border-radius: var(--radius-xs);
+    background: var(--color-panel-3);
     font-family: var(--font-stencil);
-    font-weight: 500;
-    font-size: 10.5px;
+    font-weight: 600;
+    font-size: 11.5px;
     line-height: 1;
     text-transform: uppercase;
-    letter-spacing: 0.14em;
-    color: var(--color-ink-3);
+    letter-spacing: 0.07em;
+    color: var(--color-ink-2);
     white-space: nowrap;
   }
   .plate-tab[data-tone='good'] {
+    background: var(--color-good-dim);
     color: var(--color-good);
   }
-
-  /* Плита-ссылка: вход в раздел */
   a.plate {
     transition:
       border-color 0.13s,
@@ -179,8 +184,7 @@
     display: flex;
     align-items: baseline;
     gap: 10px;
-    padding: 18px 0 8px;
-    border-bottom: 1px solid var(--color-rule-2);
+    padding: 22px 4px 10px;
   }
 
   /* ------------------------------------------------ Управление */
@@ -190,14 +194,18 @@
     align-items: center;
     justify-content: center;
     gap: 7px;
-    height: 32px;
-    padding-inline: 13px;
-    font-size: 13px;
-    font-weight: 500;
+    height: 36px;
+    padding-inline: 15px;
+    font-family: var(--font-stencil);
+    font-size: 14px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
     white-space: nowrap;
     border: 1px solid var(--color-rule-2);
+    border-radius: var(--radius-xs);
     color: var(--color-ink);
-    background: transparent;
+    background: var(--color-panel-2);
     cursor: pointer;
     transition:
       background-color 0.13s,
@@ -205,11 +213,11 @@
       color 0.13s;
   }
   .btn:hover:not(:disabled) {
-    background: var(--color-panel-2);
+    background: var(--color-panel-3);
     border-color: var(--color-ink-3);
   }
   .btn:disabled {
-    opacity: 0.4;
+    opacity: 0.45;
     cursor: not-allowed;
   }
 
@@ -225,6 +233,7 @@
 
   .btn-bare {
     border-color: transparent;
+    background: transparent;
     color: var(--color-ink-2);
     padding-inline: 8px;
   }
@@ -234,34 +243,35 @@
     border-color: transparent;
   }
 
-  /* Переключатель: не пилюли, а сегменты с общей линией */
+  /* Переключатель — ряд кнопок в одной рамке */
   .seg {
     display: inline-flex;
+    padding: 3px;
+    gap: 3px;
+    background: var(--color-void);
     border: 1px solid var(--color-rule);
+    border-radius: var(--radius-sm);
   }
   .seg > button {
     font-family: var(--font-stencil);
-    font-weight: 500;
+    font-weight: 600;
     text-transform: uppercase;
-    letter-spacing: 0.07em;
-    font-size: 11px;
-    height: 28px;
-    padding-inline: 11px;
+    letter-spacing: 0.04em;
+    font-size: 13px;
+    height: 30px;
+    padding-inline: 12px;
     color: var(--color-ink-3);
     background: transparent;
     border: 0;
-    border-left: 1px solid var(--color-rule);
+    border-radius: var(--radius-xs);
     cursor: pointer;
     white-space: nowrap;
     transition:
       color 0.13s,
       background-color 0.13s;
   }
-  .seg > button:first-child {
-    border-left: 0;
-  }
   .seg > button:hover {
-    color: var(--color-ink-2);
+    color: var(--color-ink);
   }
   .seg > button[aria-selected='true'],
   .seg > button[data-on='true'] {
@@ -271,13 +281,13 @@
 
   /* ------------------------------------------------ Данные */
 
-  /* Полоса заполнения: трек виден целиком, состояние читается по всей длине */
   .bar {
     position: relative;
     display: block;
-    height: 3px;
+    height: 4px;
     width: 100%;
-    background: var(--color-rule);
+    background: var(--color-panel-3);
+    border-radius: 2px;
     overflow: hidden;
   }
   .bar > i {
@@ -291,8 +301,7 @@
     background: var(--color-rust);
   }
 
-  /* Строка списка. Масса разная: обычная приглушена, свежий вайп получает
-     флажок в жёлобе, мёртвый сервер уходит в полупрозрачность. */
+  /* Строка списка */
   .row {
     position: relative;
     transition: background-color 0.12s;
@@ -301,18 +310,19 @@
     background: var(--color-panel-2);
   }
   .row[data-dim='true'] {
-    opacity: 0.45;
+    opacity: 0.5;
   }
   .row[data-dim='true']:hover {
-    opacity: 0.8;
+    opacity: 0.85;
   }
   .row[data-flag]::before {
     content: '';
     position: absolute;
     left: 0;
-    top: 0;
-    bottom: 0;
-    width: 2px;
+    top: 8px;
+    bottom: 8px;
+    width: 3px;
+    border-radius: 2px;
   }
   .row[data-flag='fresh']::before {
     background: var(--color-good);
@@ -321,19 +331,20 @@
     background: var(--color-warn);
   }
 
-  /* Метка состояния: без заливки и скруглений, только квадрат и слово */
+  /* Метка состояния: квадрат и слово */
   .tag {
     display: inline-flex;
     align-items: center;
-    gap: 5px;
-    font-size: 12px;
+    gap: 6px;
+    font-size: 13px;
     white-space: nowrap;
   }
   .tag::before {
     content: '';
-    width: 5px;
-    height: 5px;
+    width: 6px;
+    height: 6px;
     flex: none;
+    border-radius: 1px;
     background: currentColor;
   }
   .tag-good {
@@ -352,12 +363,15 @@
     color: var(--color-bad);
   }
 
-  /* Поле ввода: линия снизу, а не коробка */
+  /* Поле ввода — утопленное, как поле в меню игры */
   .field {
     display: flex;
     align-items: center;
     gap: 10px;
-    border-bottom: 1px solid var(--color-rule-2);
+    padding-inline: 12px 6px;
+    background: var(--color-void);
+    border: 1px solid var(--color-rule-2);
+    border-radius: var(--radius-sm);
     transition: border-color 0.15s;
   }
   .field:focus-within {
@@ -375,24 +389,42 @@
   .field input::placeholder {
     color: var(--color-ink-3);
   }
+
+  /* Чип-ярлык: тип сервера, рейт, страна */
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    height: 22px;
+    padding-inline: 7px;
+    border-radius: var(--radius-xs);
+    background: var(--color-panel-3);
+    font-family: var(--font-stencil);
+    font-weight: 600;
+    font-size: 12.5px;
+    letter-spacing: 0.02em;
+    color: var(--color-ink-2);
+    white-space: nowrap;
+  }
+  .chip[data-tone='good'] {
+    background: var(--color-good-dim);
+    color: var(--color-good);
+  }
 }
 
 @layer utilities {
-  /* Пульс «данные живые» — единственная бесконечная анимация в проекте */
   @keyframes rp-breathe {
     0%,
     100% {
       opacity: 1;
     }
     50% {
-      opacity: 0.25;
+      opacity: 0.3;
     }
   }
   .live-dot {
     animation: rp-breathe 2.6s ease-in-out infinite;
   }
 
-  /* Кривая «пишется», как на самописце */
   @keyframes rp-draw {
     to {
       stroke-dashoffset: 0;
@@ -404,8 +436,6 @@
     animation: rp-draw 1.2s cubic-bezier(0.32, 0.72, 0.28, 1) forwards;
   }
 
-  /* Вспышка «значение только что изменилось». Живёт одну секунду и гаснет:
-     задача не украсить, а показать, что данные пришли новые. */
   @keyframes rp-flash {
     0% {
       background-color: color-mix(in srgb, var(--color-rust) 16%, transparent);
@@ -427,6 +457,7 @@
     }
   }
   .skeleton {
+    border-radius: var(--radius-sm);
     background: linear-gradient(
       90deg,
       var(--color-panel) 25%,
@@ -466,8 +497,6 @@
   }
 }
 
-/* Горизонтальная прокрутка без видимой полосы — вкладки шапки на узком
-   экране (2026-09-29). */
 @utility no-scrollbar {
   scrollbar-width: none;
   &::-webkit-scrollbar {

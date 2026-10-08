@@ -23,7 +23,7 @@ export function SiteLayout() {
       <header className="sticky top-0 z-40 border-b border-rule bg-void/95 backdrop-blur-sm">
         <div className="bleed flex h-12 items-center gap-6">
           <Brand />
-          <nav className="hidden items-center gap-5 text-[12.5px] text-ink-3 md:flex">
+          <nav className="hidden items-center gap-5 text-[14px] text-ink-3 md:flex">
             {LINKS.map((l) => (
               <a key={l.href} href={l.href} className="transition-colors hover:text-ink">
                 {l.label}
@@ -52,7 +52,7 @@ export function SiteLayout() {
           то, чего продукт обещает не делать. */}
       {mock && (
         <div className="border-b border-rust-dim bg-rust-dim/25">
-          <p className="bleed py-1 text-[11.5px] text-rust-hot">
+          <p className="bleed py-1 text-[13px] text-rust-hot">
             Демо-данные: живой API сейчас недоступен, цифры и названия серверов на экране
             ненастоящие.
           </p>

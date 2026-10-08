@@ -5,13 +5,13 @@ export function SiteFooter() {
     <footer className="mt-16 border-t border-rule">
       <div className="bleed flex flex-wrap items-baseline justify-between gap-x-8 gap-y-3 py-6">
         <div>
-          <div className="stencil text-[13px] tracking-[0.1em] text-ink-2">RUSTPEEK</div>
-          <p className="mt-1.5 max-w-md text-[12px] leading-relaxed text-ink-3">
+          <div className="stencil text-[14.5px] tracking-[0.1em] text-ink-2">RUSTPEEK</div>
+          <p className="mt-1.5 max-w-md text-[13.5px] leading-relaxed text-ink-3">
             BattleMetrics показывает, что на сервере сейчас. RustPeek помнит, что там было —
             и поэтому знает, когда будет следующий вайп.
           </p>
         </div>
-        <nav className="flex flex-wrap items-center gap-x-6 gap-y-2 text-[12.5px] text-ink-3">
+        <nav className="flex flex-wrap items-center gap-x-6 gap-y-2 text-[14px] text-ink-3">
           <Link to="/servers" className="transition-colors hover:text-ink">
             Серверы
           </Link>

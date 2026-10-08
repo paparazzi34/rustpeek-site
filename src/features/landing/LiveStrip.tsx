@@ -84,8 +84,8 @@ function Counter({ value, label }: { value: number; label: string }) {
   const shown = useCountUp(value)
   return (
     <span className="flex items-baseline gap-2 whitespace-nowrap">
-      <span className="num text-[13px] text-ink">{thousands(shown)}</span>
-      <span className="text-[12px] text-ink-3">{label}</span>
+      <span className="num text-[14.5px] text-ink">{thousands(shown)}</span>
+      <span className="text-[13.5px] text-ink-3">{label}</span>
     </span>
   )
 }
@@ -131,7 +131,7 @@ function Event({ e }: { e: LiveEvent }) {
       : 'text-ink-3'
 
   return (
-    <span className="flex items-baseline gap-2 whitespace-nowrap text-[12px]">
+    <span className="flex items-baseline gap-2 whitespace-nowrap text-[13.5px]">
       {d && (
         <span className="num text-ink-3">
           {pad2(d.getHours())}:{pad2(d.getMinutes())}

@@ -38,7 +38,8 @@ export function LiveSample() {
           // это шум, по которому ничего не докажешь.
           const fresh = (r.servers ?? []).filter((x) => {
             const h = wipeAgeHours(x.wipe_label)
-            return h != null && h < 36
+            // Аим-трейн с вайпом каждый день — плохой пример ритма (2026-10-07).
+            return h != null && h < 36 && !x.frequent_rebirth && (x.cycle ?? 0) >= 7
           })
           // Свой цикл по наблюдению — в приоритете: такой пример показывает
           // не один вайп, а расписание. Цикл из названия не считаем — это
@@ -100,10 +101,10 @@ export function LiveSample() {
           </Link>
         </div>
         <div className="shrink-0 text-right">
-          <div className="num text-[12px] text-ink-2">
+          <div className="num text-[13.5px] text-ink-2">
             {thousands(server.online)} <span className="text-ink-3">/ {thousands(server.max)}</span>
           </div>
-          <div className="mt-1 flex items-center justify-end gap-1.5 text-[10.5px] text-ink-3">
+          <div className="mt-1 flex items-center justify-end gap-1.5 text-[12px] text-ink-3">
             <span className="live-dot block size-1.5 bg-good" />
             живьём
           </div>
@@ -117,7 +118,7 @@ export function LiveSample() {
         height={216}
       />
 
-      <p className="mt-2 text-[12px] text-ink-3">
+      <p className="mt-2 text-[13.5px] text-ink-3">
         {wipes > 0 ? (
           <>
             Зелёные рубцы — подтверждённые вайпы. Последний был{' '}
@@ -138,7 +139,7 @@ function SchemaFallback() {
     <figure className="m-0">
       <figcaption className="mb-3 border-b border-rule pb-2">
         <div className="eyebrow">схема · как вайп выглядит в данных</div>
-        <p className="mt-1.5 text-[13px] text-ink-2">
+        <p className="mt-1.5 text-[14.5px] text-ink-2">
           Живого примера сейчас нет: за последние сутки ни один сервер не вайпнулся.
         </p>
       </figcaption>

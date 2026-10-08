@@ -49,10 +49,9 @@ export function PlayersPage() {
 
   return (
     <>
-      <div className="bleed border-b border-rule py-5">
-        <div className="eyebrow">досье</div>
-        <h1 className="mt-2 text-[24px] leading-none font-semibold text-ink">Игроки</h1>
-        <p className="mt-2.5 max-w-2xl text-[13.5px] leading-relaxed text-ink-2">
+      <div className="bleed pt-7 pb-2">
+        <h1 className="stencil text-[30px] leading-none text-ink sm:text-[36px]">Игроки</h1>
+        <p className="mt-2.5 max-w-2xl text-[15px] leading-relaxed text-ink-2">
           Возраст аккаунта, часы в Rust, баны и где этого человека видели по нашему наблюдению.
           Профиль закрыт — так и напишу «неизвестно», а не нарисую ноль.
         </p>
@@ -75,7 +74,7 @@ export function PlayersPage() {
               </Button>
             }
           />
-          <p className="mt-2 text-[12px] text-ink-3">
+          <p className="mt-2 text-[13.5px] text-ink-3">
             Ищу по SteamID64 или по ссылке. Поиска по нику нет — Steam его не отдаёт.
           </p>
         </div>
@@ -98,7 +97,7 @@ export function PlayersPage() {
 
       {!q && !loading && (
         <div className="bleed py-10">
-          <p className="max-w-xl border-l-2 border-rule-2 py-1 pl-4 text-[13.5px] leading-relaxed text-ink-2">
+          <p className="max-w-xl border-l-2 border-rule-2 py-1 pl-4 text-[15px] leading-relaxed text-ink-2">
             Тебя подозрительно метко убили и хочется понять, кто это был? Открой профиль Steam
             убийцы, скопируй ссылку из адресной строки и вставь сюда.
           </p>
@@ -109,8 +108,8 @@ export function PlayersPage() {
             {DOSSIER_PARTS.map(([title, body]) => (
               <div key={title} className="plate px-4 pt-6 pb-5">
                 <span className="plate-tab">в досье</span>
-                <h3 className="text-[14.5px] font-semibold text-ink">{title}</h3>
-                <p className="mt-1.5 text-[12.5px] leading-relaxed text-ink-2">{body}</p>
+                <h3 className="text-[16px] font-semibold text-ink">{title}</h3>
+                <p className="mt-1.5 text-[14px] leading-relaxed text-ink-2">{body}</p>
               </div>
             ))}
           </div>
@@ -127,6 +126,11 @@ const DOSSIER_PARTS: Array<[string, string]> = [
   ['Trust Score', 'Итоговая оценка с разбором: за что прибавил, за что снял.'],
 ]
 
+const isRecent = (iso?: string | null) => {
+  const d = parseSqlDateTime(iso)
+  return d != null && Date.now() - d.getTime() < 30 * 60_000
+}
+
 /* ------------------------------------------------------------------ Досье */
 
 function Dossier({ p }: { p: Player }) {
@@ -134,9 +138,9 @@ function Dossier({ p }: { p: Player }) {
   const banned = (p.bans?.vac_ban_count ?? 0) + (p.bans?.game_ban_count ?? 0) > 0
 
   return (
-    <>
+    <div className="bleed space-y-6 pt-4 pb-8">
       {/* ---- Карточка ---- */}
-      <section className="bleed border-b border-rule py-6">
+      <section className="plate p-5 sm:p-6">
         <div className="flex flex-wrap items-start gap-5">
           {p.avatar_url ? (
             <img
@@ -156,7 +160,7 @@ function Dossier({ p }: { p: Player }) {
             <h2 className="text-[24px] leading-tight font-semibold text-ink">
               {p.name ?? 'Ник неизвестен'}
             </h2>
-            <div className="num mt-1 text-[12.5px] text-ink-3">{p.steam_id}</div>
+            <div className="num mt-1 text-[14px] text-ink-3">{p.steam_id}</div>
             <div className="mt-2.5 flex flex-wrap items-center gap-x-5 gap-y-1.5">
               {p.status_text && <Tag tone="good">{p.status_text}</Tag>}
               {banned ? (
@@ -216,13 +220,13 @@ function Dossier({ p }: { p: Player }) {
 
       {/* Trust и «где видели» рядом: страница во всю ширину, пустая правая
           половина под досье выглядела бы как недоделка. */}
-      <div className="grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+      <div className="grid items-start gap-6 lg:grid-cols-2">
         <TrustPanel p={p} />
         <SeenOn p={p} />
       </div>
 
       <PlayedOnBm p={p} />
-    </>
+    </div>
   )
 }
 
@@ -238,10 +242,10 @@ function Fact({
   first?: boolean
 }) {
   return (
-    <div className={cx('py-4 pr-5', first === false ? 'border-l border-rule pl-5' : '')}>
+    <div className={cx('pt-4 pr-5', first === false ? 'border-l border-rule pl-5' : '')}>
       <div className="eyebrow">{label}</div>
       <div className="mt-2 text-[20px] leading-none font-semibold text-ink">{value}</div>
-      {sub && <div className="mt-2 text-[11.5px] text-ink-3">{sub}</div>}
+      {sub && <div className="mt-2 text-[13px] text-ink-3">{sub}</div>}
     </div>
   )
 }
@@ -255,8 +259,8 @@ function TrustPanel({ p }: { p: Player }) {
   const factors = p.trust.factors ?? []
 
   return (
-    <section className="bleed border-b border-rule py-6 lg:border-r">
-      <div className="eyebrow">trust score</div>
+    <section className="plate p-5 sm:p-6">
+      <h2 className="stencil text-[19px] text-ink">Trust Score</h2>
 
       <div className="mt-3 flex items-baseline gap-4">
         <span
@@ -268,7 +272,7 @@ function TrustPanel({ p }: { p: Player }) {
           {score}
         </span>
         <span className="num text-[20px] text-ink-3">/ 100</span>
-        <span className="ml-2 max-w-md text-[13.5px] text-ink-2">{p.trust.label}</span>
+        <span className="ml-2 max-w-md text-[15px] text-ink-2">{p.trust.label}</span>
       </div>
 
       {/* шкала итога */}
@@ -290,10 +294,10 @@ function TrustPanel({ p }: { p: Player }) {
               key={f.key}
               className="flex items-center justify-between gap-4 border-t border-rule py-2.5"
             >
-              <span className="text-[13px] text-ink-2">{f.label}</span>
+              <span className="text-[14.5px] text-ink-2">{f.label}</span>
               <span
                 className={cx(
-                  'num shrink-0 text-[13px]',
+                  'num shrink-0 text-[14.5px]',
                   f.points > 0 ? 'text-good' : f.points < 0 ? 'text-bad' : 'text-ink-3',
                 )}
               >
@@ -305,7 +309,7 @@ function TrustPanel({ p }: { p: Player }) {
         </div>
       )}
 
-      <p className="mt-4 text-[12.5px] leading-relaxed text-ink-3">
+      <p className="mt-4 text-[14px] leading-relaxed text-ink-3">
         Trust Score — это не приговор и не античит. Он складывается из открытых данных Steam и
         нашего наблюдения. Высокий балл не значит «играет честно», низкий не значит «читер»:
         у новичка с закрытым профилем балл будет низким просто потому, что о нём мало известно.
@@ -350,11 +354,20 @@ function PlayedOnBm({ p }: { p: Player }) {
   const sessions = picked ? pickedSessions : bm.sessions
 
   return (
-    <section className="bleed border-b border-rule py-6">
-      <div className="eyebrow mb-4">где играл · по данным BattleMetrics</div>
+    <section className="plate p-5 sm:p-6">
+      <h2 className="stencil mb-4 text-[19px] text-ink">
+        Где играл <span className="text-ink-3">· по данным BattleMetrics</span>
+      </h2>
+
+      {bm.status === 'unavailable' && (
+        <p className="text-[15px] leading-relaxed text-ink-2">
+          BattleMetrics сейчас не отвечает — спросить у них не получилось. Моё собственное
+          наблюдение — в блоке «Где видел».
+        </p>
+      )}
 
       {bm.status === 'not_found' && (
-        <p className="text-[13.5px] leading-relaxed text-ink-2">
+        <p className="text-[15px] leading-relaxed text-ink-2">
           BattleMetrics про этого игрока ничего не знает. Так бывает часто: они видят человека
           только на серверах, где владелец подключил их плагин, а подключают его немногие.
         </p>
@@ -362,7 +375,7 @@ function PlayedOnBm({ p }: { p: Player }) {
 
       {bm.status === 'ambiguous' && !picked && (
         <>
-          <p className="mb-4 text-[13.5px] leading-relaxed text-ink-2">
+          <p className="mb-4 text-[15px] leading-relaxed text-ink-2">
             Под ником <b className="text-ink">{p.name ?? '—'}</b> в BattleMetrics играет{' '}
             <b className="text-ink">{bm.candidates.length}</b>{' '}
             {plural(bm.candidates.length, 'человек', 'человека', 'человек')}. Кто из них твой —
@@ -376,10 +389,10 @@ function PlayedOnBm({ p }: { p: Player }) {
                   onClick={() => pick(c)}
                   className="w-full border border-rule px-3 py-2.5 text-left transition-colors hover:border-rust-hot"
                 >
-                  <span className="text-[13.5px] text-ink">
+                  <span className="text-[15px] text-ink">
                     {c.last_server_known ? c.last_server_name : 'сервер не из нашей базы'}
                   </span>
-                  <span className="num ml-3 text-[12.5px] text-ink-3">
+                  <span className="num ml-3 text-[14px] text-ink-3">
                     последний раз: {shortDateTime(c.last_seen_at) ?? 'неизвестно'}
                   </span>
                 </button>
@@ -391,7 +404,7 @@ function PlayedOnBm({ p }: { p: Player }) {
 
       {(bm.status === 'confirmed' || bm.status === 'single' || picked) && (
         <>
-          <p className="mb-4 text-[13.5px] leading-relaxed text-ink-2">
+          <p className="mb-4 text-[15px] leading-relaxed text-ink-2">
             {picked ? (
               <>
                 История выбранного тёзки. Что это именно тот человек — решил ты, я это{' '}
@@ -418,18 +431,18 @@ function PlayedOnBm({ p }: { p: Player }) {
                 setPickedSessions(null)
                 setPickError(false)
               }}
-              className="mb-4 text-[12.5px] text-ink-3 underline transition-colors hover:text-rust-hot"
+              className="mb-4 text-[14px] text-ink-3 underline transition-colors hover:text-rust-hot"
             >
               ← к списку тёзок
             </button>
           )}
 
           {pickError ? (
-            <p className="text-[13.5px] text-ink-2">История не загрузилась — попробуй ещё раз.</p>
+            <p className="text-[15px] text-ink-2">История не загрузилась — попробуй ещё раз.</p>
           ) : sessions == null ? (
             <Skeleton className="h-24 w-full" />
           ) : sessions.length === 0 ? (
-            <p className="text-[13.5px] text-ink-2">Сессий не нашлось.</p>
+            <p className="text-[15px] text-ink-2">Сессий не нашлось.</p>
           ) : (
             <table className="w-full">
               <thead>
@@ -446,18 +459,18 @@ function PlayedOnBm({ p }: { p: Player }) {
                       {sn.server_id ? (
                         <Link
                           to={`/servers/${sn.server_id}`}
-                          className="text-[13.5px] text-ink transition-colors hover:text-rust-hot"
+                          className="text-[15px] text-ink transition-colors hover:text-rust-hot"
                         >
                           {sn.server_name}
                         </Link>
                       ) : (
-                        <span className="text-[13.5px] text-ink-2">сервер не из нашей базы</span>
+                        <span className="text-[15px] text-ink-2">сервер не из нашей базы</span>
                       )}
                     </td>
-                    <td className="num py-2.5 text-[12.5px] text-ink-2">
+                    <td className="num py-2.5 text-[14px] text-ink-2">
                       {shortDateTime(sn.start) ?? '—'}
                     </td>
-                    <td className="num py-2.5 text-right text-[12.5px] text-ink-3">
+                    <td className="num py-2.5 text-right text-[14px] text-ink-3">
                       {sn.stop ? (
                         shortDateTime(sn.stop)
                       ) : (
@@ -470,7 +483,7 @@ function PlayedOnBm({ p }: { p: Player }) {
             </table>
           )}
 
-          <p className="mt-4 text-[12.5px] leading-relaxed text-ink-3">
+          <p className="mt-4 text-[14px] leading-relaxed text-ink-3">
             BattleMetrics видит не все серверы, так что история может быть неполной.
           </p>
         </>
@@ -485,11 +498,13 @@ function SeenOn({ p }: { p: Player }) {
   const rows = p.server_history ?? []
 
   return (
-    <section className="bleed border-b border-rule py-6">
-      <div className="eyebrow mb-4">где видели · по нашему наблюдению, не по данным Steam</div>
+    <section className="plate p-5 sm:p-6">
+      <h2 className="stencil mb-4 text-[19px] text-ink">
+        Где видел <span className="text-ink-3">· моё наблюдение</span>
+      </h2>
 
       {rows.length === 0 ? (
-        <p className="text-[13.5px] leading-relaxed text-ink-2">
+        <p className="text-[15px] leading-relaxed text-ink-2">
           Этого человека наше наблюдение не встречало. Мы сканируем топ-500 серверов — если он
           играет на маленьком, его там просто некому увидеть.
         </p>
@@ -509,25 +524,30 @@ function SeenOn({ p }: { p: Player }) {
                   {r.server_id ? (
                     <Link
                       to={`/servers/${r.server_id}`}
-                      className="text-[13.5px] text-ink transition-colors hover:text-rust-hot"
+                      className="text-[15px] text-ink transition-colors hover:text-rust-hot"
                     >
                       {r.server_name ?? 'сервер #' + r.server_id}
                     </Link>
                   ) : (
-                    <span className="text-[13.5px] text-ink">{r.server_name ?? '—'}</span>
+                    <span className="text-[15px] text-ink">{r.server_name ?? '—'}</span>
                   )}
-                  {r.is_current && (
+                  {/* «Сейчас там» — только если видел в последние 30 минут
+                      (2026-10-07): после дыры в мониторинге незакрытые
+                      сессии висели «текущими» на четырёх серверах сразу. */}
+                  {r.is_current && isRecent(r.last_seen_at) && (
                     <Tag tone="good" className="ml-3">
                       сейчас там
                     </Tag>
                   )}
                 </td>
-                <td className="num py-2.5 text-[12.5px] text-ink-2">
-                  {r.duration_minutes != null
-                    ? `${thousands(Math.round(r.duration_minutes / 60))} ч`
-                    : '—'}
+                <td className="num py-2.5 text-[14px] text-ink-2">
+                  {r.duration_minutes == null
+                    ? '—'
+                    : r.duration_minutes < 60
+                      ? 'меньше часа'
+                      : `${thousands(Math.round(r.duration_minutes / 60))} ч`}
                 </td>
-                <td className="num py-2.5 text-right text-[12.5px] text-ink-3">
+                <td className="num py-2.5 text-right text-[14px] text-ink-3">
                   {shortDateTime(r.last_seen_at ?? r.left_at ?? r.first_seen_at) ?? '—'}
                 </td>
               </tr>

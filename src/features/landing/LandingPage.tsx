@@ -1,19 +1,11 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { CycleTrack } from '../../components/CycleTrack'
 import { IconTelegram } from '../../components/icons'
-import { Button, Meter, SearchField, Segmented, cx } from '../../components/ui'
+import { Button, SearchField, Segmented } from '../../components/ui'
 import { searchServers } from '../../lib/api'
-import {
-  isNearlyEmpty,
-  nextWipe,
-  nextWipeNote,
-  relativeWipe,
-  serverTypeLabel,
-  thousands,
-  wipeAgeHours,
-} from '../../lib/format'
+import { isNearlyEmpty, thousands, wipeAgeHours } from '../../lib/format'
 import type { FilterKey, ServerListItem } from '../../lib/types'
+import { ServerRow } from '../servers/ServersPage'
 import { LiveSample } from './LiveSample'
 import { LiveStrip, useCountUp, useSiteStats } from './LiveStrip'
 
@@ -74,7 +66,7 @@ function Hero({
 
           {/* Цифры не исчезли, а перестали кричать: теперь это строка
               под заголовком, а не сам заголовок. Значения живые. */}
-          <p className="mt-5 flex flex-wrap items-baseline gap-x-2 gap-y-1 text-[12.5px] text-ink-3">
+          <p className="mt-5 flex flex-wrap items-baseline gap-x-2 gap-y-1 text-[14px] text-ink-3">
             <Stat value={stats.servers_total} label="серверов" />
             <span className="text-rule-2">·</span>
             <Stat value={stats.online_measurements} label="замеров" />
@@ -95,7 +87,7 @@ function Hero({
                 </Button>
               }
             />
-            <div className="mt-3 flex flex-wrap items-baseline gap-x-4 gap-y-1.5 text-[12.5px]">
+            <div className="mt-3 flex flex-wrap items-baseline gap-x-4 gap-y-1.5 text-[14px]">
               <span className="text-ink-3">часто ищут</span>
               {HINTS.map((h) => (
                 <button
@@ -112,7 +104,7 @@ function Hero({
             </div>
             <Link
               to="/players"
-              className="mt-3 inline-block text-[12.5px] text-ink-3 transition-colors hover:text-ink"
+              className="mt-3 inline-block text-[14px] text-ink-3 transition-colors hover:text-ink"
             >
               или пробить игрока по SteamID →
             </Link>
@@ -132,7 +124,7 @@ function Stat({ value, label }: { value: number; label: string }) {
   const shown = useCountUp(value)
   return (
     <span className="flex items-baseline gap-1.5">
-      <span className="num text-[13.5px] text-ink">{thousands(shown)}</span>
+      <span className="num text-[15px] text-ink">{thousands(shown)}</span>
       <span>{label}</span>
     </span>
   )
@@ -154,8 +146,6 @@ function FreshToday() {
   const [failed, setFailed] = useState(false)
   const [filter, setFilter] = useState<FilterKey>('all')
   const [updatedAt, setUpdatedAt] = useState<Date | null>(null)
-  const prev = useRef(new Map<number, number>())
-  const [changed, setChanged] = useState<Set<number>>(new Set())
 
   // Тянем с запасом и фильтруем на месте: переключение вкладок тогда
   // мгновенное, без похода на сервер за каждым кликом.
@@ -173,20 +163,10 @@ function FreshToday() {
           const fresh = (r.servers ?? [])
             .filter((s) => {
               const h = wipeAgeHours(s.wipe_label)
-              return h != null && h < 24 && !isNearlyEmpty(s)
+              return h != null && h < 24 && !isNearlyEmpty(s) && !s.frequent_rebirth
             })
             .sort((a, b) => b.online - a.online)
 
-          // Отмечаем строки, у которых онлайн изменился с прошлого замера —
-          // они мигнут. Движение здесь означает «пришли новые данные»,
-          // а не «нам захотелось анимации».
-          const moved = new Set<number>()
-          for (const s of fresh) {
-            const was = prev.current.get(s.id)
-            if (was != null && was !== s.online) moved.add(s.id)
-            prev.current.set(s.id, s.online)
-          }
-          setChanged(moved)
           setAll(fresh)
           setUpdatedAt(new Date())
         })
@@ -235,7 +215,7 @@ function FreshToday() {
           ))}
         </div>
       ) : rows.length === 0 ? (
-        <p className="max-w-2xl py-8 text-[13.5px] text-ink-2">
+        <p className="max-w-2xl py-8 text-[15px] text-ink-2">
           {filter === 'all' ? (
             <>
               За последние 24 часа ни один сервер с живым онлайном не вайпался. Это не сбой —
@@ -264,13 +244,14 @@ function FreshToday() {
         </p>
       ) : (
         <>
-          <ul className="pt-1">
-            {rows.map((s, i) => (
-              <FreshRow key={s.id} s={s} rank={i + 1} flash={changed.has(s.id)} />
+          {/* Та же строка, что в списке серверов — один вид на весь сайт */}
+          <ul className="-mx-4 mt-2 sm:-mx-5">
+            {rows.map((s) => (
+              <ServerRow key={s.id} s={s} />
             ))}
           </ul>
           {updatedAt && (
-            <p className="mt-3 flex items-center gap-2 text-[11.5px] text-ink-3">
+            <p className="mt-3 flex items-center gap-2 text-[13px] text-ink-3">
               <span className="live-dot block size-1.5 bg-good" />
               обновляется само · последний замер{' '}
               <span className="num">
@@ -286,51 +267,6 @@ function FreshToday() {
   )
 }
 
-function FreshRow({ s, rank, flash }: { s: ServerListItem; rank: number; flash?: boolean }) {
-  const since = wipeAgeHours(s.wipe_label)
-  const next = nextWipe(s.next_wipe_estimate)
-  return (
-    <li
-      key={`${s.id}-${s.online}`}
-      className={cx('row border-b border-rule', flash && 'flash')}
-      data-flag="fresh"
-    >
-      <Link
-        to={`/servers/${s.id}`}
-        className="grid grid-cols-[26px_1fr] items-center gap-x-5 gap-y-2 py-3 pl-3 sm:grid-cols-[26px_1fr_150px_200px]"
-      >
-        <span className="num text-[12px] text-ink-3">{rank}</span>
-        <span className="min-w-0">
-          <span className="block truncate text-[14px] font-medium text-ink">{s.name}</span>
-          <span className="mt-0.5 block text-[11.5px] text-ink-3">
-            {serverTypeLabel(s.type)}
-            {s.rate && ` · ${s.rate}`} · вайп{' '}
-            <span className={s.wipe_basis === 'online' ? 'text-ink-2' : 'text-good'}>
-              {s.wipe_basis === 'online' ? '≈ ' : ''}
-              {relativeWipe(s.wipe_label)}
-            </span>
-          </span>
-        </span>
-        <span className="hidden sm:block">
-          <span className="num block text-[13px] text-ink">
-            {thousands(s.online)}
-            <span className="text-ink-3"> / {thousands(s.max)}</span>
-          </span>
-          <span className="mt-1 block">
-            <Meter value={s.online} max={s.max} />
-          </span>
-        </span>
-        <span className="hidden pr-1 sm:block">
-          <CycleTrack sinceHours={since} untilHours={next.hours} height={16} />
-          <span className="mt-1 block text-right text-[11.5px] text-ink-3">
-            {next.text}
-            {nextWipeNote(s, next.tone)}
-          </span>
-        </span>
-      </Link>
-    </li>
-  )
-}
 
 /* -------------------------------------------------------------------- Метод
 
@@ -366,7 +302,7 @@ function Method() {
         <h2 className="mt-3 max-w-3xl text-[23px] leading-tight font-semibold text-ink sm:text-[27px]">
           BattleMetrics — это снимок. RustPeek — это память.
         </h2>
-        <p className="mt-3 max-w-2xl text-[13.5px] leading-relaxed text-ink-2">
+        <p className="mt-3 max-w-2xl text-[15px] leading-relaxed text-ink-2">
           Снимок показывает, что на сервере сейчас, и устаревает за минуту. Я записываю каждую
           смену карты и по этой истории знаю, когда был вайп и когда будет следующий.
         </p>
@@ -378,12 +314,12 @@ function Method() {
                 {s.tab}
               </span>
               <h3 className="text-[15px] leading-snug font-semibold text-ink">{s.title}</h3>
-              <p className="mt-2 text-[13px] leading-relaxed text-ink-2">{s.body}</p>
+              <p className="mt-2 text-[14.5px] leading-relaxed text-ink-2">{s.body}</p>
             </div>
           ))}
         </div>
 
-        <p className="mt-6 max-w-3xl text-[12.5px] leading-relaxed text-ink-3">
+        <p className="mt-6 max-w-3xl text-[14px] leading-relaxed text-ink-3">
           Есть серверы, которые время рождения карты не отдают. У них дата вайпа — оценка по
           провалу онлайна, и рядом с ней стоит «≈». Фактом я её не называю.
         </p>
@@ -404,7 +340,7 @@ const ABILITIES: Array<{ title: string; body: string; to?: string }> = [
   },
   {
     title: 'Карточка сервера',
-    body: 'Вердикт одной фразой, график онлайна с отметками вайпов, часы пик и вся история смен карты.',
+    body: 'Когда был вайп и когда следующий, календарь вайпов на 5 недель, онлайн и часы пик.',
     to: '/servers',
   },
   {
@@ -439,7 +375,7 @@ function WhatICan() {
                   →
                 </span>
               </h3>
-              <p className="mt-2 text-[13px] leading-relaxed text-ink-2">{a.body}</p>
+              <p className="mt-2 text-[14.5px] leading-relaxed text-ink-2">{a.body}</p>
             </>
           )
           return a.to ? (
@@ -496,8 +432,8 @@ function Faq() {
         <dl className="mt-5 m-0 grid gap-x-12 border-t border-rule lg:grid-cols-2">
           {FAQ.map(([q, a]) => (
             <div key={q} className="border-b border-rule py-4">
-              <dt className="text-[14px] font-semibold text-ink">{q}</dt>
-              <dd className="m-0 mt-1.5 text-[13.5px] leading-relaxed text-ink-2">{a}</dd>
+              <dt className="text-[15px] font-semibold text-ink">{q}</dt>
+              <dd className="m-0 mt-1.5 text-[15px] leading-relaxed text-ink-2">{a}</dd>
             </div>
           ))}
         </dl>
@@ -527,7 +463,7 @@ function Cta() {
           <IconTelegram size={14} />
           Тот же мониторинг в телеграме
         </a>
-        <span className="text-[12.5px] text-ink-3">
+        <span className="text-[14px] text-ink-3">
           вочлист и рейд-алерты — пока только в боте
         </span>
       </div>

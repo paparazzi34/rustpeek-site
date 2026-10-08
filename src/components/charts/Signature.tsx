@@ -90,7 +90,7 @@ export function Signature() {
       </svg>
 
       {/* Подписи — обычным шрифтом, позиции привязаны к тем же долям ленты */}
-      <figcaption className="relative mt-2 h-9 text-[11.5px] text-ink-3">
+      <figcaption className="relative mt-2 h-9 text-[13px] text-ink-3">
         <span className="absolute left-[10%] -translate-x-1/2 text-center leading-tight">
           пик
           <br />

@@ -52,7 +52,7 @@ export function OnlineChart({
 
   if (!data) {
     return (
-      <div ref={ref} className="flex items-center py-10 text-[13px] text-ink-3">
+      <div ref={ref} className="flex items-center py-10 text-[14.5px] text-ink-3">
         Нет свежих данных за этот период.
       </div>
     )
@@ -127,7 +127,7 @@ export function OnlineChart({
               y={y(v) + 3.5}
               textAnchor="end"
               className="num"
-              fontSize="10"
+              fontSize="11.5"
               fill="var(--color-ink-3)"
             >
               {v >= 1000 ? (v / 1000).toFixed(1).replace('.0', '') + 'k' : v}
@@ -143,7 +143,7 @@ export function OnlineChart({
             y={height - 7}
             textAnchor="middle"
             className="num"
-            fontSize="10"
+            fontSize="11.5"
             fill="var(--color-ink-3)"
           >
             {/* окно короче двух суток — подписываем часы, иначе все
@@ -194,7 +194,7 @@ export function OnlineChart({
                 y={PAD.top + ih - 3.5}
                 textAnchor="middle"
                 className="num"
-                fontSize="9.5"
+                fontSize="11"
                 fill="var(--color-good)"
               >
                 {n}
@@ -232,8 +232,8 @@ export function OnlineChart({
             left: `clamp(0px, ${(x(hovered.t.getTime()) / w) * 100}% - 60px, calc(100% - 122px))`,
           }}
         >
-          <div className="num text-[14px] font-medium text-ink">{thousands(hovered.v)}</div>
-          <div className="num mt-0.5 text-[10.5px] text-ink-3">
+          <div className="num text-[15px] font-medium text-ink">{thousands(hovered.v)}</div>
+          <div className="num mt-0.5 text-[12px] text-ink-3">
             {pad2(hovered.t.getDate())}.{pad2(hovered.t.getMonth() + 1)}{' '}
             {pad2(hovered.t.getHours())}:{pad2(hovered.t.getMinutes())}
           </div>

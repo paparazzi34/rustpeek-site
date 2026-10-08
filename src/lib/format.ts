@@ -186,5 +186,21 @@ export const serverTypeLabel =(t?: string | null) => (t === 'vanilla' ? 'Vanilla
 
 /** BM иногда кладёт в map_name рекламу вместо названия карты */
 export function isJunkMapName(name?: string | null) {
-  return /https?:|discord\.gg|\.(com|net|ru|gg|org)\b|\//i.test(name || '')
+  // + «Вайп был 2д назад» и подобное (2026-10-07): админы пишут в поле
+  // карты рекламу вайпа, а карточка показывала это как название карты.
+  // [вb][аa]йп — Magic Rust пишет «Baйп» с латинскими B и a.
+  return /https?:|discord\.gg|\.(com|net|ru|gg|org)\b|\/|[вb][аa]йп|wipe|назад|\bago\b/i.test(name || '')
+}
+
+/** "ср, 07.10 в 15:52" — дата в местном времени человека. */
+export function longDateTime(d: Date | null): string | null {
+  if (!d) return null
+  return `${WEEKDAYS_SHORT[d.getDay()]}, ${pad2(d.getDate())}.${pad2(d.getMonth() + 1)} в ${pad2(d.getHours())}:${pad2(d.getMinutes())}`
+}
+
+/** Первый четверг месяца — день глобального вайпа Facepunch (по UTC). */
+export function firstThursdayUtc(year: number, month: number): Date {
+  const d = new Date(Date.UTC(year, month, 1, 17, 48))
+  while (d.getUTCDay() !== 4) d.setUTCDate(d.getUTCDate() + 1)
+  return d
 }

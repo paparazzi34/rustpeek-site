@@ -2,9 +2,9 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { OnlineChart } from '../../components/charts/OnlineChart'
 import { PrimeTime } from '../../components/charts/PrimeTime'
-import { CycleTrackLarge } from '../../components/CycleTrack'
 import { IconArrowLeft } from '../../components/icons'
 import { ErrorState, Meter, Segmented, Skeleton, Tag, cx } from '../../components/ui'
+import { WipeCalendar } from '../../components/WipeCalendar'
 import { getHistory, getHourlyProfile, getServer, getWipes } from '../../lib/api'
 import {
   EMPTY_PEAK_24H,
@@ -12,9 +12,10 @@ import {
   activityLabel,
   intervalText,
   isJunkMapName,
-  localWipeLabel,
+  longDateTime,
   nextWipe,
   parseSqlDateTime,
+  parseWipeLabel,
   plural,
   relativeWipe,
   serverTypeLabel,
@@ -25,19 +26,13 @@ import {
 import type { NextWipe } from '../../lib/format'
 import type { HistoryResponse, HourlyProfile, Period, ServerDetail, WipeRow } from '../../lib/types'
 
-/* СТРАНИЦА СЕРВЕРА.
+/* СТРАНИЦА СЕРВЕРА (редизайн v4, 2026-10-07).
 
-   Порядок продиктован тем, в каком порядке человек задаёт вопросы:
-     1. «Стоит туда идти?»      → вердикт одной фразой, крупно, первым делом
-     2. «На каком мы этапе?»    → трек фазы цикла во всю ширину
-     3. «Сколько там людей?»    → полоса метрик
-     4. «Покажи, откуда знаешь» → график с рубцами вайпов
-     5. «Когда там людно?»      → прайм-тайм
-     6. «А раньше как было?»    → история вайпов
-     7. «Технические детали»    → в самом низу, потому что спрашивают редко
-
-   Всё разделено линиями, ни одного блока в рамке: страница читается
-   сверху вниз одним движением, а не собирается из плиток. */
+   Прежняя версия отвечала на вопрос «когда вайп» трижды — фразой, треком
+   и полосой цифр — и при этом ни разу крупно. Теперь ответ один и сверху:
+   панель «Ответ» с тремя крупными значениями (последний вайп, следующий,
+   онлайн) и календарём вайпов рядом. Всё остальное — доказательства и
+   подробности, ниже и спокойнее. */
 
 const PERIODS: Array<{ value: Period; label: string }> = [
   { value: '24h', label: '24 ч' },
@@ -45,6 +40,8 @@ const PERIODS: Array<{ value: Period; label: string }> = [
   { value: 'month', label: '30 дней' },
   { value: 'all', label: 'всё' },
 ]
+
+const HISTORY_ROWS = 8
 
 export function ServerDetailPage() {
   const { id } = useParams()
@@ -86,19 +83,8 @@ export function ServerDetailPage() {
     }
   }, [serverId, period])
 
-  if (error) {
-    return (
-      <div className="bleed pt-6">
-        <ErrorState title={error} />
-        <Link to="/servers" className="btn mt-4 h-8">
-          Ко всем серверам
-        </Link>
-      </div>
-    )
-  }
-
   // Сквозной номер подтверждённого вайпа — общий для рубцов на графике и
-  // строк таблицы: подпись под графиком обещает, что они совпадают.
+  // строк таблицы.
   const wipeNumbers = useMemo(() => {
     const confirmed = (wipes ?? [])
       .filter((w) => !w.suspicious)
@@ -107,12 +93,31 @@ export function ServerDetailPage() {
     return new Map(confirmed.map((t, i) => [t, i + 1]))
   }, [wipes])
 
+  const confirmedDates = useMemo(
+    () =>
+      (wipes ?? [])
+        .filter((w) => !w.suspicious)
+        .map((w) => parseSqlDateTime(w.wipe_time))
+        .filter((d): d is Date => d != null),
+    [wipes],
+  )
+
+  if (error) {
+    return (
+      <div className="bleed pt-8">
+        <ErrorState title={error} />
+        <Link to="/servers" className="btn mt-4">
+          Ко всем серверам
+        </Link>
+      </div>
+    )
+  }
+
   if (!server) {
     return (
-      <div className="bleed space-y-3 pt-6">
-        <Skeleton className="h-6 w-40" />
-        <Skeleton className="h-10 w-2/3" />
-        <Skeleton className="h-16 w-full" />
+      <div className="bleed space-y-4 pt-8">
+        <Skeleton className="h-8 w-2/3" />
+        <Skeleton className="h-[340px] w-full" />
         <Skeleton className="h-[300px] w-full" />
       </div>
     )
@@ -120,85 +125,65 @@ export function ServerDetailPage() {
 
   const since = wipeAgeHours(server.wipe)
   const next = nextWipe(server.next_wipe_estimate)
-  // Цикл неизвестен, но глобал близко — честная граница «не позже».
   const bound = next.tone === 'unknown' ? forcedBound(server) : null
-  // Наблюдали ли мы сам вайп (смену карты) — или дата лишь предположение.
   const observed = !server.wipe_basis || server.wipe_basis === 'map'
   const fresh = observed && since != null && since < 24
-  const fill = server.max > 0 ? server.online / server.max : 0
 
-  /* Редизайн 2026-10-02 («всё в одну кучу»): страница из одних линий
-     читалась сплошной лентой. Теперь каждый вопрос из списка выше — своя
-     плита с ярлыком в кромке; между плитами воздух. */
   return (
-    <>
+    <div className="bleed pt-6 pb-4">
       <Header server={server} />
 
-      <div className="bleed space-y-9 pt-8">
-        <div className={cx('plate', fresh && 'border-l-2 border-l-good')}>
-          <span className="plate-tab" data-tone={fresh ? 'good' : undefined}>
-            сейчас
-          </span>
-          <Verdict server={server} since={since} next={next} bound={bound} fill={fill} fresh={fresh} />
-          {/* ---- Фаза цикла: подписной элемент, во всю ширину ---- */}
-          <div className="border-t border-rule px-4 py-5 sm:px-5">
-            <CycleTrackLarge
-              sinceHours={since}
-              untilHours={bound ? bound.hours : next.hours}
-              wipedAt={
-                server.wipe
-                  ? (observed ? '' : '≈ ') + localWipeLabel(server.wipe)
-                  : 'нет данных'
-              }
-              wipedLabel={observed ? 'подтверждённый вайп' : 'предполагаемый вайп'}
-              nextAt={shortDateTime(bound ? server.forced_wipe : server.next_wipe_estimate) ?? '—'}
-              forced={server.next_wipe_forced}
-              upperBound={bound != null}
-            />
-          </div>
-        </div>
+      <Answer
+        server={server}
+        since={since}
+        next={next}
+        bound={bound}
+        observed={observed}
+        fresh={fresh}
+        wipes={confirmedDates}
+      />
 
-        <Metrics server={server} />
-
-        {/* ---- График онлайна ---- */}
-        <section className="plate px-4 pt-6 pb-5 sm:px-5">
-          <span className="plate-tab">онлайн по времени</span>
-          <div className="mb-4 flex flex-wrap items-end justify-between gap-4">
-            <p className="max-w-xl text-[13px] text-ink-2">
-              Вертикальные рубцы — подтверждённые вайпы. Номер на рубце совпадает с номером
-              строки в истории ниже.
+      {/* ---- График онлайна ---- */}
+      <section className="plate mt-6 p-4 sm:p-6">
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="stencil text-[19px] text-ink">Онлайн</h2>
+            <p className="mt-0.5 text-[14px] text-ink-3">
+              Зелёные отметки — подтверждённые вайпы, номер совпадает с историей ниже.
             </p>
-            <Segmented value={period} options={PERIODS} onChange={setPeriod} ariaLabel="Период" />
           </div>
-          {history == null ? (
-            <Skeleton className="h-[300px] w-full" />
-          ) : (
-            <OnlineChart
-              points={history.points}
-              wipes={history.wipes}
-              granularity={history.granularity}
-              wipeNumbers={wipeNumbers}
-            />
-          )}
-        </section>
+          <Segmented value={period} options={PERIODS} onChange={setPeriod} ariaLabel="Период" />
+        </div>
+        {history == null ? (
+          <Skeleton className="h-[300px] w-full" />
+        ) : (
+          <OnlineChart
+            points={history.points}
+            wipes={history.wipes}
+            granularity={history.granularity}
+            wipeNumbers={wipeNumbers}
+          />
+        )}
+      </section>
 
-        {/* ---- Прайм-тайм ---- */}
-        <section className="plate px-4 pt-6 pb-5 sm:px-5">
-          <span className="plate-tab">когда там людно · по часам, 30 дней</span>
+      {/* ---- Часы пик + о сервере ---- */}
+      <div className="mt-6 grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
+        <section className="plate p-4 sm:p-6">
+          <h2 className="stencil text-[19px] text-ink">Когда там людно</h2>
+          <p className="mt-0.5 mb-5 text-[14px] text-ink-3">
+            Средний онлайн по часам за 30 дней, в твоём времени.
+          </p>
           {hourly ? (
             <PrimeTime hours={hourly.hours} peakHour={hourly.peak_hour} />
           ) : (
             <Skeleton className="h-[104px] w-full" />
           )}
         </section>
-
-        {/* ---- История вайпов + техданные ---- */}
-        <div className="grid gap-x-4 gap-y-9 lg:grid-cols-[1fr_300px]">
-          <WipeHistory wipes={wipes} wipeNumbers={wipeNumbers} />
-          <TechPanel server={server} />
-        </div>
+        <Facts server={server} />
       </div>
-    </>
+
+      <WipeHistory wipes={wipes} wipeNumbers={wipeNumbers} />
+    </div>
   )
 }
 
@@ -206,256 +191,246 @@ export function ServerDetailPage() {
 
 function Header({ server }: { server: ServerDetail }) {
   const activity = activityLabel(server.activity_status)
-  const map = isJunkMapName(server.map_name) ? null : server.map_name
-
   return (
-    <div className="bleed border-b border-rule pt-4 pb-5">
+    <div className="mb-6">
       <Link
         to="/servers"
-        className="inline-flex items-center gap-1.5 text-[12.5px] text-ink-3 transition-colors hover:text-ink"
+        className="inline-flex items-center gap-1.5 text-[14px] text-ink-3 transition-colors hover:text-ink"
       >
-        <IconArrowLeft size={13} />
-        Ко всем серверам
+        <IconArrowLeft size={14} />
+        Все серверы
       </Link>
-
-      <h1
-        className="mt-3 text-[26px] leading-tight font-semibold text-ink sm:text-[32px]"
-        style={{ letterSpacing: '-0.01em' }}
-      >
+      <h1 className="mt-3 text-[26px] leading-tight font-bold text-ink sm:text-[34px]">
         {server.name}
       </h1>
-
-      <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[12.5px] text-ink-3">
-        <span>{serverTypeLabel(server.type)}</span>
-        {server.rate && <span className="num">{server.rate}</span>}
-        {activity && <span>{activity}</span>}
-        {map && <span>{map}</span>}
-        {server.map_size && <span className="num">размер карты {server.map_size}</span>}
-        {server.ip && (
-          <span className="num">
-            {server.ip}
-            {server.port ? ':' + server.port : ''}
-          </span>
-        )}
+      <div className="mt-3 flex flex-wrap items-center gap-1.5">
+        <span className="chip">{serverTypeLabel(server.type)}</span>
+        {server.rate && <span className="chip">{server.rate}</span>}
+        {server.country && <span className="chip">{server.country.toUpperCase()}</span>}
+        {server.team_limit && <span className="chip">{server.team_limit}</span>}
+        {activity && <span className="chip">{activity}</span>}
       </div>
     </div>
   )
 }
 
-/* ----------------------------------------------------------------- Вердикт
-   Одна фраза человеческим языком. Это первое, что читают, и часто
-   единственное, что читают — поэтому она набрана крупно и стоит выше
-   любых графиков. Цифры внутри фразы — моноширинные, слова — обычные. */
+/* ------------------------------------------------------------------ Ответ
+   Три крупных значения слева, календарь справа. Пояснения — одной-двумя
+   строками ниже и только когда они что-то меняют в ответе. */
 
-function Verdict({
+function Answer({
   server,
   since,
   next,
-  fill,
-  fresh,
   bound,
+  observed,
+  fresh,
+  wipes,
 }: {
   server: ServerDetail
   since: number | null
-  next: ReturnType<typeof nextWipe>
-  fill: number
-  fresh: boolean
+  next: NextWipe
   bound: NextWipe | null
+  observed: boolean
+  fresh: boolean
+  wipes: Date[]
 }) {
+  const fill = server.max > 0 ? server.online / server.max : 0
   const nearlyEmpty = server.peak != null && server.peak < EMPTY_PEAK_24H
-  const state =
-    server.online_stale
-      ? 'нет свежих данных'
-      : fill >= 0.95
-        ? 'забит под завязку'
-        : fill >= 0.75
-          ? 'почти полный'
-          : server.activity_status === 'growing'
-            ? 'заполняется'
-            : server.activity_status === 'draining'
-              ? 'пустеет'
-              : fill < 0.1
-                ? 'практически пустой'
-                : 'ровный онлайн'
+  const lastWipe = parseWipeLabel(server.wipe)
+  const forecast = parseSqlDateTime(bound ? server.forced_wipe : server.next_wipe_estimate)
+
+  const state = server.online_stale
+    ? 'нет свежих данных'
+    : fill >= 0.95
+      ? 'забит под завязку'
+      : fill >= 0.75
+        ? 'почти полный'
+        : server.activity_status === 'growing'
+          ? 'заполняется'
+          : server.activity_status === 'draining'
+            ? 'пустеет'
+            : fill < 0.1
+              ? 'почти пустой'
+              : 'есть места'
+
+  const nextNote =
+    next.tone !== 'unknown'
+      ? server.next_wipe_forced
+        ? 'глобальный вайп Facepunch — раньше своего расписания'
+        : server.cycle_source === 'name'
+          ? `по циклу из названия сервера · ${server.cycle}`
+          : `по циклу ${server.cycle ?? ''} из истории смен карты`
+      : bound
+        ? 'своего цикла нет, но в первый четверг месяца Facepunch вайпает всех'
+        : 'вайпы нерегулярные или наблюдаю недавно — дату не выдумываю'
 
   return (
-    <section className="px-4 pt-6 pb-5 sm:px-5">
-      <p className="max-w-4xl text-[19px] leading-snug text-ink sm:text-[23px]">
-        {since == null ? (
-          <>Подтверждённого вайпа в памяти пока нет.</>
-        ) : (
-          <>
-            {server.wipe_basis && server.wipe_basis !== 'map' ? 'Предположительно вайпнулся ≈ ' : 'Вайпнулся '}
-            <span className={fresh ? 'text-good' : undefined}>{relativeWipe(server.wipe)}</span>
-          </>
-        )}
-        {' · '}
-        {state}
-        {!server.online_stale && (
-          <>
-            ,{' '}
-            <span className="num">{thousands(server.online)}</span> из{' '}
-            <span className="num">{thousands(server.max)}</span>
-          </>
-        )}
-        {' · '}
-        {next.tone === 'unknown' && bound ? (
-          <>
-            следующий не позже чем{' '}
-            <span className={bound.tone === 'soon' ? 'text-warn' : undefined}>{bound.text}</span>
-            <span className="text-ink-3"> — глобальный вайп</span>
-          </>
-        ) : next.tone === 'unknown' ? (
-          <span className="text-ink-3">следующий вайп — цикл не определён</span>
-        ) : (
-          <>
-            следующий{' '}
-            <span className={next.tone === 'soon' ? 'text-warn' : undefined}>{next.text}</span>
-            {server.next_wipe_forced && <span className="text-ink-3"> — глобальный вайп</span>}
-          </>
-        )}
-      </p>
+    <section className={cx('plate overflow-hidden', fresh && 'border-good/50')}>
+      <div className="grid lg:grid-cols-[minmax(0,1fr)_440px]">
+        <div className="p-5 sm:p-7">
+          {/* Последний вайп */}
+          <div className="eyebrow">Последний вайп</div>
+          {since == null ? (
+            <div className="stencil mt-2 text-[30px] leading-none text-ink-3">Ещё не видел</div>
+          ) : (
+            <>
+              <div
+                className={cx(
+                  'stencil mt-2 text-[34px] leading-none sm:text-[44px]',
+                  fresh ? 'text-good' : 'text-ink',
+                )}
+              >
+                {observed ? '' : '≈ '}
+                {relativeWipe(server.wipe)}
+              </div>
+              <div className="mt-2 flex flex-wrap items-center gap-2 text-[15px] text-ink-2">
+                {longDateTime(lastWipe)}
+                {observed ? (
+                  <span className="chip" data-tone="good">
+                    смена карты
+                  </span>
+                ) : (
+                  <span className="chip">оценка</span>
+                )}
+              </div>
+            </>
+          )}
 
-      {nearlyEmpty && since != null && (
-        <p className="mt-3 max-w-3xl text-[13px] leading-relaxed text-warn">
-          Сервер почти пустой: пик за всё наблюдение — {thousands(server.peak)}. Частые смены
-          карты на таких серверах — скорее перезапуски, чем вайп, ради которого стоит заходить.
-        </p>
+          {/* Следующий */}
+          <div className="eyebrow mt-7">Следующий вайп</div>
+          {next.tone === 'unknown' && !bound ? (
+            <div className="stencil mt-2 text-[30px] leading-none text-ink-3">Цикл не определён</div>
+          ) : (
+            <>
+              <div
+                className={cx(
+                  'stencil mt-2 text-[34px] leading-none sm:text-[44px]',
+                  (bound ?? next).tone === 'soon' ? 'text-warn' : 'text-ink',
+                )}
+              >
+                {bound ? 'не позже ' : ''}
+                {(bound ?? next).text}
+              </div>
+              <div className="mt-2 text-[15px] text-ink-2">{longDateTime(forecast)}</div>
+            </>
+          )}
+          <p className="mt-1.5 text-[14px] text-ink-3">{nextNote}</p>
+
+          {/* Онлайн */}
+          <div className="eyebrow mt-7">Онлайн сейчас</div>
+          {server.online_stale ? (
+            <div className="stencil mt-2 text-[24px] leading-none text-ink-3">нет свежих данных</div>
+          ) : (
+            <div className="mt-2 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+              <span className="num text-[34px] leading-none font-bold text-ink">
+                {thousands(server.online)}
+              </span>
+              <span className="num text-[18px] text-ink-3">из {thousands(server.max)}</span>
+              <span className="text-[15px] text-ink-2">· {state}</span>
+            </div>
+          )}
+          {!server.online_stale && (
+            <div className="mt-3 max-w-sm">
+              <Meter value={server.online} max={server.max} />
+            </div>
+          )}
+        </div>
+
+        <div className="border-t border-rule bg-panel-2/60 p-5 sm:p-7 lg:border-t-0 lg:border-l">
+          <div className="eyebrow mb-3">Вайпы за 5 недель</div>
+          <WipeCalendar wipes={wipes} forecast={forecast} forecastIsBound={bound != null} />
+        </div>
+      </div>
+
+      {(nearlyEmpty || (!observed && server.wipe_basis && BASIS_NOTE[server.wipe_basis])) && (
+        <div className="space-y-1.5 border-t border-rule bg-[color-mix(in_srgb,var(--color-warn)_8%,transparent)] px-5 py-4 text-[14px] leading-relaxed text-warn sm:px-7">
+          {nearlyEmpty && (
+            <p>
+              Сервер почти пустой: пик за всё наблюдение — {thousands(server.peak)}. Частые смены
+              карты здесь — скорее перезапуски, чем вайп, ради которого стоит заходить.
+            </p>
+          )}
+          {!observed && server.wipe_basis && BASIS_NOTE[server.wipe_basis] && (
+            <p>{BASIS_NOTE[server.wipe_basis]}</p>
+          )}
+        </div>
       )}
-
-      {server.wipe_basis && server.wipe_basis !== 'map' && BASIS_NOTE[server.wipe_basis] && (
-        <p className="mt-3 max-w-3xl text-[13px] leading-relaxed text-warn">
-          {BASIS_NOTE[server.wipe_basis]}
-        </p>
-      )}
-
-      <p className="mt-3 max-w-3xl text-[13px] leading-relaxed text-ink-2">
-        {next.tone === 'unknown' ? (
-          <>
-            Интервалы между вайпами на этом сервере не складываются в ровный цикл — либо админ
-            вайпает нерегулярно, либо наблюдение началось недавно. Придумать дату можно, опереться
-            на неё нельзя.
-            {bound && (
-              <>
-                {' '}
-                Одно известно точно: в первый четверг месяца Facepunch вайпает все серверы
-                принудительно, так что не позже{' '}
-                <span className="num text-ink">{shortDateTime(server.forced_wipe)}</span> карта
-                сменится и здесь.
-              </>
-            )}
-          </>
-        ) : server.cycle && server.cycle_source === 'name' ? (
-          <>
-            Цикл <DaysValue text={server.cycle} className="text-ink" /> заявил админ в названии
-            сервера. Своих подтверждённых вайпов для проверки пока мало, но те, что есть, ему не
-            противоречат.
-          </>
-        ) : server.cycle ? (
-          <>
-            Цикл <DaysValue text={server.cycle} className="text-ink" /> — это не слова админа, а
-            среднее по интервалам между подтверждёнными вайпами из таблицы ниже.
-          </>
-        ) : (
-          <>Прогноз построен по интервалам между подтверждёнными вайпами, а не по полю «last wipe».</>
-        )}
-        {server.next_wipe_forced && (
-          <>
-            {' '}
-            Ближайший вайп — глобальный: в первый четверг месяца Facepunch вайпает все серверы
-            принудительно, раньше собственного расписания.
-          </>
-        )}
-      </p>
     </section>
   )
 }
 
-/* ----------------------------------------------------------- Полоса метрик
-   Не плитки с рамками, а ряд значений через вертикальные линии. */
+/* ----------------------------------------------------------------- Факты */
 
-function Metrics({ server }: { server: ServerDetail }) {
-  const cells: Array<{ label: string; value: React.ReactNode; sub?: React.ReactNode }> = [
-    {
-      label: 'онлайн сейчас',
-      value: server.online_stale ? (
-        <span className="text-[17px] text-ink-3">нет данных</span>
-      ) : (
-        <>
-          <span className="num">{thousands(server.online)}</span>
-          <span className="num text-[15px] text-ink-3"> / {thousands(server.max)}</span>
-        </>
-      ),
-      sub: server.online_stale ? 'последний замер не прошёл' : <Meter value={server.online} max={server.max} />,
-    },
-    {
-      label: 'пик за всё наблюдение',
-      value: <span className="num">{thousands(server.peak)}</span>,
-      sub: server.avg != null ? <>средний {thousands(server.avg)}</> : undefined,
-    },
-    {
-      label: 'цикл',
-      value: server.cycle ? (
-        <DaysValue text={server.cycle} />
-      ) : (
-        <span className="text-[17px] text-ink-3 italic">не определён</span>
-      ),
-      sub: server.cycle
-        ? server.cycle_source === 'name'
-          ? 'заявлен в названии'
-          : 'по интервалам между вайпами'
-        : 'интервалы разъезжаются',
-    },
-    {
-      label: 'в базе',
-      value: (
-        <>
-          <span className="num">{server.history_span_days ?? '—'}</span> дней
-        </>
-      ),
-      sub: server.total_measurements != null ? (
-        <>
-          <span className="num">{thousands(server.total_measurements)}</span> замеров
-        </>
-      ) : undefined,
-    },
-  ]
+function Facts({ server }: { server: ServerDetail }) {
+  const [copied, setCopied] = useState(false)
+  const map = isJunkMapName(server.map_name) ? null : server.map_name
+  const address = server.ip ? `${server.ip}${server.port ? ':' + server.port : ''}` : null
+
+  const rows = (
+    [
+      [
+        'Цикл',
+        server.cycle
+          ? `${server.cycle}${server.cycle_source === 'name' ? ' (из названия)' : ''}`
+          : 'не определён',
+      ],
+      ['Пик онлайна', server.peak != null ? thousands(server.peak) : null],
+      ['Средний онлайн', server.avg != null ? thousands(server.avg) : null],
+      [
+        'Наблюдаю',
+        server.history_span_days != null
+          ? `${server.history_span_days} ${plural(server.history_span_days, 'день', 'дня', 'дней')}`
+          : null,
+      ],
+      ['Карта', map],
+      ['Размер карты', server.map_size ? String(server.map_size) : null],
+      ['Лимит группы', server.team_limit],
+      ['Вайп чертежей', server.bp_wipe],
+    ] as Array<[string, string | null | undefined]>
+  ).filter(([, v]) => v != null && v !== '')
 
   return (
-    <section className="plate px-4 sm:px-5">
-      <span className="plate-tab">в цифрах</span>
-      <div className="grid grid-cols-2 lg:grid-cols-4">
-        {cells.map((c, i) => (
-          <div
-            key={c.label}
-            className={cx(
-              'pt-6 pb-4 pr-5',
-              // На узком экране сетка 2×2: вертикальная линия только между
-              // колонками, горизонтальная — между рядами. На широком —
-              // один ряд из четырёх, линии только вертикальные.
-              i % 2 === 1 ? 'border-l border-rule pl-5' : 'lg:border-l lg:border-rule lg:pl-5',
-              i === 0 && 'lg:border-l-0 lg:pl-0',
-              i >= 2 && 'border-t border-rule lg:border-t-0',
-            )}
-          >
-            <div className="eyebrow">{c.label}</div>
-            <div className="mt-2 text-[22px] leading-none font-semibold text-ink">{c.value}</div>
-            <div className="mt-2 text-[11.5px] text-ink-3">{c.sub}</div>
+    <section className="plate p-4 sm:p-6">
+      <h2 className="stencil mb-3 text-[19px] text-ink">О сервере</h2>
+      <dl className="m-0">
+        {rows.map(([k, v]) => (
+          <div key={k} className="flex items-baseline justify-between gap-4 border-b border-rule py-2">
+            <dt className="text-[14px] text-ink-3">{k}</dt>
+            <dd className="num m-0 max-w-[60%] text-right text-[15px] text-ink">{v}</dd>
           </div>
         ))}
-      </div>
+      </dl>
+
+      {address && (
+        <button
+          type="button"
+          className="btn mt-4 w-full normal-case"
+          onClick={() => {
+            navigator.clipboard?.writeText(`client.connect ${address}`).then(
+              () => {
+                setCopied(true)
+                setTimeout(() => setCopied(false), 1600)
+              },
+              () => {},
+            )
+          }}
+          title="Скопировать команду для консоли F1"
+        >
+          <span className="num">{copied ? 'Скопировано' : `client.connect ${address}`}</span>
+        </button>
+      )}
+      <a href="https://t.me/RustPeek_Bot" target="_blank" rel="noopener" className="btn btn-solid mt-2 w-full">
+        Следить за вайпами в боте
+      </a>
+      <p className="mt-2 text-[13px] leading-relaxed text-ink-3">
+        Бот напишет в телеграм, когда здесь подтвердится вайп.
+      </p>
     </section>
   )
 }
 
-/* --------------------------------------------------------- История вайпов
-   Подозрительные записи не выбрасываются — это часть договора с читателем:
-   показываю всё, что нашёл, включая то, в чём сомневаюсь. Но по умолчанию
-   они свёрнуты: у серверов с ежедневным рестартом отбракованных строк в
-   разы больше настоящих, и таблица превращалась в стену красных меток
-   (у [US East] Facepunch 1 страница вырастала до 13 000 px). Интервалы
-   считаются между показанными строками — иначе у настоящего вайпа стоял бы
-   интервал до соседнего рестарта. */
+/* --------------------------------------------------------- История вайпов */
 
 function WipeHistory({
   wipes,
@@ -465,6 +440,7 @@ function WipeHistory({
   wipeNumbers: Map<string, number>
 }) {
   const [showRejected, setShowRejected] = useState(false)
+  const [showAll, setShowAll] = useState(false)
   const rejectedCount = useMemo(() => (wipes ?? []).filter((w) => w.suspicious).length, [wipes])
   const rows = useMemo(() => {
     const shown = (wipes ?? [])
@@ -481,153 +457,123 @@ function WipeHistory({
     return withIntervals.reverse()
   }, [wipes, showRejected])
 
+  const visible = showAll ? rows : rows.slice(0, HISTORY_ROWS)
+
   return (
-    <section className="plate min-w-0 px-4 pt-6 pb-5 sm:px-5">
-      <span className="plate-tab">
-        история вайпов · {showRejected ? 'с отбракованными' : 'подтверждённые'}
-      </span>
+    <section className="plate mt-6 p-4 sm:p-6">
+      <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
+        <h2 className="stencil text-[19px] text-ink">История вайпов</h2>
+        {rows.length > 0 && (
+          <span className="text-[14px] text-ink-3">
+            {showRejected ? 'все записи' : 'подтверждённые'} · {rows.length}
+          </span>
+        )}
+      </div>
 
       {wipes == null ? (
         <Skeleton className="h-40 w-full" />
       ) : rows.length === 0 ? (
-        <p className="text-[13.5px] text-ink-2">
-          Подтверждённых вайпов пока нет. Наблюдение за этим сервером началось недавно — как
-          только кривая покажет провал и рост, строка появится здесь.
+        <p className="text-[15px] text-ink-2">
+          Подтверждённых вайпов пока нет — строка появится, как только увижу смену карты.
         </p>
       ) : (
-        <table className="w-full">
-          <thead>
-            <tr className="border-b border-rule text-left">
-              <th className="eyebrow w-8 pb-2 font-normal">#</th>
-              <th className="eyebrow pr-3 pb-2 font-normal">когда</th>
-              <th className="eyebrow pr-3 pb-2 font-normal">день</th>
-              <th className="eyebrow pr-3 pb-2 font-normal">интервал</th>
-              <th className="eyebrow pb-2 text-right font-normal">пик 24 ч</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((w) => {
-              const d = parseSqlDateTime(w.wipe_time)
-              const n = wipeNumbers.get(w.wipe_time)
-              return (
-                <tr key={w.wipe_time} className="row border-b border-rule">
-                  <td className="num w-8 py-2.5 pr-3 text-[12px] text-ink-3">{n ?? '·'}</td>
-                  <td className="py-2.5 pr-3">
-                    <span className="num text-[13px] text-ink">{shortDateTime(w.wipe_time)}</span>
-                    {w.suspicious && (
-                      <Tag tone="bad" className="ml-3">
-                        похоже на сбой замера
-                      </Tag>
-                    )}
-                    {w.source_note && (
-                      <span className="ml-3 text-[11.5px] text-ink-3">{w.source_note}</span>
-                    )}
-                  </td>
-                  <td className="py-2.5 pr-3 text-[12.5px] text-ink-2">
-                    {d ? WEEKDAYS_SHORT[d.getDay()] : '—'}
-                  </td>
-                  <td className="num py-2.5 pr-3 text-[12.5px] text-ink-2">
-                    {w.interval_hours == null ? (
-                      <span className="text-ink-3">первый в памяти</span>
-                    ) : (
-                      intervalText(w.interval_hours)
-                    )}
-                  </td>
-                  <td className="num py-2.5 text-right text-[12.5px] text-ink-2">
-                    {w.peak_after_24h == null ? '—' : thousands(w.peak_after_24h)}
-                  </td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
+        <div>
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-rule text-left">
+                <th className="eyebrow w-10 pb-2 font-normal">№</th>
+                <th className="eyebrow pr-4 pb-2 font-normal">Когда</th>
+                <th className="eyebrow pr-4 pb-2 font-normal">Через</th>
+                <th className="eyebrow pb-2 text-right font-normal">
+                  Пик<span className="hidden sm:inline"> за сутки</span>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {visible.map((w) => {
+                const d = parseSqlDateTime(w.wipe_time)
+                const n = wipeNumbers.get(w.wipe_time)
+                return (
+                  <tr key={w.wipe_time} className="row border-b border-rule last:border-0">
+                    <td className="num py-2.5 text-[14px] text-ink-3">{n ?? '·'}</td>
+                    <td className="py-2.5 pr-4">
+                      <span className="num text-[15px] text-ink">
+                        {d ? WEEKDAYS_SHORT[d.getDay()] + ', ' : ''}
+                        {shortDateTime(w.wipe_time)}
+                      </span>
+                      {w.suspicious && (
+                        <Tag tone="bad" className="ml-3">
+                          похоже на сбой замера
+                        </Tag>
+                      )}
+                      {w.source_note && (
+                        <span className="block text-[13px] text-ink-3 sm:ml-3 sm:inline">
+                          {w.source_note}
+                        </span>
+                      )}
+                    </td>
+                    <td className="num py-2.5 pr-4 text-[14px] text-ink-2">
+                      {w.interval_hours == null ? (
+                        <span className="text-ink-3">первый в памяти</span>
+                      ) : (
+                        intervalText(w.interval_hours)
+                      )}
+                    </td>
+                    <td className="num py-2.5 text-right text-[14px] text-ink-2">
+                      {w.peak_after_24h == null || w.peak_after_24h === 0 ? (
+                        <span className="text-ink-3">—</span>
+                      ) : (
+                        thousands(w.peak_after_24h)
+                      )}
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
       )}
 
-      {wipes != null && rejectedCount > 0 && (
-        <button
-          type="button"
-          onClick={() => setShowRejected((v) => !v)}
-          className="mt-4 text-[12.5px] text-ink-3 underline decoration-rule underline-offset-4 transition-colors hover:text-ink"
-        >
-          {showRejected
-            ? 'Скрыть отбракованные записи'
-            : `Ещё ${thousands(rejectedCount)} ${plural(rejectedCount, 'запись отбракована', 'записи отбраковано', 'записей отбраковано')} — рестарты и сбои замера. Показать`}
-        </button>
-      )}
+      <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2">
+        {rows.length > HISTORY_ROWS && (
+          <button
+            type="button"
+            onClick={() => setShowAll((v) => !v)}
+            className="text-[14px] text-ink-2 underline decoration-rule-2 underline-offset-4 hover:text-ink"
+          >
+            {showAll ? 'Свернуть' : `Показать все ${rows.length}`}
+          </button>
+        )}
+        {wipes != null && rejectedCount > 0 && (
+          <button
+            type="button"
+            onClick={() => setShowRejected((v) => !v)}
+            className="text-[14px] text-ink-3 underline decoration-rule underline-offset-4 hover:text-ink"
+          >
+            {showRejected
+              ? 'Скрыть отбракованные'
+              : `Ещё ${thousands(rejectedCount)} ${plural(rejectedCount, 'запись отбракована', 'записи отбраковано', 'записей отбраковано')} — рестарты и сбои`}
+          </button>
+        )}
+      </div>
     </section>
   )
 }
 
-/* ------------------------------------------------------------- Техданные */
-
-function TechPanel({ server }: { server: ServerDetail }) {
-  const map = isJunkMapName(server.map_name) ? null : server.map_name
-  // Пустые строки не показываем (2026-10-02): «Карта —» рядом с «Размер
-  // карты 4750» читалось как противоречие.
-  const rows = (
-    [
-      ['Адрес', server.ip ? <span className="num">{server.ip}{server.port ? ':' + server.port : ''}</span> : null],
-      ['Страна', server.country ? <span className="num uppercase">{server.country}</span> : null],
-      ['Карта', map],
-      ['Размер карты', server.map_size ? <span className="num">{server.map_size}</span> : null],
-      ['Лимит группы', server.team_limit],
-      ['Вайп чертежей', server.bp_wipe],
-    ] as Array<[string, React.ReactNode]>
-  ).filter(([, v]) => v != null && v !== '')
-
-  return (
-    <section className="plate px-4 pt-6 pb-5 sm:px-5">
-      <span className="plate-tab">сервер</span>
-      <dl className="m-0">
-        {rows.map(([k, v]) => (
-          <div key={k} className="flex items-baseline justify-between gap-4 border-b border-rule py-2">
-            <dt className="text-[12.5px] text-ink-3">{k}</dt>
-            <dd className="m-0 max-w-[60%] text-right text-[12.5px] text-ink-2">{v}</dd>
-          </div>
-        ))}
-      </dl>
-      <a
-        href="https://t.me/RustPeek_Bot"
-        target="_blank"
-        rel="noopener"
-        className="btn mt-4 w-full"
-      >
-        Следить за вайпами в боте
-      </a>
-      <p className="mt-2 text-[11.5px] leading-relaxed text-ink-3">
-        Бот напишет в телеграм, когда здесь подтвердится вайп. На сайте подписки пока нет.
-      </p>
-    </section>
-  )
-}
-
-/* Число — моноширинным, слово — обычным: иначе «7 дней» набиралось цифровым
-   шрифтом целиком, и пробел выходил вдвое шире. */
-function DaysValue({ text, className }: { text?: string | null; className?: string }) {
-  const m = /^(\d+)\s+(.*)$/.exec(text ?? '')
-  if (!m) return <span className={className}>{text}</span>
-  return (
-    <span className={className}>
-      <span className="num">{m[1]}</span> {m[2]}
-    </span>
-  )
-}
-
-/** Ближайший глобал как граница «не позже» — только если он в пределах 10 суток:
-    за месяц до глобала такая граница ничего не говорит. */
+/** Ближайший глобал как граница «не позже» — только если он в пределах 10 суток. */
 function forcedBound(server: ServerDetail): NextWipe | null {
   const bound = nextWipe(server.forced_wipe)
   if (bound.tone === 'unknown' || bound.hours == null || bound.hours > 240) return null
   return bound
 }
 
-/* Откуда дата вайпа, если сам вайп мы не наблюдали (2026-09-30). Смена карты —
-   факт; всё остальное — оценка, и так и должно быть написано. */
+/* Откуда дата вайпа, если сам вайп не наблюдался. Смена карты — факт;
+   всё остальное — оценка, и так и должно быть написано. */
 const BASIS_NOTE: Record<string, string> = {
   global:
-    'Сам вайп мы не видели: время рождения карты этого сервера нам недоступно. Дата — предположение: в первый четверг месяца Facepunch вайпает все серверы.',
+    'Сам вайп я не видел: время рождения карты этого сервера недоступно. Дата — предположение: в первый четверг месяца Facepunch вайпает все серверы.',
   online:
-    'Дата — по провалу онлайна, смену карты мы не видели. Такая оценка верна примерно в половине случаев.',
-  name: 'Дата — из названия сервера, сам вайп мы не видели.',
-  bm: 'Дата — из поля BattleMetrics, сам вайп мы не видели.',
+    'Дата — по провалу онлайна, смену карты я не видел. Такая оценка верна примерно в половине случаев.',
+  name: 'Дата — из названия сервера, сам вайп я не видел.',
+  bm: 'Дата — из поля BattleMetrics, сам вайп я не видел.',
 }
